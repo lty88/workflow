@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1b5cff">
+  <title>行知 · 活动流程 ERP 交互原型</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="reviewbar">
+    <span><strong>交互评审</strong><span class="review-note">演示数据 · 仅本地保存</span></span>
+    <div class="review-controls">
+      <div class="switcher" aria-label="切换原型终端">
+        <button data-action="device" data-id="pc" id="pc-switch" aria-pressed="true">PC 管理端</button>
+        <button data-action="device" data-id="mobile" id="mobile-switch" aria-pressed="false">移动 H5</button>
+      </div>
+      <a href="flow.html" class="link-button">流程全景 ↗</a>
+      <a href="config.html" class="link-button">配置中心 ↗</a>
+      <label class="role-control">演示身份 <select id="role-select" aria-label="演示身份"></select></label>
+      <button class="review-reset" data-action="reset">重置演示</button>
+    </div>
+  </div>
+  <div class="app-shell" id="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">行</span><div>行知<span>活动流程 ERP</span></div></div>
+      <div class="workspace">树人教育 · 内部工作空间</div>
+      <nav id="desktop-nav" aria-label="管理端主导航"></nav>
+      <div class="sidebar-foot"><span class="live-dot"></span> 轻量协作，有序流转<small>产品评审稿 V0.1</small></div>
+    </aside>
+    <div class="workspace-main">
+      <header class="app-header"><div class="breadcrumb" id="breadcrumb"></div><div class="identity" id="identity"></div></header>
+      <main id="main" aria-label="活动工作区"></main>
+      <nav class="mobile-nav" id="mobile-nav" aria-label="移动端主导航"></nav>
+    </div>
+  </div>
+  <dialog id="action-dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <noscript>请启用 JavaScript 以使用交互原型。需求文档可在 docs 目录阅读。</noscript>
+  <script src="app.js"></script>
+</body>
+</html>

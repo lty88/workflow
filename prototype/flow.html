@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>活动动态工作流程 · 行知 ERP</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <header class="topbar"><a href="index.html" class="back">← 返回活动原型</a><span>行知 · 流程设计评审 <b>V0.2</b></span><a href="config.html">配置中心 ↗</a><a href="../docs/动态流程设计.md">设计说明 ↗</a></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">ACTIVITY WORKFLOW</p><h1>活动工作流程</h1><p class="subtitle">阶段清晰，任务按需编排。点击环节查看依赖，插入新任务或模拟推进。</p></div><button class="primary" data-action="add">＋ 新增环节／子流程</button></div>
+    <div class="scenarios" role="group" aria-label="选择流程场景" id="scenarios"></div>
+    <div class="scenario-note" id="scenario-note"></div>
+    <div class="workarea">
+      <section class="map-panel" aria-label="动态流程图"><div class="map-toolbar"><strong id="map-title"></strong><div class="legend"><span class="done">已完成</span><span class="ready">可办理</span><span class="waiting">等前置</span><span class="optional">非阻塞</span></div></div><div class="map-scroll"><div class="canvas" id="canvas"><svg id="edges" aria-hidden="true"></svg><div id="columns" class="columns"></div></div></div><div class="map-foot"><span id="map-summary" aria-live="polite"></span><button data-action="reset" class="text-button">恢复当前场景</button></div></section>
+      <aside class="inspector" id="inspector" aria-label="选中环节详情"></aside>
+    </div>
+    <section class="principles"><article><span>01</span><div><h2>审批与筹备可以穿插</h2><p>询期与资料准备可提前。正式开办仍等待必要审批、资源与人员到位。</p></div></article><article><span>02</span><div><h2>新增环节要接回流程</h2><p>必办任务加入后继依赖；并行任务全部完成再汇合；知会不阻塞主线。</p></div></article><article><span>03</span><div><h2>实例调整保留历史</h2><p>新增只影响这场活动未完成的部分，记录结构版本和调整原因。</p></div></article></section>
+    <section class="audit"><div><h2>本场景调整记录</h2><small>流程图演示独立保存，不会改变原工单待办。</small></div><div id="audit-list"></div></section>
+    <p class="footnote">本页用于评审流程结构。完成按钮模拟各环节办理，真实系统按任务角色授权；当前内容保存在此浏览器。</p>
+  </main>
+  <dialog id="insert-dialog" aria-labelledby="insert-title"><form id="insert-form"><div class="dialog-heading"><div><p class="eyebrow">INSERT WORKFLOW</p><h2 id="insert-title">新增一个业务环节</h2></div><button type="button" data-action="close" aria-label="关闭">×</button></div><div class="dialog-body"><div id="insert-error" role="alert" hidden></div><label>环节名称<input name="name" required minlength="2" maxlength="40" placeholder="例如：专家方案复核"></label><div class="form-row"><label>环节类型<select name="kind"><option value="approval">审批</option><option value="task">办理任务</option><option value="notice">知会</option><option value="subflow">子流程：资料补充 → 专项审核</option></select></label><label>负责人<input name="owner" required minlength="2" maxlength="30" placeholder="例如：教研专家"></label></div><label>围绕哪个环节调整<select name="anchor" id="anchor-select"></select></label><div class="form-row"><label>插入位置<select name="position"><option value="before">该环节之前</option><option value="after">该环节之后</option><option value="parallel">与该环节并行</option></select></label><label>对后续的影响<select name="blocking"><option value="required">必办，完成后才能流转</option><option value="optional">协作，不阻塞后续</option></select></label></div><p class="insert-hint" id="insert-hint">必办任务将重接未完成后继的依赖，已完成记录保持原样。</p><label>调整原因<textarea name="reason" required minlength="5" maxlength="200" placeholder="说明为什么需要增加该环节，至少 5 字"></textarea></label></div><div class="dialog-actions"><button type="button" data-action="close">取消</button><button type="submit" class="primary">确认加入当前场景</button></div></form></dialog>
+  <div class="feedback" id="feedback" role="status" aria-live="polite" hidden></div>
+  <script src="flow.js"></script>
+</body>
+</html>

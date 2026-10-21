@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>行知 · 活动配置中心</title><style>
+:root{font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#233047;background:#f3f5f9;font-size:14px;line-height:1.6;font-synthesis:none;--blue:#235de9;--muted:#7b869b;--line:#e7ebf2;--nav:#14243f;--green:#188876;--orange:#bd7823;--red:#d24d55}
+*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}button:focus-visible,a:focus-visible{outline:3px solid #90b4ff;outline-offset:3px}a{color:var(--blue);text-decoration:none}button{border:0;background:none;color:inherit}h1,h2,h3,p{margin:0}h1{font-size:27px;font-weight:650;letter-spacing:-.7px;line-height:1.35}h2{font-size:17px;font-weight:650}h3{font-size:15px;font-weight:600}small,.muted{color:var(--muted)}small{font-size:12px}strong{font-weight:600}[hidden]{display:none!important}.reviewbar{min-height:57px;padding:10px 25px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border-bottom:1px solid var(--line)}.reviewbar>span{white-space:nowrap}.reviewbar strong{font-size:13px}.review-note{color:#8a94a6;font-size:12px;margin-left:12px}.review-controls{display:flex;align-items:center;gap:18px}.switcher{background:#edf1f7;padding:3px;border-radius:7px;display:flex}.switcher button{font-size:12px;padding:5px 12px;border-radius:5px;min-height:30px}.switcher button[aria-pressed=true]{background:#fff;box-shadow:0 1px 4px #18284c16;color:var(--blue);font-weight:600}.role-control{display:flex;gap:8px;align-items:center;font-size:12px;color:#78859a}.role-control select{max-width:210px;font-size:12px;border:1px solid #dfe4ee;border-radius:6px;padding:6px;color:#283b57;background:white}.review-reset{font-size:12px;color:#758198;text-decoration:underline}.app-shell{display:flex;min-height:calc(100vh - 57px)}.sidebar{width:208px;flex:none;background:var(--nav);color:#a0aec5;display:flex;flex-direction:column;padding:30px 18px 20px}.brand{display:flex;gap:12px;align-items:center;color:white;font-size:23px;letter-spacing:2px;padding:0 12px}.brand-mark{width:37px;height:37px;display:grid;place-items:center;background:#4474ed;border-radius:11px;font-size:19px}.brand>div>span{display:block;font-size:10px;letter-spacing:1px;color:#91a3c4;margin-top:1px}.workspace{font-size:11px;color:#7388ac;margin:27px 10px 24px;padding-top:19px;border-top:1px solid #ffffff0d}nav button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border-radius:7px}.sidebar nav button{padding:12px 14px;margin-bottom:7px;font-size:13px;color:#adbbd1}.sidebar nav button.active{background:#2a4166;color:#fff}.nav-symbol{font-size:16px;width:19px;text-align:center}.nav-count{margin-left:auto;background:#4067ad;color:#fff;font-size:10px;padding:0 6px;border-radius:4px}.sidebar-foot{margin-top:auto;padding:60px 10px 0;font-size:11px;color:#91a3bf}.sidebar-foot small{display:block;font-size:10px;margin:9px 0 0 12px;color:#587091}.live-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#57b8a3;margin-right:5px}.workspace-main{flex:1;min-width:0}.app-header{height:69px;padding:0 32px;background:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}.breadcrumb{font-size:12px;color:#8e9aaf}.breadcrumb span{color:#384b66;margin-left:11px}.identity{display:flex;gap:10px;align-items:center;font-size:12px}.avatar{width:31px;height:31px;display:grid;place-items:center;background:#e9efff;color:var(--blue);border-radius:50%;font-weight:600}.identity small{display:block;font-size:10px}main{max-width:1500px;margin:auto;padding:30px 32px 42px}.page-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px}.page-heading p{font-size:12px;color:var(--muted);margin-top:8px}.eyebrow{color:var(--blue);font-size:10px;font-weight:650;letter-spacing:1.2px;margin-bottom:7px}.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:white;border:1px solid #dce3ef;padding:9px 16px;line-height:1.5;border-radius:7px;font-size:12px;white-space:nowrap;min-height:37px}.btn:hover{background:#f5f8ff}.btn.primary{background:var(--blue);border-color:var(--blue);color:white;box-shadow:0 3px 7px #235de91b}.btn.primary:hover{background:#154fd3}.btn.danger{color:#bd424e;background:#fff8f8;border-color:#f1cfd3}.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}.btn.small{padding:6px 11px;min-height:31px}.link-button{color:var(--blue);font-size:12px;padding:4px 0}.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px;margin-bottom:24px}.stat{background:white;border:1px solid var(--line);border-radius:10px;padding:20px 22px;text-align:left;position:relative}.stat .stat-label{font-size:12px;color:#7a889e}.stat .stat-number{display:block;font-size:30px;font-weight:600;letter-spacing:-1px;color:#233956;margin:6px 0}.stat .stat-note{font-size:10px;color:#8f9aab}.stat .stat-icon{position:absolute;right:20px;top:20px;background:#f1f5ff;color:#708cbd;border-radius:8px;width:31px;height:31px;display:grid;place-items:center;font-size:14px}.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:22px}.panel{background:#fff;border:1px solid var(--line);border-radius:10px;min-width:0}.panel-header{padding:19px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid #f0f2f6}.panel-body{padding:22px}.panel-header h2{font-size:14px}.count-tag{font-size:10px;color:var(--blue);background:#ecf2ff;border-radius:4px;padding:2px 7px;margin-left:6px}.task-row{padding:17px 22px;border-bottom:1px solid #f0f2f6;display:flex;align-items:center;gap:14px}.task-row:last-child{border:0}.task-row .task-icon{width:35px;height:39px;background:#eef3fd;color:#6f8cc4;border-radius:7px;display:grid;place-items:center;flex:none}.task-copy{flex:1;min-width:0}.task-copy>button{font-size:13px;font-weight:550;text-align:left;line-height:1.6;padding:0;word-break:break-word}.task-copy p{font-size:11px;color:#8a96a9;margin-top:5px}.task-row .tag{font-size:10px}.schedule-item{display:flex;gap:15px;margin-bottom:23px}.schedule-item:last-child{margin:0}.date-block{background:#f3f6fb;border-radius:6px;width:43px;flex:none;text-align:center;padding:4px 0;height:49px;font-size:18px;color:#405676;font-weight:600;line-height:1.3}.date-block small{font-size:9px;display:block;font-weight:400}.schedule-item strong{font-size:12px;display:block;line-height:1.7}.schedule-item p{font-size:10px;color:var(--muted);margin-top:5px}.notice{border-radius:7px;background:#edf3ff;color:#456596;padding:12px 15px;font-size:12px;line-height:1.8;margin-bottom:20px}.notice.warning{background:#fff6e9;color:#9d702d}.notice.error{background:#fff0f1;color:#b84a55}.notice.success{background:#edf8f5;color:#267d69}.tag{display:inline-flex;align-items:center;gap:5px;border-radius:5px;padding:3px 8px;background:#f0f2f5;color:#778396;font-size:11px;white-space:nowrap}.tag::before{content:"";width:4px;height:4px;border-radius:50%;background:currentColor}.tag.blue{background:#eef3ff;color:#3466ce}.tag.orange{background:#fff4e4;color:#af781e}.tag.green{background:#eaf7f1;color:#23846c}.tag.red{background:#fceef0;color:#be535f}.tag.purple{background:#f3eefe;color:#8860c4}.table-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:18px 21px;border-bottom:1px solid var(--line)}.table-tools input{width:260px}.table-tools select{width:150px}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}th{background:#f8fafc;font-weight:500;color:#7f8ba0;font-size:11px;padding:13px 18px;white-space:nowrap}td{padding:17px 18px;border-bottom:1px solid #f0f2f5;vertical-align:middle}tbody tr:last-child td{border:0}td.name-col{min-width:240px}td.name-col button{padding:0;text-align:left;font-weight:550;line-height:1.7}td small{display:block;margin-top:5px;font-size:10px}.table-foot{padding:13px 21px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:#91a0b4;font-size:11px}.empty{padding:45px 20px;text-align:center;color:#8b98ac;font-size:13px}.empty strong{display:block;font-size:17px;color:#53647f;margin-bottom:7px}.empty .btn{margin-top:17px}input,select,textarea{background:#fff;border:1px solid #dce3ee;padding:9px 11px;border-radius:6px;line-height:1.5;color:#31435c;max-width:100%;min-width:0}input:focus,select:focus,textarea:focus{outline:2px solid #a6bfff;outline-offset:1px}textarea{min-height:104px;resize:vertical}label.field{display:flex;flex-direction:column;gap:7px;font-size:12px;margin-bottom:18px;color:#51617c}label.field b{color:#d05a61;font-weight:500;margin-left:3px}.field small{font-size:11px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}.form-grid .full{grid-column:1/-1}.form-width{max-width:930px;margin:0 auto}.steps{display:flex;align-items:center;justify-content:center;gap:35px;padding:24px;border-bottom:1px solid var(--line)}.step{display:flex;align-items:center;gap:9px;color:#9aa6b7;font-size:12px}.step>span{background:#f0f3f7;border-radius:50%;width:25px;height:25px;display:grid;place-items:center;font-size:11px}.step.active{color:var(--blue);font-weight:600}.step.active>span{background:var(--blue);color:#fff}.step.done>span{background:#eaf4ff;color:var(--blue)}.form-section{padding:27px 32px 14px}.section-title{margin-bottom:23px;padding-bottom:12px;border-bottom:1px solid #f0f3f7;font-size:15px}.checks{display:flex;gap:10px 22px;flex-wrap:wrap;margin-bottom:15px}.checks label{display:flex;gap:6px;align-items:center;font-size:12px;min-height:30px}.checks input{accent-color:var(--blue);width:15px;height:15px}.form-footer{border-top:1px solid var(--line);padding:18px 30px;display:flex;justify-content:space-between;gap:10px;align-items:center}.budget-row{display:grid;grid-template-columns:120px 135px 1fr 35px;gap:10px;align-items:center;margin-bottom:12px}.budget-row input{width:100%}.budget-total{padding:17px 0;text-align:right;font-size:12px;color:var(--muted)}.budget-total strong{font-size:23px;color:var(--blue);margin-left:10px}.flow-inline{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:13px 0}.flow-chip{background:#f0f4fa;border-radius:5px;padding:6px 9px;font-size:11px;color:#647794}.required-note{font-size:11px;color:#909daf}.back{font-size:12px;color:#7b8ba4;margin-bottom:18px;padding:0}.detail-layout{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:22px}.detail-summary{padding:24px}.detail-title{display:flex;align-items:flex-start;gap:15px;justify-content:space-between}.detail-title h1{font-size:22px;letter-spacing:-.4px}.detail-title p{font-size:11px;color:var(--muted);margin-top:8px}.next-step{margin-top:23px;padding:13px 16px;background:#f3f7fe;border-radius:7px;display:flex;justify-content:space-between;gap:15px;font-size:12px}.next-step strong{display:block;color:#365d9a;font-size:13px;margin-bottom:4px}.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px 22px;margin:24px 0 0}.info-grid dt{font-size:11px;color:#8995a9;margin-bottom:5px}.info-grid dd{margin:0;font-size:12px;word-break:break-word}.detail-section{border-top:1px solid #eef1f5;padding-top:23px;margin-top:24px}.detail-section h2{font-size:14px;margin-bottom:15px}.detail-section p{font-size:12px;color:#67778d;white-space:pre-wrap;line-height:1.9;overflow-wrap:anywhere}.detail-section .sub-label{font-size:11px;color:#98a2b2;margin:17px 0 5px}.detail-actions{background:white;border:1px solid var(--line);border-radius:8px;padding:17px 20px;margin-top:17px;display:flex;gap:10px;flex-wrap:wrap}.timeline{padding:23px 22px}.timeline-row{position:relative;padding:0 0 25px 25px;border-left:1px solid #e5eaf3;margin-left:6px}.timeline-row:last-child{padding-bottom:0;border:0}.timeline-row::before{content:"";position:absolute;left:-5px;top:4px;width:8px;height:8px;background:#d7dfed;border:2px solid #fff;border-radius:50%}.timeline-row.done::before{background:#429e88}.timeline-row.current::before{background:#4279ee;box-shadow:0 0 0 4px #eef3ff}.timeline-row strong{font-size:12px;color:#5f708a}.timeline-row.current strong{color:var(--blue)}.timeline-row p{font-size:11px;color:#8995a8;margin-top:4px}.timeline-row small{font-size:10px}.history{padding:0 22px 18px}.history-item{padding:13px 0;border-bottom:1px solid var(--line);font-size:11px}.history-item:last-child{border:0}.history-item strong{font-weight:500;color:#485c79}.history-item p{color:#8491a5;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:4px}.history-item time{color:#a0aabd;font-size:10px;display:block;margin-top:5px}.stack{display:grid;gap:20px;align-content:start}.rules-grid{display:grid;grid-template-columns:1fr 310px;gap:23px}.rule-node{display:flex;gap:16px;align-items:center;padding:17px 0;border-bottom:1px solid var(--line)}.rule-number{background:#edf3ff;color:var(--blue);width:29px;height:29px;display:grid;place-items:center;border-radius:50%;font-size:12px}.rule-node p{font-size:11px;color:var(--muted);margin-top:3px}.rule-node strong{font-size:13px}.rule-node:last-child{border:0}.divider{height:1px;background:var(--line);margin:24px 0}.mobile-nav{display:none}.phone-label{display:none}.mobile-cards{display:none}dialog{padding:0;border:1px solid #e1e7f1;border-radius:13px;max-width:560px;width:calc(100% - 32px);box-shadow:0 20px 90px #10234340;color:#314460;max-height:85vh}dialog::backdrop{background:#13234165;backdrop-filter:blur(2px)}.dialog-head{padding:21px 25px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;align-items:center}.dialog-head h2{font-size:17px}.dialog-body{padding:22px 25px 10px}.dialog-foot{display:flex;justify-content:flex-end;gap:10px;padding:17px 25px 22px}.dialog-error{background:#fff0f1;color:#be4d5a;font-size:12px;padding:10px 12px;border-radius:5px;margin-bottom:15px}.dialog-body p{font-size:12px;color:#7b89a1;margin-bottom:16px}.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1b304e;color:white;border-radius:8px;padding:12px 22px;box-shadow:0 8px 35px #142b4133;max-width:90%;font-size:13px;z-index:20}.toast.error{background:#ab4654}.revision{margin-bottom:14px}.file-row{font-size:11px;background:#f5f7fb;padding:9px 12px;border-radius:5px;display:flex;justify-content:space-between;margin-top:8px}.metric-inline{display:flex;gap:30px;margin:15px 0}.metric-inline strong{font-size:23px;display:block;color:#2b476c}.metric-inline span{font-size:11px;color:#8a98ab}.number{font-variant-numeric:tabular-nums}.pill-tabs{display:flex;gap:6px;margin-bottom:22px;flex-wrap:wrap}.pill-tabs button{padding:7px 14px;border-radius:6px;font-size:12px;color:#7c8ca6;background:#f0f3f8}.pill-tabs button.active{background:#e5edff;color:var(--blue)}.me-card{text-align:center;padding:30px 20px}.me-card .avatar{width:58px;height:58px;font-size:23px;margin:0 auto 13px}.me-card h2{margin-bottom:5px}.me-card p{font-size:12px;color:var(--muted)}.me-link{padding:16px 20px;display:flex;justify-content:space-between;font-size:13px;border-bottom:1px solid var(--line);width:100%}.me-link:last-child{border:0}.storage-warning{background:#fff4dc;color:#926b24;padding:9px 20px;font-size:12px}.mobile-mode{background:#e8edf5}.mobile-mode .app-shell{width:414px;max-width:100%;margin:28px auto;border:1px solid #d8e0ed;border-radius:19px;overflow:hidden;min-height:790px;background:#f4f6fa;box-shadow:0 12px 50px #1f3b6812}.mobile-mode .sidebar{display:none}.mobile-mode .workspace-main{position:relative;padding-bottom:75px}.mobile-mode .app-header{padding:16px 20px;height:69px}.mobile-mode .breadcrumb{font-size:15px;color:#2a3e5b;font-weight:600}.mobile-mode .breadcrumb span{display:none}.mobile-mode .identity>span:not(.avatar){display:none}.mobile-mode main{padding:24px 18px 30px}.mobile-mode h1{font-size:24px}.mobile-mode .page-heading{align-items:flex-start;gap:12px;margin-bottom:21px}.mobile-mode .page-heading p{font-size:11px}.mobile-mode .page-heading .btn{padding:8px 10px}.mobile-mode .stats{grid-template-columns:1fr 1fr;gap:11px;margin-bottom:20px}.mobile-mode .stat{padding:16px;border-radius:9px}.mobile-mode .stat .stat-number{font-size:26px}.mobile-mode .stat .stat-icon{display:none}.mobile-mode .stat .stat-note{font-size:10px}.mobile-mode .dashboard-grid{grid-template-columns:1fr;gap:18px}.mobile-mode .panel-header{padding:16px}.mobile-mode .task-row{padding:16px;gap:10px}.mobile-mode .task-row .task-icon{display:none}.mobile-mode .task-row .tag{display:none}.mobile-mode .panel-body{padding:18px}.mobile-mode .mobile-nav{display:flex;background:white;position:absolute;bottom:0;left:0;width:100%;padding:10px 5px max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--line);z-index:5}.mobile-mode .mobile-nav button{display:flex;flex-direction:column;gap:1px;justify-content:center;text-align:center;font-size:10px;color:#8a98ad;border-radius:0;padding:4px;min-height:44px}.mobile-mode .mobile-nav button.active{color:var(--blue)}.mobile-mode .mobile-nav .nav-symbol{font-size:19px;line-height:1.3}.mobile-mode .table-wrap,.mobile-mode .table-foot{display:none}.mobile-mode .mobile-cards{display:block}.mobile-mode .table-tools{padding:13px;gap:8px}.mobile-mode .table-tools input{width:100%;flex:1;min-width:120px}.mobile-mode .table-tools select{width:115px}.mobile-mode .table-tools .btn{display:none}.mobile-card{padding:17px 16px;border-bottom:1px solid var(--line)}.mobile-card:last-child{border:0}.mobile-card button{font-size:14px;text-align:left;padding:0;font-weight:550;line-height:1.7;display:block}.mobile-card p{font-size:11px;color:#8b97a9;margin-top:8px}.mobile-card-foot{display:flex;justify-content:space-between;margin-top:14px;align-items:center;font-size:12px;color:#637691}.mobile-mode .detail-layout{grid-template-columns:1fr;gap:16px}.mobile-mode .detail-summary{padding:19px 16px}.mobile-mode .detail-title{display:block}.mobile-mode .detail-title .tag{margin-top:13px}.mobile-mode .detail-title h1{font-size:20px;line-height:1.6}.mobile-mode .info-grid{grid-template-columns:1fr 1fr;gap:18px 13px}.mobile-mode .detail-actions{padding:13px;gap:8px;position:sticky;bottom:0;box-shadow:0 -5px 15px #2c45640a}.mobile-mode .detail-actions .btn{min-height:43px;flex:1;padding:9px 10px;font-size:12px}.mobile-mode .next-step{display:block;padding:12px}.mobile-mode .form-grid{grid-template-columns:1fr;gap:0}.mobile-mode .form-section{padding:22px 17px 10px}.mobile-mode .steps{gap:13px;padding:17px 8px}.mobile-mode .step{gap:6px;font-size:11px}.mobile-mode .step>span{width:22px;height:22px}.mobile-mode .form-footer{padding:15px;flex-wrap:wrap;position:sticky;bottom:0;background:white;z-index:3}.mobile-mode .form-footer .btn{min-height:43px;padding:10px 12px}.mobile-mode .budget-row{grid-template-columns:1fr 1fr 30px;gap:8px;padding-bottom:14px;border-bottom:1px solid var(--line)}.mobile-mode .budget-row .budget-note{grid-column:1/3;grid-row:2}.mobile-mode .budget-row .budget-remove{grid-column:3;grid-row:1/3}.mobile-mode input,.mobile-mode textarea,.mobile-mode select{font-size:16px}.mobile-mode .table-tools select{font-size:13px}.mobile-mode .rules-grid{grid-template-columns:1fr}.mobile-mode .flow-inline{gap:5px}.mobile-mode .flow-chip{font-size:10px}.mobile-mode .pill-tabs{gap:5px}.mobile-mode .pill-tabs button{font-size:11px;padding:7px 10px}.check-list{display:grid;gap:13px;margin:20px 0}.check-list label{display:flex;gap:9px;align-items:flex-start;font-size:12px}.check-list input{accent-color:var(--blue);margin-top:4px}.flow-subtitle{font-size:11px;color:#8794a9;margin-bottom:15px}.no-break{white-space:nowrap}
+@media(min-width:1700px){main{padding-top:40px}.stats{gap:24px}.dashboard-grid{gap:26px}}
+@media(max-width:1100px){.sidebar{width:178px;padding-left:12px;padding-right:12px}.brand{font-size:21px}.workspace{font-size:10px}.app-header{padding:0 24px}main{padding:26px 24px}.dashboard-grid{grid-template-columns:1.3fr 1fr}.stats{gap:12px}.stat{padding:18px}.stat .stat-icon{display:none}.detail-layout{grid-template-columns:minmax(0,1fr) 250px}.rules-grid{grid-template-columns:1fr 270px}.review-note{display:none}}
+@media(max-width:750px){.reviewbar{padding:10px 13px;flex-wrap:wrap;gap:8px}.reviewbar>span{display:none}.review-controls{gap:10px;justify-content:space-between;width:100%;flex-wrap:wrap}.role-control{font-size:11px;gap:5px}.role-control select{max-width:185px}.review-reset{font-size:11px}.mobile-mode .app-shell{margin:0 auto;border-radius:0;border:0;min-height:calc(100vh - 85px);width:430px;box-shadow:none}.app-shell:not(.mobile-mode .app-shell) .sidebar{width:155px}.dashboard-grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.detail-layout,.rules-grid{grid-template-columns:1fr}.info-grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.page-heading{flex-wrap:wrap}.form-section{padding:24px 20px}.budget-row{grid-template-columns:100px 100px 1fr 25px}.identity>span:not(.avatar){display:none}.steps{gap:17px}.review-controls .switcher button{padding:5px 8px}}
+@media(max-width:400px){.role-control{width:100%;justify-content:space-between}.role-control select{flex:1;max-width:none}.review-controls{gap:7px}.mobile-mode .app-shell{min-height:820px}.mobile-mode main{padding:22px 13px}.mobile-mode .page-heading .btn{font-size:11px}.mobile-mode .steps{gap:8px}.mobile-mode .step{font-size:10px}.mobile-mode .task-row{padding:14px}.mobile-mode .stat{padding:13px}.review-reset{margin-left:auto}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+.review-controls{flex-wrap:wrap}.reviewbar{flex-wrap:wrap}
+
+</style><style>
+.config-app{background:#f4f6fa}.config-top{height:65px;display:flex;justify-content:space-between;align-items:center;padding:0 29px;background:#fff;border-bottom:1px solid #e5eaf2;gap:15px}.config-top>a{font-size:12px;color:#7b8da7}.config-brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:600;letter-spacing:1px}.config-brand>span{background:#3466e6;color:#fff;display:grid;place-items:center;width:29px;height:29px;border-radius:8px;font-size:15px}.config-brand small{font-weight:400;letter-spacing:0;font-size:12px}.config-brand b{font-size:10px;background:#edf3ff;color:#386acb;padding:2px 5px;border-radius:4px;font-weight:500;letter-spacing:0}.config-shell{display:flex;min-height:calc(100vh - 65px)}.config-sidebar{width:210px;background:#152640;padding:28px 17px;flex:none;display:flex;flex-direction:column}.sidebar-caption{font-size:11px;color:#7087aa;padding:0 12px;margin-bottom:22px}.config-sidebar nav button{color:#a4b5d0;padding:12px 14px;font-size:13px;margin-bottom:7px}.config-sidebar nav button.active{background:#2b4268;color:#fff}.config-sidebar nav .nav-symbol{font-size:15px}.config-admin{display:flex;gap:10px;align-items:center;color:#c3d0e4;font-size:12px;margin-top:auto;padding:50px 10px 0}.config-admin .avatar{background:#294367;color:#a9c1e7}.config-admin small{display:block;color:#7289ad;font-size:10px}.config-workspace{min-width:0;flex:1}.config-toolbar{min-height:65px;border-bottom:1px solid #e5eaf2;display:flex;align-items:center;justify-content:space-between;padding:12px 31px;background:#fff;gap:15px}#config-version{font-size:12px;color:#7889a1}#config-version strong{color:#4d6b97;font-size:12px;font-weight:550}.config-workspace>main{max-width:1500px;padding:29px 31px 45px}.config-page-heading{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:23px}.config-page-heading h1{font-size:25px}.config-page-heading p{font-size:12px;color:#8493a9;margin-top:8px}.config-page-heading .eyebrow{font-size:10px}.config-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(310px,.85fr);gap:22px;align-items:start}.config-layout.org-layout{grid-template-columns:300px minmax(0,1fr)}.config-layout.permission-layout{grid-template-columns:215px minmax(0,1fr)}.config-page-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.config-module{padding:22px;display:block;text-align:left;width:100%;border-radius:9px;border:1px solid #e4eaf3;background:#fff;color:#526985;line-height:1.8}.config-module h2{font-size:15px;color:#314b70;margin-bottom:7px}.config-module p{font-size:12px;color:#8a98ad}.config-module .module-foot{margin-top:18px;display:flex;justify-content:space-between;font-size:11px;color:#7991b7}.config-module:hover{border-color:#adc3ee;background:#fbfcff}.relation-line{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:20px}.relation-line span{padding:8px 11px;background:#edf3ff;color:#6884b4;border-radius:6px;font-size:12px}.relation-line i{font-style:normal;color:#a0acc0}.config-field-row{display:flex;gap:12px;padding:16px 20px;border-bottom:1px solid #edf1f6;align-items:flex-start}.config-field-row:last-child{border:0}.field-type{flex:none;width:31px;height:31px;display:grid;place-items:center;background:#eff4fd;color:#7d97c2;border-radius:6px;font-size:11px}.field-copy{flex:1;min-width:0}.field-copy strong{font-size:12px;color:#435c7e}.field-copy .key-label{font-size:10px;color:#97a3b5;margin-left:6px;font-weight:400}.field-copy p{color:#8b9bb1;font-size:10px;margin-top:5px;overflow-wrap:anywhere}.field-copy .require{font-size:9px;background:#fff2e6;color:#b68038;padding:1px 5px;border-radius:3px;margin-left:5px}.row-actions{display:flex;gap:4px;flex-wrap:wrap}.row-actions button{font-size:11px;color:#7e92b4;padding:3px 5px;min-height:26px}.row-actions button:hover{color:#2d65d8}.row-actions .delete{color:#c6777d}.config-form-preview{padding:23px}.config-form-preview .field{margin-bottom:17px}.config-form-preview input,.config-form-preview select,.config-form-preview textarea{font-size:13px}.config-form-preview .preview-context{font-size:11px;color:#8b9ab0;margin-bottom:18px;display:flex;justify-content:space-between;gap:10px}.preview-errors{color:#b65460;background:#fff1f2;padding:12px 15px;border-radius:7px;font-size:12px;margin-bottom:18px}.preview-errors ul{padding-left:18px;margin:5px 0 0}.node-config{padding:18px 20px;border-bottom:1px solid #edf0f6;position:relative}.node-config:last-child{border:0}.node-config header{display:flex;justify-content:space-between;align-items:center;gap:10px}.node-config h3{font-size:13px}.node-config .node-meta{font-size:11px;color:#8e9bb1;margin-top:9px;line-height:1.9}.node-config .node-deps{font-size:10px;color:#879ab9;margin-top:8px}.node-config .protected{font-size:9px;color:#4f8c80;background:#edf8f3;padding:2px 6px;border-radius:3px;margin-left:5px}.config-plan-node{padding:12px 0 12px 24px;margin-left:5px;border-left:1px solid #dde5f1;position:relative}.config-plan-node::before{content:"";position:absolute;left:-4px;top:20px;width:7px;height:7px;background:#9db6df;border-radius:50%;border:2px solid #fff}.config-plan-node:last-child{border-left-color:transparent}.config-plan-node strong{font-size:12px;color:#527199}.config-plan-node p{font-size:11px;color:#8c9db5;margin-top:5px;line-height:1.8}.config-plan-node.done::before{background:#4b9f84}.config-plan-node.done strong{color:#428e76}.config-plan-node.active::before{background:#386ee0;box-shadow:0 0 0 3px #edf3ff}.config-plan-node .btn{margin-top:9px}.org-tree{padding:18px 13px}.org-row{width:100%;display:flex;align-items:center;gap:8px;min-height:42px;font-size:12px;text-align:left;border-radius:6px;color:#7388a7;padding:8px 10px}.org-row.selected{background:#edf3ff;color:#2c64d4}.org-row .dept-count{margin-left:auto;font-size:10px;color:#9ba8bb}.org-row .org-icon{color:#a5b6ce}.inactive{opacity:.5}.people-list td{font-size:12px}.people-list td:first-child{min-width:100px}.role-list{padding:9px}.role-list>button{display:flex;justify-content:space-between;width:100%;padding:11px 12px;font-size:12px;color:#788eaf;border-radius:5px;gap:8px;text-align:left;min-height:43px}.role-list>button.active{background:#edf3ff;color:#366bdd}.role-list small{font-size:10px}.grant-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px 18px;padding:4px 0 18px}.grant-grid label{display:flex;gap:8px;align-items:center;font-size:12px;min-height:30px}.grant-grid input{width:15px;height:15px;accent-color:#2c65e7}.config-section-title{font-size:13px;margin-bottom:15px}.grant-section{border-bottom:1px solid #edf1f6;margin-bottom:21px;padding-bottom:5px}.grant-section:last-child{border:0;margin-bottom:0}.scope-help{font-size:11px;line-height:1.9;color:#93a0b4;margin-top:8px}.grant-members{display:flex;gap:8px;flex-wrap:wrap;font-size:11px}.grant-members span{background:#f0f4fa;padding:5px 9px;border-radius:5px;color:#778baa}.page-config-row{display:flex;align-items:center;gap:13px;padding:17px 20px;border-bottom:1px solid #edf1f6}.page-config-row:last-child{border:0}.page-config-row .page-copy{flex:1;min-width:0}.page-config-row strong{font-size:12px;color:#4e6689}.page-config-row p{font-size:10px;color:#90a0b6;margin-top:4px}.page-config-row input[type=checkbox]{width:15px;height:15px;accent-color:#3168e6}.group-switches{display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#7d91b0;padding:17px 20px;border-bottom:1px solid #e9edf5}.group-switches label{display:flex;align-items:center;gap:7px}.runtime-controls{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:17px 20px}.runtime-controls label{display:flex;gap:8px;align-items:center;font-size:12px;color:#8596b0}.runtime-controls select{font-size:12px;max-width:230px}.runtime-shell{display:grid;grid-template-columns:180px minmax(0,1fr);border:1px solid #e2e8f2;border-radius:10px;overflow:hidden;min-height:520px;background:white;margin-top:20px}.runtime-nav{padding:23px 12px;background:#f8fafc;border-right:1px solid #e8edf5}.runtime-nav .runtime-person{padding:0 9px 18px;font-size:13px;color:#4e6a93;font-weight:550}.runtime-person small{display:block;font-size:10px;color:#92a2b9;font-weight:400;margin-top:4px}.runtime-nav .runtime-group{font-size:10px;color:#a0adc0;padding:15px 10px 8px}.runtime-nav button{padding:10px 11px;min-height:40px;width:100%;text-align:left;font-size:12px;color:#7d92b0;display:block;border-radius:6px;margin-bottom:4px}.runtime-nav button.active{background:#e8f0ff;color:#366cdb}.runtime-content{padding:25px;min-width:0}.runtime-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:20px}.runtime-title h2{font-size:18px;color:#395b88}.runtime-title p{font-size:11px;color:#8fa0b8;margin-top:6px}.runtime-form-layout{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:25px}.runtime-form-layout .config-form-preview{padding:0}.runtime-form-layout .runtime-side{border-left:1px solid #e7edf6;padding-left:23px}.runtime-side h3{font-size:12px;color:#617c9f;margin-bottom:12px}.runtime-controls .source-tag{margin-left:auto;font-size:10px;color:#a08a54;background:#fff8e9;padding:4px 8px;border-radius:5px}.runtime-empty{padding:35px 15px;text-align:center;color:#96a5ba;font-size:12px}.runtime-record{display:flex;align-items:center;gap:15px;border:1px solid #e8edf5;border-radius:7px;padding:16px;margin-bottom:12px}.runtime-record>div{flex:1;min-width:0}.runtime-record strong{font-size:12px;color:#587499}.runtime-record p{font-size:10px;color:#9aa7ba;margin-top:5px}.runtime-detail .notice{font-size:11px}.runtime-detail .schema-summary{background:#f6f8fc;padding:15px;border-radius:7px;font-size:11px;color:#879ab6}.schema-summary dl{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:0}.schema-summary dt{font-size:10px;color:#9ca9bd}.schema-summary dd{font-size:12px;color:#597594;margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}.runtime-detail .config-plan-node{margin-left:8px}.config-audit-row{font-size:11px;padding:13px 0;border-bottom:1px solid #edf1f6;color:#788dac}.config-audit-row:last-child{border:0}.config-audit-row time{font-size:10px;color:#a0adc0;margin-left:10px}.config-audit-row p{font-size:10px;color:#99a7bc;margin-top:5px}.config-dialog-hint{font-size:11px;color:#93a2b8;margin-bottom:16px;line-height:1.9}.config-dialog-body .form-grid{gap:0 16px}.config-dialog-body textarea{min-height:75px}.config-dialog-body input,.config-dialog-body select,.config-dialog-body textarea{font-size:13px}.runtime-access{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}.runtime-access span{font-size:10px;background:#eef3fb;padding:4px 7px;border-radius:4px;color:#8096b7}.config-inline-heading{display:flex;justify-content:space-between;align-items:center;gap:15px;margin:0 0 15px}.config-inline-heading small{font-size:10px}.config-note{font-size:11px;color:#93a2b9;margin-top:17px;line-height:1.9}.config-mobile-tip{display:none}.config-rule-condition{display:grid;grid-template-columns:1fr 100px 110px;gap:8px}.config-rule-condition input,.config-rule-condition select{width:100%}.runtime-identity-inline{display:flex;gap:20px;flex-wrap:wrap;font-size:11px;color:#8da0bc;margin:0 0 20px}.readonly-chip{font-size:9px;background:#f1f4f9;color:#8195b3;padding:2px 6px;border-radius:3px;margin-left:5px}
+@media(max-width:1200px){.config-sidebar{width:180px;padding-left:12px;padding-right:12px}.config-workspace>main{padding:25px}.config-layout{grid-template-columns:1fr}.config-layout.org-layout{grid-template-columns:250px minmax(0,1fr)}.runtime-form-layout{grid-template-columns:1fr}.runtime-form-layout .runtime-side{border-left:0;border-top:1px solid #e7edf6;padding:20px 0 0}.config-form-preview .form-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:850px){.config-sidebar{width:155px}.config-toolbar{padding:12px 20px}.config-layout.org-layout,.config-layout.permission-layout{grid-template-columns:1fr}.role-list{display:flex;gap:4px;flex-wrap:wrap}.role-list>button{width:auto;padding:8px 11px;min-height:36px}.role-list small{display:none}.config-page-grid{grid-template-columns:1fr}.runtime-shell{grid-template-columns:140px 1fr}.runtime-content{padding:20px}.config-brand small{display:none}.config-page-heading{align-items:flex-start}.config-page-heading h1{font-size:23px}}
+@media(max-width:600px){.config-top{padding:0 15px;height:60px}.config-top>a{font-size:11px}.config-brand{font-size:17px;gap:6px}.config-brand b{display:none}.config-shell{display:block}.config-sidebar{width:100%;padding:10px 12px;background:#fff;border-bottom:1px solid #e5ebf5}.sidebar-caption,.config-admin{display:none}.config-sidebar nav{display:flex;overflow-x:auto;gap:6px}.config-sidebar nav button{width:auto;white-space:nowrap;margin:0;padding:9px 10px;color:#7b90b0;font-size:11px;min-height:42px;display:block}.config-sidebar nav button.active{background:#eaf1ff;color:#346bdc}.config-sidebar nav .nav-symbol{display:none}.config-toolbar{padding:12px 15px;gap:8px}.config-toolbar .btn{font-size:11px;padding:8px 10px;min-height:42px}.config-toolbar #config-version{font-size:10px}.config-workspace>main{padding:22px 15px}.config-page-heading{flex-wrap:wrap;gap:15px}.config-page-heading .btn{min-height:43px}.config-page-heading p{font-size:11px}.config-layout{gap:17px}.config-field-row{padding:15px;gap:9px}.field-type{display:none}.field-copy .key-label{display:block;margin:4px 0 0}.row-actions{max-width:95px;justify-content:flex-end}.row-actions button{min-height:35px;min-width:28px}.config-rule-condition{grid-template-columns:1fr}.grant-grid{grid-template-columns:1fr 1fr;gap:8px}.grant-grid label{font-size:11px;min-height:40px}.runtime-controls{padding:15px;gap:12px}.runtime-controls label{width:100%;justify-content:space-between}.runtime-controls select{max-width:none;flex:1;font-size:14px}.runtime-controls .source-tag{margin-left:0}.runtime-shell{display:block;margin-top:15px}.runtime-nav{border:0;border-bottom:1px solid #e6edf6;padding:15px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}.runtime-nav .runtime-person{width:100%;padding:0 0 8px}.runtime-nav .runtime-group{display:none}.runtime-nav button{width:auto;padding:8px 10px;margin:0;font-size:11px;min-height:42px}.runtime-content{padding:20px 15px}.config-form-preview{padding:20px 16px}.config-form-preview .form-grid{grid-template-columns:1fr}.config-app input,.config-app select,.config-app textarea{font-size:16px}.runtime-title{align-items:flex-start}.runtime-title h2{font-size:17px}.runtime-record{padding:13px;gap:10px}.runtime-record .btn{padding:7px 9px;min-height:42px}.schema-summary dl{grid-template-columns:1fr}.runtime-detail .notice{font-size:12px}.config-audit-row time{display:block;margin:4px 0 0}.config-rule-condition{gap:8px}.config-mobile-tip{display:block}.config-dialog-body .form-grid{grid-template-columns:1fr}.config-dialog-body input,.config-dialog-body select,.config-dialog-body textarea{font-size:16px}}
+
+</style></head>
+<body class="config-app">
+  <header class="config-top"><a href="活动流程ERP-可点击原型.html">← 活动原型</a><div class="config-brand"><span>行</span>行知 <small>活动配置中心</small><b>V0.3</b></div><a href="活动流程ERP-动态流程图.html">动态流程全景 ↗</a></header>
+  <div class="config-shell"><aside class="config-sidebar"><div class="sidebar-caption">公司配置工作空间</div><nav id="config-nav" aria-label="配置模块"></nav><div class="config-admin"><span class="avatar">许</span><div>许言<small>系统配置管理员</small></div></div></aside><div class="config-workspace"><div class="config-toolbar"><div id="config-version"></div><div class="actions"><button class="btn" data-c-action="save-draft">保存草案</button><button class="btn primary" data-c-action="publish">校验并发布</button></div></div><main id="config-main"></main></div></div>
+  <dialog id="config-dialog" aria-labelledby="config-dialog-title"><form id="config-dialog-form"><div class="dialog-head"><h2 id="config-dialog-title"></h2><button type="button" class="btn ghost small" data-c-action="close" aria-label="关闭">×</button></div><div class="dialog-body" id="config-dialog-body"></div><div class="dialog-foot"><button type="button" class="btn" data-c-action="close">取消</button><button type="submit" class="btn primary" id="config-dialog-confirm">保存到草案</button></div></form></dialog>
+  <div class="toast" id="config-toast" role="status" aria-live="polite" hidden></div>
+  <script>
+"use strict";
+
+const CM_PERMISSIONS = { "activity:read": "查看活动", "activity:create": "新建活动", "activity:submit": "提交申请", "approval:decide": "审核活动", "task:complete": "办理任务", "workflow:adjust": "调整流程", "config:manage": "管理配置" };
+const CM_COMPONENTS = { summary: ["工作台", "activity:read"], activity_list: ["活动列表", "activity:read"], activity_form: ["申请表单", "activity:create"], task_list: ["任务列表", "activity:read"], archive_list: ["档案列表", "activity:read"], config_overview: ["配置概览", "config:manage"] };
+const CM_SCOPES = { self: "本人", department: "本部门", department_tree: "本部门及下级", tasks: "本人相关任务", all: "全公司" };
+
+/**
+ * 克隆可序列化配置，隔离草案、已发布版本与申请快照。
+ * @param {unknown} value 待克隆配置
+ * @returns {unknown} 独立副本
+ */
+function cmCopy(value) { return JSON.parse(JSON.stringify(value)); }
+
+/**
+ * 生成用于本地配置对象的唯一标识。
+ * @param {string} prefix 业务对象前缀
+ * @returns {string} 本地对象标识
+ */
+function cmId(prefix) { return prefix + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8); }
+
+/**
+ * 生成未来五天的演示活动时间。
+ * @returns {string} 日期时间控件接受的本地时间
+ */
+function cmFuture() { const d = new Date(); d.setDate(d.getDate() + 5); d.setHours(9, 0, 0, 0); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
+
+/**
+ * 创建互相引用的组织、角色、菜单、表单和流程初始配置。
+ * @returns {object} 可发布的公司活动配置
+ */
+function cmSeedConfig() {
+  return {
+    version: 1,
+    departments: [{ id: "company", name: "树人教育", parent: "", manager: "u-liu", active: true }, { id: "research", name: "教育研究院", parent: "company", manager: "u-zhou", active: true }, { id: "d1", name: "教研一部", parent: "research", manager: "u-chen", active: true }, { id: "d2", name: "教研二部", parent: "research", manager: "u-du", active: true }, { id: "market", name: "营销中心", parent: "company", manager: "u-zhao", active: true }],
+    users: [
+      { id: "u-lin", name: "林晓", department: "d1", roles: ["applicant"], active: true }, { id: "u-chen", name: "陈宁", department: "d1", roles: ["department"], active: true },
+      { id: "u-zhou", name: "周岚", department: "research", roles: ["academic"], active: true }, { id: "u-zhao", name: "赵明", department: "market", roles: ["marketing"], active: true },
+      { id: "u-wang", name: "王舟", department: "d1", roles: ["coordinator"], active: true }, { id: "u-su", name: "苏禾", department: "d1", roles: ["executor"], active: true },
+      { id: "u-he", name: "何青", department: "d1", roles: ["archivist"], active: true }, { id: "u-xu", name: "许言", department: "company", roles: ["admin"], active: true },
+      { id: "u-qiao", name: "乔安", department: "d2", roles: ["applicant"], active: true }, { id: "u-du", name: "杜云", department: "d2", roles: ["department"], active: true },
+      { id: "u-liu", name: "刘文", department: "company", roles: ["director"], active: true }
+    ],
+    roles: [
+      { id: "applicant", name: "申请人", permissions: ["activity:read", "activity:create", "activity:submit"], scope: "self", pages: ["p-home", "p-list", "p-new"] },
+      { id: "department", name: "部门审核人", permissions: ["activity:read", "approval:decide"], scope: "department", pages: ["p-home", "p-list", "p-tasks"] },
+      { id: "academic", name: "教研审核人", permissions: ["activity:read", "approval:decide"], scope: "tasks", pages: ["p-home", "p-list", "p-tasks"] },
+      { id: "marketing", name: "营销审核人", permissions: ["activity:read", "approval:decide"], scope: "tasks", pages: ["p-home", "p-tasks"] },
+      { id: "director", name: "院负责人", permissions: ["activity:read", "approval:decide"], scope: "tasks", pages: ["p-home", "p-tasks"] },
+      { id: "coordinator", name: "流程负责人", permissions: ["activity:read", "task:complete", "workflow:adjust"], scope: "department", pages: ["p-home", "p-list", "p-tasks"] },
+      { id: "executor", name: "执行人", permissions: ["activity:read", "task:complete"], scope: "tasks", pages: ["p-home", "p-tasks"] },
+      { id: "archivist", name: "归档审核人", permissions: ["activity:read", "approval:decide"], scope: "department", pages: ["p-home", "p-archive", "p-tasks"] },
+      { id: "admin", name: "系统配置管理员", permissions: ["config:manage"], scope: "self", pages: ["p-config"] }
+    ],
+    groups: [{ id: "business", name: "活动协作", active: true }, { id: "system", name: "系统管理", active: true }],
+    pages: [{ id: "p-home", name: "工作台", group: "business", component: "summary", active: true }, { id: "p-list", name: "活动工单", group: "business", component: "activity_list", active: true }, { id: "p-new", name: "发起活动", group: "business", component: "activity_form", formId: "activity", active: true }, { id: "p-tasks", name: "我的待办", group: "business", component: "task_list", active: true }, { id: "p-archive", name: "活动档案", group: "business", component: "archive_list", active: true }, { id: "p-config", name: "配置概览", group: "system", component: "config_overview", active: true }],
+    form: { id: "activity", name: "活动申请表", fields: [
+      { id: "f-name", key: "activity_name", label: "活动名称", type: "text", required: true, default: "阅读教学与表达研讨活动", options: [], system: true },
+      { id: "f-mode", key: "delivery_mode", label: "举办方式", type: "select", required: true, default: "线下", options: ["线下", "线上", "混合"] },
+      { id: "f-time", key: "start_at", label: "开始时间", type: "datetime", required: true, default: cmFuture(), options: [] },
+      { id: "f-place", key: "location", label: "活动地点", type: "text", required: true, default: "和美实验学校", options: [], visible: { field: "delivery_mode", operator: "neq", value: "线上" } },
+      { id: "f-budget", key: "budget", label: "预算总额（元）", type: "number", required: true, default: "8000", options: [], min: 0 },
+      { id: "f-background", key: "background", label: "背景与诉求", type: "textarea", required: true, default: "结合学校教情学情开展示范研讨，形成课堂改进建议。", options: [] }
+    ] },
+    workflow: { name: "教研活动审核", nodes: [
+      { id: "n-department", label: "部门初审", kind: "approval", deps: [], assignee: { type: "manager", value: "" }, protected: true },
+      { id: "n-academic", label: "教研方案审核", kind: "approval", deps: ["n-department"], assignee: { type: "role", value: "academic" } },
+      { id: "n-marketing", label: "营销与校方确认", kind: "approval", deps: ["n-department"], assignee: { type: "role", value: "marketing" } },
+      { id: "n-director", label: "院负责人复核", kind: "approval", deps: ["n-academic", "n-marketing"], assignee: { type: "role", value: "director" }, condition: { field: "budget", operator: "gte", value: "10000" } }
+    ] }
+  };
+}
+
+/**
+ * 按稳定标识查找对象。
+ * @param {Array<object>} list 对象列表
+ * @param {string} id 稳定标识
+ * @returns {object|undefined} 匹配对象
+ */
+function cmFind(list, id) { for (const item of list) if (item.id === id) return item; return undefined; }
+
+/**
+ * 判断部门是否属于目标部门及其下级，并防止组织循环造成无限遍历。
+ * @param {object} config 公司配置
+ * @param {string} department 需要判断的部门
+ * @param {string} ancestor 上级部门
+ * @returns {boolean} 是否在授权部门树内
+ */
+function cmWithin(config, department, ancestor) { const seen = new Set(); let id = department; while (id && !seen.has(id)) { if (id === ancestor) return true; seen.add(id); id = cmFind(config.departments, id)?.parent; } return false; }
+
+/**
+ * 校验成员与全部上级部门是否有效。
+ * @param {object} config 公司配置
+ * @param {string} userId 成员标识
+ * @returns {boolean} 是否是有效公司成员
+ */
+function cmActiveUser(config, userId) {
+  const user = cmFind(config.users, userId); if (!user?.active) return false;
+  const seen = new Set(); let id = user.department;
+  while (id) { if (seen.has(id)) return false; seen.add(id); const dept = cmFind(config.departments, id); if (!dept?.active) return false; id = dept.parent; }
+  return seen.size > 0;
+}
+
+/**
+ * 取得有效成员当前所拥有的角色。
+ * @param {object} config 公司配置
+ * @param {string} userId 成员标识
+ * @returns {Array<object>} 有效角色集合
+ */
+function cmUserRoles(config, userId) { const result = []; if (!cmActiveUser(config, userId)) return result; for (const id of cmFind(config.users, userId).roles) { const role = cmFind(config.roles, id); if (role) result.push(role); } return result; }
+
+/**
+ * 根据有效角色检查动作权限，未授权默认拒绝。
+ * @param {object} config 公司配置
+ * @param {string} userId 成员标识
+ * @param {string} code 操作权限码
+ * @returns {boolean} 是否拥有操作权限
+ */
+function cmHas(config, userId, code) { for (const role of cmUserRoles(config, userId)) if (role.permissions.includes(code)) return true; return false; }
+
+/**
+ * 同时检查菜单、父分组、页面授权与模板所需权限。
+ * @param {object} config 公司配置
+ * @param {string} userId 成员标识
+ * @param {string} pageId 页面标识
+ * @returns {boolean} 是否允许访问该页面
+ */
+function cmPageAllowed(config, userId, pageId) {
+  const page = cmFind(config.pages, pageId); if (!page?.active || !cmFind(config.groups, page.group)?.active || !CM_COMPONENTS[page.component]) return false;
+  if (!cmHas(config, userId, CM_COMPONENTS[page.component][1])) return false;
+  for (const role of cmUserRoles(config, userId)) if (role.pages.includes(pageId)) return true;
+  return false;
+}
+
+/**
+ * 取得运行身份可访问的动态菜单页面。
+ * @param {object} config 公司配置
+ * @param {string} userId 成员标识
+ * @returns {Array<object>} 已授权且启用的页面
+ */
+function cmPages(config, userId) { const pages = []; for (const page of config.pages) if (cmPageAllowed(config, userId, page.id)) pages.push(page); return pages; }
+
+/**
+ * 检查活动记录的数据范围，页面入口与详情共用此规则。
+ * @param {object} config 当前公司配置
+ * @param {string} userId 当前成员
+ * @param {object} record 活动记录
+ * @returns {boolean} 是否可读该记录
+ */
+function cmCanRead(config, userId, record) {
+  if (!cmHas(config, userId, "activity:read")) return false;
+  const user = cmFind(config.users, userId);
+  for (const role of cmUserRoles(config, userId)) {
+    if (!role.permissions.includes("activity:read")) continue;
+    if (role.scope === "all" || (role.scope === "self" && record.applicant === userId) || (role.scope === "department" && record.department === user.department) || (role.scope === "department_tree" && cmWithin(config, record.department, user.department))) return true;
+    if (role.scope === "tasks") for (const node of record.nodes || []) if (node.assignees.includes(userId)) return true;
+  }
+  return false;
+}
+
+/**
+ * 取得字段当前值，显式空字符串不会被默认值覆盖。
+ * @param {object} field 字段定义
+ * @param {object} values 用户填写内容
+ * @returns {string} 用于显示与校验的字段值
+ */
+function cmValue(field, values) { return String(Object.hasOwn(values, field.key) ? values[field.key] : field.default || ""); }
+
+/**
+ * 执行受控字段比较，仅允许等于、不等于和非负金额大于等于。
+ * @param {object} condition 字段条件
+ * @param {object} values 已归一化字段内容
+ * @returns {boolean} 是否命中条件
+ */
+function cmMatches(condition, values) {
+  if (!condition) return true;
+  if (condition.operator === "gte") { const a = cmNumber(values[condition.field]); const b = cmNumber(condition.value); return Number.isFinite(a) && Number.isFinite(b) && a >= b; }
+  if (condition.operator === "neq") return String(values[condition.field] ?? "") !== String(condition.value);
+  return String(values[condition.field] ?? "") === String(condition.value);
+}
+
+/**
+ * 将非负两位小数转为整数分，缺失或非法数字返回 NaN。
+ * @param {unknown} value 输入金额或数字
+ * @returns {number} 整数分或 NaN
+ */
+function cmNumber(value) { const text = String(value ?? "").trim(); if (!/^\d+(\.\d{1,2})?$/.test(text)) return NaN; const n = Math.round(Number(text) * 100); return Number.isSafeInteger(n) && n <= 10000000000 ? n : NaN; }
+
+/**
+ * 计算当前可见字段，显示条件的依赖字段也必须可见。
+ * @param {object} form 表单定义
+ * @param {object} values 原始表单内容
+ * @returns {Array<object>} 可显示、可参与提交的字段
+ */
+function cmVisibleFields(form, values) {
+  const all = {}; for (const field of form.fields) all[field.key] = cmValue(field, values);
+  const visited = new Set(); let changed = true;
+  while (changed) { changed = false; for (const field of form.fields) if (!visited.has(field.key) && (!field.visible || (visited.has(field.visible.field) && cmMatches(field.visible, all)))) { visited.add(field.key); changed = true; } }
+  const result = []; for (const field of form.fields) if (visited.has(field.key)) result.push(field); return result;
+}
+
+/**
+ * 校验动态表单并生成只包含可见字段的 payload。
+ * @param {object} form 表单定义
+ * @param {object} values 原始输入
+ * @returns {object} 错误列表与可提交内容
+ */
+function cmValidateForm(form, values) {
+  const errors = []; const payload = {};
+  for (const field of cmVisibleFields(form, values)) {
+    const value = cmValue(field, values).trim(); payload[field.key] = value;
+    if (field.required && !value) { errors.push(field.label + "为必填项。"); continue; }
+    if (!value) continue;
+    if (field.type === "number" && !Number.isFinite(cmNumber(value))) errors.push(field.label + "需为非负数字，至多两位小数。");
+    if (field.type === "select" && !field.options.includes(value)) errors.push(field.label + "请选择配置中的有效选项。");
+    if (field.type === "datetime" && !Number.isFinite(Date.parse(value))) errors.push(field.label + "请填写有效日期时间。");
+    if (value.length > 3000) errors.push(field.label + "超过 3000 字限制。");
+  }
+  return { errors, payload };
+}
+
+/**
+ * 查找字段被其他显示规则或流程条件引用的位置。
+ * @param {object} config 公司配置
+ * @param {string} key 字段稳定键
+ * @returns {Array<string>} 引用位置说明
+ */
+function cmFieldRefs(config, key) { const refs = []; for (const field of config.form.fields) if (field.visible?.field === key) refs.push("表单「" + field.label + "」显示条件"); for (const node of config.workflow.nodes) if (node.condition?.field === key) refs.push("流程「" + node.label + "」条件"); return refs; }
+
+/**
+ * 检查流程依赖是否合法并给出拓扑顺序。
+ * @param {Array<object>} nodes 流程节点
+ * @returns {object} 错误与拓扑顺序
+ */
+function cmDag(nodes) {
+  const ids = new Set(); for (const node of nodes) { if (ids.has(node.id)) return { error: "流程节点标识重复。", order: [] }; ids.add(node.id); }
+  for (const node of nodes) for (const id of node.deps) if (!ids.has(id)) return { error: "流程包含不存在的前置节点。", order: [] };
+  const order = []; const seen = new Set(); let changed = true;
+  while (changed) { changed = false; for (const node of nodes) { if (seen.has(node.id)) continue; let all = true; for (const id of node.deps) if (!seen.has(id)) all = false; if (all) { seen.add(node.id); order.push(node); changed = true; } } }
+  return seen.size === nodes.length ? { error: "", order } : { error: "流程存在循环依赖。", order: [] };
+}
+
+/**
+ * 根据有效组织与角色解析节点受理人，多人角色按全部办理汇合。
+ * @param {object} config 公司配置
+ * @param {object} node 流程定义节点
+ * @param {string} applicant 申请人标识
+ * @returns {object} 受理人集合与错误
+ */
+function cmAssignees(config, node, applicant) {
+  const ids = []; const user = cmFind(config.users, applicant);
+  if (!user || !cmActiveUser(config, applicant)) return { ids, error: "申请人或其部门已停用。" };
+  if (node.assignee.type === "manager") { const id = cmFind(config.departments, user.department)?.manager; if (id) ids.push(id); }
+  if (node.assignee.type === "user") ids.push(node.assignee.value);
+  if (node.assignee.type === "role") for (const member of config.users) if (member.roles.includes(node.assignee.value) && cmActiveUser(config, member.id)) ids.push(member.id);
+  if (!ids.length) return { ids, error: node.label + "未解析到受理人。" };
+  for (const id of ids) {
+    if (!cmActiveUser(config, id)) return { ids, error: node.label + "的受理人或部门已停用。" };
+    if (node.kind === "approval" && id === applicant) return { ids, error: node.label + "出现自审，请配置替代人。" };
+    const permission = node.kind === "approval" ? "approval:decide" : "task:complete";
+    if (node.kind !== "notice" && (!cmHas(config, id, permission) || !cmHas(config, id, "activity:read"))) return { ids, error: node.label + "的受理人缺少查看或办理权限。" };
+  }
+  return { ids, error: "" };
+}
+
+/**
+ * 将表单内容和流程模板解析成实例，条件跳过时递归继承原有前置。
+ * @param {object} config 配置版本
+ * @param {object} payload 提交内容
+ * @param {string} applicant 申请人
+ * @returns {object} 实际节点、跳过原因与错误
+ */
+function cmResolve(config, payload, applicant) {
+  const dag = cmDag(config.workflow.nodes); if (dag.error) return { nodes: [], skipped: [], errors: [dag.error] };
+  const nodes = []; const skipped = []; const errors = []; const matched = new Set();
+  for (const def of dag.order) if (cmMatches(def.condition, payload)) matched.add(def.id); else skipped.push(def.label + "：条件未命中");
+  /**
+   * 继承被条件跳过或非阻塞知会节点的前置，保留所有必要审核。
+   * @param {string} id 原前置标识
+   * @returns {Array<string>} 实际生效的前置标识
+   */
+  function effectiveDeps(id) { const def = cmFind(config.workflow.nodes, id); if (matched.has(id) && def.kind !== "notice") return [id]; const deps = []; for (const parent of def.deps) deps.push(...effectiveDeps(parent)); return [...new Set(deps)]; }
+  for (const def of dag.order) {
+    if (!matched.has(def.id)) continue;
+    const assignees = cmAssignees(config, def, applicant); if (assignees.error) errors.push(assignees.error);
+    const deps = []; for (const id of def.deps) deps.push(...effectiveDeps(id));
+    nodes.push({ id: def.id, label: def.label, kind: def.kind, deps: [...new Set(deps)], assignees: assignees.ids, rule: cmCopy(def.assignee), doneBy: [], status: "todo" });
+  }
+  if (!nodes.length || !nodes.some(cmIsApproval)) errors.push("有效流程至少包含一个审核节点。");
+  const applicantUser = cmFind(config.users, applicant);
+  const prospective = { applicant, department: applicantUser?.department || "", nodes };
+  for (const node of nodes) if (node.kind !== "notice") for (const userId of node.assignees) if (!cmCanRead(config, userId, prospective)) errors.push(node.label + "的受理人数据范围不覆盖本活动。");
+  return { nodes, skipped, errors };
+}
+
+/**
+ * 判断节点是否为审批，用于阻止无审批路线。
+ * @param {object} node 流程节点
+ * @returns {boolean} 是否为审批节点
+ */
+function cmIsApproval(node) { return node.kind === "approval"; }
+
+/**
+ * 判断实例任务是否已满足全部生效前置。
+ * @param {object} record 活动实例
+ * @param {object} node 当前任务
+ * @returns {boolean} 是否可办理
+ */
+function cmTaskReady(record, node) { if (record.status !== "approving" || node.status !== "todo") return false; for (const id of node.deps) if (cmFind(record.nodes, id)?.status !== "done") return false; return true; }
+
+/**
+ * 检查当前账号办理实例节点的权限、归属、组织资格与自审条件。
+ * @param {object} config 当前身份配置
+ * @param {string} userId 当前员工
+ * @param {object} record 活动实例
+ * @param {object} node 实例任务
+ * @returns {boolean} 是否允许办理
+ */
+function cmCanAct(config, userId, record, node) {
+  if (!cmCanRead(config, userId, record) || !cmTaskReady(record, node) || !node.assignees.includes(userId) || node.doneBy.includes(userId)) return false;
+  if (node.kind === "approval" && userId === record.applicant) return false;
+  if (node.rule.type === "role" && !cmFind(config.users, userId).roles.includes(node.rule.value)) return false;
+  return cmHas(config, userId, node.kind === "approval" ? "approval:decide" : "task:complete");
+}
+
+/**
+ * 检查配置引用、组织、字段条件与流程结构，发布前统一阻止不完整配置。
+ * @param {object} config 待发布配置
+ * @returns {Array<string>} 校验错误列表
+ */
+function cmValidateConfig(config) {
+  const errors = []; const fields = new Set();
+  const titleField = cmFindField(config, "activity_name");
+  if (!titleField || titleField.type !== "text" || !titleField.required) errors.push("系统活动名称字段需保留为必填文字。");
+  for (const field of config.form.fields) {
+    if (!/^[a-z][a-z0-9_]{1,39}$/.test(field.key) || fields.has(field.key)) errors.push("字段键格式无效或重复：" + field.key);
+    fields.add(field.key); if (!field.label.trim()) errors.push("字段标题不能为空。");
+    if (!["text", "textarea", "number", "select", "datetime"].includes(field.type)) errors.push("字段类型未注册。");
+    if (field.type === "select" && !field.options.length) errors.push(field.label + "缺少下拉选项。");
+    if (field.default && field.type === "select" && !field.options.includes(field.default)) errors.push(field.label + "默认值不在下拉选项中。");
+    if (field.default && field.type === "number" && !Number.isFinite(cmNumber(field.default))) errors.push(field.label + "默认数字无效。");
+  }
+  const visibilityNodes = [];
+  for (const field of config.form.fields) {
+    visibilityNodes.push({ id: field.key, deps: field.visible ? [field.visible.field] : [] });
+    if (field.visible && !fields.has(field.visible.field)) errors.push(field.label + "引用了不存在的显示条件字段。");
+    if (field.visible) { const source = cmFindField(config, field.visible.field); if (source?.type === "select" && !source.options.includes(field.visible.value)) errors.push(field.label + "显示条件值不在来源选项中。"); }
+  }
+  if (cmDag(visibilityNodes).error) errors.push("字段显示条件存在循环或缺失引用。");
+  if (!config.workflow.nodes.length || !config.workflow.nodes.some(cmIsApproval)) errors.push("流程至少保留一个审核节点。");
+  const dag = cmDag(config.workflow.nodes); if (dag.error) errors.push(dag.error);
+  for (const node of config.workflow.nodes) {
+    if (node.protected && (node.kind !== "approval" || node.condition)) errors.push(node.label + "为必要审核，不能降级或设置跳过条件。");
+    if (node.condition) {
+      const field = cmFindField(config, node.condition.field);
+      if (!field) errors.push(node.label + "引用字段不存在。");
+      else if (node.condition.operator === "gte" && (field.type !== "number" || !Number.isFinite(cmNumber(node.condition.value)))) errors.push(node.label + "的金额条件需要数字字段与有效阈值。");
+      else if (field.type === "select" && !field.options.includes(node.condition.value)) errors.push(node.label + "条件值不在字段选项中。");
+    }
+    if (node.assignee.type === "user" && !cmActiveUser(config, node.assignee.value)) errors.push(node.label + "指定员工无效。");
+    if (node.assignee.type === "role" && !cmFind(config.roles, node.assignee.value)) errors.push(node.label + "指定角色不存在。");
+  }
+  for (const dept of config.departments) {
+    if (dept.parent && !cmFind(config.departments, dept.parent)) errors.push(dept.name + "上级部门不存在。");
+    if (dept.parent && cmWithin(config, dept.parent, dept.id)) errors.push(dept.name + "组织层级存在循环。");
+    if (dept.manager) { const user = cmFind(config.users, dept.manager); if (!user || user.department !== dept.id || (dept.active && !cmActiveUser(config, user.id))) errors.push(dept.name + "负责人需是本部门有效成员。"); }
+  }
+  let admins = 0;
+  for (const user of config.users) { if (!cmFind(config.departments, user.department)) errors.push(user.name + "所属部门不存在。"); for (const id of user.roles) if (!cmFind(config.roles, id)) errors.push(user.name + "绑定了不存在的角色。"); if (cmHas(config, user.id, "config:manage")) admins += 1; }
+  if (!admins) errors.push("至少保留一名有效配置管理员。");
+  for (const page of config.pages) { if (!CM_COMPONENTS[page.component] || !cmFind(config.groups, page.group)) errors.push(page.name + "页面模板或父分组无效。"); if (page.component === "activity_form" && page.formId !== config.form.id) errors.push(page.name + "表单绑定无效。"); }
+  for (const role of config.roles) { if (!CM_SCOPES[role.scope]) errors.push(role.name + "数据范围无效。"); for (const id of role.pages) if (!cmFind(config.pages, id)) errors.push(role.name + "授权了不存在的页面。"); }
+  return [...new Set(errors)];
+}
+
+/**
+ * 按稳定字段键取得定义，供条件引用检查。
+ * @param {object} config 配置
+ * @param {string} key 字段键
+ * @returns {object|undefined} 字段定义
+ */
+function cmFindField(config, key) { for (const field of config.form.fields) if (field.key === key) return field; return undefined; }
+
+</script><script>
+"use strict";
+
+const CV_NAV = [["overview", "◫", "配置总览"], ["forms", "▤", "动态表单"], ["workflow", "⑂", "流程节点"], ["organization", "▦", "组织架构"], ["permissions", "◈", "角色权限"], ["pages", "▣", "菜单页面"], ["runtime", "▷", "联动体验"]];
+const CV_FIELD_TYPES = { text: "单行文字", textarea: "多行文字", number: "数字", select: "下拉选择", datetime: "日期时间" };
+
+/**
+ * 转义动态配置内容，避免节点、字段与成员名称被解释为 HTML。
+ * @param {unknown} value 待显示内容
+ * @returns {string} 安全 HTML 文本
+ */
+function cvEsc(value) {
+  return String(value ?? "").replace(/[&<>"']/g,
+    /**
+     * 替换单个 HTML 特殊字符。
+     * @param {string} char 特殊字符
+     * @returns {string} 安全实体
+     */
+    function escapeCharacter(char) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]; });
+}
+
+/**
+ * 输出后台编辑用的有标签字段。
+ * @param {string} name 表单键
+ * @param {string} label 中文标签
+ * @param {unknown} value 当前值
+ * @param {object} options 类型、选项、必填和只读设置
+ * @returns {string} 字段 HTML
+ */
+function cvField(name, label, value, options = {}) {
+  const attrs = `name="${name}" ${options.required ? "required" : ""} ${options.readonly ? "readonly" : ""}`;
+  let input = "";
+  if (options.options) { let list = ""; for (const [key, text] of options.options) list += `<option value="${cvEsc(key)}" ${String(value) === key ? "selected" : ""}>${cvEsc(text)}</option>`; input = `<select ${attrs}>${list}</select>`; }
+  else if (options.textarea) input = `<textarea ${attrs} maxlength="3000">${cvEsc(value)}</textarea>`;
+  else input = `<input ${attrs} type="${options.type || "text"}" value="${cvEsc(value)}" maxlength="200" ${options.pattern ? `pattern="${options.pattern}"` : ""}>`;
+  return `<label class="field ${options.full ? "full" : ""}"><span>${cvEsc(label)}${options.required ? "<b>*</b>" : ""}</span>${input}</label>`;
+}
+
+/**
+ * 输出配置页统一标题与主操作。
+ * @param {string} title 页面标题
+ * @param {string} description 页面说明
+ * @param {string} action 主操作
+ * @param {string} label 主操作文案
+ * @returns {string} 页面标题区
+ */
+function cvHeading(title, description, action = "", label = "") { return `<div class="config-page-heading"><div><div class="eyebrow">CONFIGURATION / ${cvEsc(title)}</div><h1>${cvEsc(title)}</h1><p>${cvEsc(description)}</p></div>${action ? `<button class="btn primary" data-c-action="${action}">${cvEsc(label)}</button>` : ""}</div>`; }
+
+/**
+ * 渲染配置中心与当前模块，所有配置仍以管理员工作空间为入口。
+ */
+function cvRender() {
+  let nav = ""; for (const [key, icon, label] of CV_NAV) nav += `<button data-c-action="nav" data-id="${key}" class="${ccView.tab === key ? "active" : ""}"><span class="nav-symbol" aria-hidden="true">${icon}</span>${label}</button>`;
+  document.getElementById("config-nav").innerHTML = nav;
+  const changed = JSON.stringify(ccDb.draft) !== JSON.stringify(ccDb.published);
+  document.getElementById("config-version").innerHTML = `<strong>已发布 C${ccDb.published.version}</strong> · ${changed ? "草案待发布" : "草案与发布一致"}`;
+  const pages = { overview: cvOverview, forms: cvForms, workflow: cvWorkflow, organization: cvOrganization, permissions: cvPermissions, pages: cvPages, runtime: cvRuntime };
+  document.getElementById("config-main").innerHTML = pages[ccView.tab]();
+}
+
+/**
+ * 渲染五项配置及其关系、发布结果和审计摘要。
+ * @returns {string} 总览 HTML
+ */
+function cvOverview() {
+  const c = ccDb.draft;
+  const modules = [["forms", "动态表单", "字段、必填、选项、显示条件与提交快照", c.form.fields.length + " 个字段"], ["workflow", "动态流程节点", "串行、并行、条件分支与组织受理人解析", c.workflow.nodes.length + " 个节点"], ["organization", "公司组织架构", "公司、部门、负责人、成员与启停状态", c.departments.length + " 个部门 · " + c.users.length + " 位员工"], ["permissions", "角色与审核权限", "菜单页面、操作、数据范围与任务归属", c.roles.length + " 个角色"], ["pages", "动态菜单页面", "授权导航与已注册页面模板、表单绑定", c.pages.length + " 个页面"], ["runtime", "联动体验", "切换员工、生成菜单、提交表单并验证审核", "按草案／已发布版本体验"]];
+  let html = cvHeading("一套配置，串起活动协作", "编辑草案后统一校验发布。表单与流程使用提交快照，办理资格按当前账号和权限判断。") + '<div class="config-page-grid">';
+  for (const [id, title, text, count] of modules) html += `<button class="config-module" data-c-action="nav" data-id="${id}"><h2>${title}</h2><p>${text}</p><div class="module-foot"><span>${count}</span><span>进入配置 →</span></div></button>`;
+  html += '</div><div class="relation-line"><span>组织与人员</span><i>→</i><span>角色与审核资格</span><i>→</i><span>菜单页面</span><i>→</i><span>业务表单</span><i>→</i><span>流程实例</span></div><p class="config-note">所有示例为本地评审数据。本配置中心独立于首版工单和流程图演示，支持五项配置之间的联动。</p><section class="panel" style="margin-top:24px"><div class="panel-header"><h2>配置发布记录</h2><button class="link-button" data-c-action="check-config">检查当前草案</button></div><div class="panel-body">';
+  for (const log of [...ccDb.audit].reverse().slice(0, 5)) html += `<div class="config-audit-row"><strong>${cvEsc(log.title)}</strong><time>${cvEsc(log.at)}</time><p>${cvEsc(log.note)}</p></div>`;
+  return html + '</div></section><div class="actions" style="margin-top:20px"><button class="btn ghost" data-c-action="reset-all">重置配置中心演示</button></div>';
+}
+
+/**
+ * 渲染表单字段列表与由当前草案生成的真实输入预览。
+ * @returns {string} 动态表单页面
+ */
+function cvForms() {
+  let html = cvHeading("动态表单", "字段稳定键供流程条件引用。隐藏字段不参与必填校验，也不进入提交内容。", "add-field", "＋ 新增字段") + '<div class="config-layout"><section class="panel"><div class="panel-header"><h2>活动申请表 · 字段配置</h2><small>草案</small></div>';
+  for (const field of ccDb.draft.form.fields) html += `<div class="config-field-row"><span class="field-type">${{ text: "文", textarea: "段", number: "数", select: "选", datetime: "时" }[field.type]}</span><div class="field-copy"><strong>${cvEsc(field.label)}${field.required ? '<span class="require">必填</span>' : ""}<span class="key-label">${cvEsc(field.key)}</span></strong><p>${CV_FIELD_TYPES[field.type]}${field.visible ? " · 当 " + cvEsc(cmFindField(ccDb.draft, field.visible.field)?.label || field.visible.field) + (field.visible.operator === "neq" ? " ≠ " : " = ") + cvEsc(field.visible.value) + " 时显示" : " · 始终显示"}</p></div><div class="row-actions"><button data-c-action="field-up" data-id="${field.id}" aria-label="上移${cvEsc(field.label)}">↑</button><button data-c-action="field-down" data-id="${field.id}" aria-label="下移${cvEsc(field.label)}">↓</button><button data-c-action="edit-field" data-id="${field.id}">编辑</button><button class="delete" data-c-action="delete-field" data-id="${field.id}">删除</button></div></div>`;
+  html += `</section><section class="panel"><div class="panel-header"><h2>草案实时预览</h2><button class="link-button" data-c-action="validate-form">校验填写内容</button></div><div class="config-form-preview"><div class="preview-context"><span>申请人 林晓 · 教研一部</span><span>${ccDb.draft.form.fields.length} 个配置字段</span></div>${cvErrors(ccView.formErrors)}${cvGeneratedForm(ccDb.draft.form)}<small>切换举办方式，观察地点的显示与必填变化。</small></div></section></div>`;
+  return html;
+}
+
+/**
+ * 根据 schema 生成表单控件，所有业务字段通过统一事件更新模型。
+ * @param {object} form 表单模板
+ * @param {object} values 当前输入，默认使用联动体验输入
+ * @returns {string} 可见表单控件
+ */
+function cvGeneratedForm(form, values = ccView.values) {
+  let html = '<div class="form-grid">';
+  for (const field of cmVisibleFields(form, values)) {
+    const value = cmValue(field, values); let control;
+    const attr = `data-runtime-field="${cvEsc(field.key)}" ${field.required ? 'aria-required="true"' : ""}`;
+    if (field.type === "textarea") control = `<textarea ${attr} maxlength="3000">${cvEsc(value)}</textarea>`;
+    else if (field.type === "select") { let options = '<option value="">请选择</option>'; for (const option of field.options) options += `<option value="${cvEsc(option)}" ${value === option ? "selected" : ""}>${cvEsc(option)}</option>`; control = `<select ${attr}>${options}</select>`; }
+    else control = `<input ${attr} type="${field.type === "datetime" ? "datetime-local" : "text"}" ${field.type === "number" ? 'inputmode="decimal"' : ""} maxlength="3000" value="${cvEsc(value)}">`;
+    html += `<label class="field ${field.type === "textarea" ? "full" : ""}"><span>${cvEsc(field.label)}${field.required ? "<b>*</b>" : ""}</span>${control}</label>`;
+  }
+  return html + "</div>";
+}
+
+/**
+ * 输出表单和配置校验错误，保留中文错误定位信息。
+ * @param {Array<string>} errors 错误列表
+ * @returns {string} 错误提示或空字符串
+ */
+function cvErrors(errors) { if (!errors?.length) return ""; let html = '<div class="preview-errors" role="alert"><strong>请检查以下内容</strong><ul>'; for (const error of errors) html += `<li>${cvEsc(error)}</li>`; return html + "</ul></div>"; }
+
+/**
+ * 输出节点受理方式，避免将员工显示名作为业务标识。
+ * @param {object} config 当前配置
+ * @param {object} node 流程节点
+ * @returns {string} 受理规则说明
+ */
+function cvAssignee(config, node) { if (node.assignee.type === "manager") return "申请部门负责人"; if (node.assignee.type === "role") return "角色：" + (cmFind(config.roles, node.assignee.value)?.name || "角色已失效") + "（多人全部办理）"; return "指定员工：" + (cmFind(config.users, node.assignee.value)?.name || "员工已失效"); }
+
+/**
+ * 渲染可配置流程节点与按表单草案生成的实际路线。
+ * @returns {string} 流程配置页
+ */
+function cvWorkflow() {
+  const c = ccDb.draft; let html = cvHeading("动态流程节点", "流程引用表单字段选择路线，再从组织与角色中解析受理人。", "add-node", "＋ 新增流程节点") + '<div class="config-layout"><section class="panel"><div class="panel-header"><h2>教研活动审核 · 依赖图</h2><small>默认并行汇合</small></div>';
+  const dag = cmDag(c.workflow.nodes);
+  for (const node of dag.error ? c.workflow.nodes : dag.order) {
+    const deps = []; for (const id of node.deps) deps.push(cmFind(c.workflow.nodes, id)?.label || "无效前置");
+    html += `<article class="node-config"><header><h3>${cvEsc(node.label)}${node.protected ? '<span class="protected">必要审核</span>' : ""}</h3><div class="row-actions"><button data-c-action="edit-node" data-id="${node.id}">编辑</button><button class="delete" data-c-action="delete-node" data-id="${node.id}" ${node.protected ? "disabled" : ""}>删除</button></div></header><div class="node-meta">${{ approval: "审批", task: "办理任务", notice: "非阻塞知会" }[node.kind]} · ${cvEsc(cvAssignee(c, node))}<br>${node.condition ? "条件：" + cvEsc(cmFindField(c, node.condition.field)?.label || node.condition.field) + (node.condition.operator === "gte" ? " ≥ " : node.condition.operator === "neq" ? " ≠ " : " = ") + cvEsc(node.condition.value) : "所有申请生效"}</div><div class="node-deps">前置：${cvEsc(deps.join(" ＋ ") || "提交申请")}</div></article>`;
+  }
+  html += `</section><section class="panel"><div class="panel-header"><h2>路线与人员预览</h2><small>使用表单草案输入</small></div><div class="panel-body"><label class="field">模拟申请人<select id="workflow-applicant">${cvUserOptions(c, ccView.workflowApplicant)}</select></label><label class="field">测试预算（元）<input data-runtime-field="budget" inputmode="decimal" value="${cvEsc(ccView.values.budget ?? cmFindField(c, "budget")?.default ?? "")}"></label><div id="config-live-plan">${cvPlan(c, ccView.workflowApplicant)}</div></div></section></div>`;
+  return html;
+}
+
+/**
+ * 渲染受理路线及条件跳过结果，解析错误显示具体责任节点。
+ * @param {object} config 配置版本
+ * @param {string} userId 申请人
+ * @returns {string} 实际路线 HTML
+ */
+function cvPlan(config, userId) {
+  const validated = cmValidateForm(config.form, ccView.values); const plan = cmResolve(config, validated.payload, userId); let html = cvErrors(plan.errors);
+  for (const node of plan.nodes) {
+    const owners = []; for (const id of node.assignees) owners.push(cmFind(config.users, id)?.name || "无效成员");
+    const deps = []; for (const id of node.deps) deps.push(cmFind(plan.nodes, id)?.label || id);
+    html += `<div class="config-plan-node"><strong>${cvEsc(node.label)}</strong><p>${cvEsc(owners.join("、") || "尚无受理人")}<br>前置：${cvEsc(deps.join(" ＋ ") || "提交申请")}${node.kind === "notice" ? " · 非阻塞" : ""}</p></div>`;
+  }
+  if (plan.skipped.length) html += `<p class="config-note">${cvEsc(plan.skipped.join("；"))}</p>`;
+  return html;
+}
+
+/**
+ * 输出员工选择项，停用员工仍可被选中以演示拒绝访问。
+ * @param {object} config 配置版本
+ * @param {string} selected 当前员工
+ * @returns {string} 原生选项
+ */
+function cvUserOptions(config, selected) { let html = ""; for (const user of config.users) html += `<option value="${user.id}" ${selected === user.id ? "selected" : ""}>${cvEsc(user.name)} · ${cvEsc(cmFind(config.departments, user.department)?.name || "未分配")}${cmActiveUser(config, user.id) ? "" : "（停用）"}</option>`; return html; }
+
+/**
+ * 输出公司部门树，以访问集合防止异常配置导致重复递归。
+ * @param {object} config 公司配置
+ * @returns {string} 部门树 HTML
+ */
+function cvOrgTree(config) {
+  const seen = new Set();
+  /**
+   * 按父级遍历部门并计算直接成员数量。
+   * @param {string} parent 父部门标识
+   * @param {number} depth 展示层级
+   * @returns {string} 当前层与子层的树节点
+   */
+  function branch(parent, depth) {
+    let html = "";
+    for (const dept of config.departments) if (dept.parent === parent && !seen.has(dept.id)) {
+      seen.add(dept.id); let count = 0; for (const user of config.users) if (user.department === dept.id) count += 1;
+      html += `<button class="org-row ${dept.id === ccView.department ? "selected" : ""} ${dept.active ? "" : "inactive"}" style="padding-left:${10 + depth * 14}px" data-c-action="select-department" data-id="${dept.id}"><span class="org-icon">▦</span>${cvEsc(dept.name)}<span class="dept-count">${count}</span></button>${branch(dept.id, depth + 1)}`;
+    }
+    return html;
+  }
+  return branch("", 0);
+}
+
+/**
+ * 渲染组织树、部门负责人和成员角色维护入口。
+ * @returns {string} 组织配置页面
+ */
+function cvOrganization() {
+  const c = ccDb.draft; const dept = cmFind(c.departments, ccView.department) || c.departments[0];
+  let html = cvHeading("公司组织架构", "部门负责人用于流程解析；成员角色控制页面、操作与数据范围。", "add-user", "＋ 新增员工") + `<div class="config-layout org-layout"><section class="panel"><div class="panel-header"><h2>公司与部门</h2><button class="link-button" data-c-action="add-department">＋ 部门</button></div><div class="org-tree">${cvOrgTree(c)}</div></section><section class="panel"><div class="panel-header"><div><h2>${cvEsc(dept.name)}</h2><small>负责人：${cvEsc(cmFind(c.users, dept.manager)?.name || "未配置")} · ${dept.active ? "启用" : "停用"}</small></div><button class="btn small" data-c-action="edit-department" data-id="${dept.id}">编辑部门</button></div><div class="table-wrap"><table class="people-list"><thead><tr><th>成员</th><th>角色</th><th>状态</th><th>操作</th></tr></thead><tbody>`;
+  let count = 0;
+  for (const user of c.users) if (user.department === dept.id) { count += 1; const names = []; for (const id of user.roles) names.push(cmFind(c.roles, id)?.name || id); html += `<tr><td>${cvEsc(user.name)}<small>${user.id}</small></td><td>${cvEsc(names.join("、") || "未分配角色")}</td><td><span class="tag ${cmActiveUser(c, user.id) ? "green" : ""}">${cmActiveUser(c, user.id) ? "有效" : "停用"}</span></td><td><div class="row-actions"><button data-c-action="edit-user" data-id="${user.id}">编辑</button><button data-c-action="toggle-user" data-id="${user.id}">${user.active ? "停用" : "启用"}</button></div></td></tr>`; }
+  if (!count) html += '<tr><td colspan="4">此部门暂无直接成员。</td></tr>';
+  return html + '</tbody></table></div><div class="panel-body"><small>新配置发布后，新申请解析新负责人。旧实例保留原受理快照，人员停用会阻止继续办理。</small></div></section></div>';
+}
+
+/**
+ * 渲染角色页面授权、操作权限和数据范围，三个维度独立配置。
+ * @returns {string} 角色权限页面
+ */
+function cvPermissions() {
+  const c = ccDb.draft; const role = cmFind(c.roles, ccView.role) || c.roles[0];
+  let html = cvHeading("角色与审核权限", "审核必须同时满足动作权限、数据范围、任务归属和业务状态。", "add-role", "＋ 新增角色") + '<div class="config-layout permission-layout"><section class="panel role-list">';
+  for (const item of c.roles) { let count = 0; for (const user of c.users) if (user.roles.includes(item.id)) count += 1; html += `<button data-c-action="select-role" data-id="${item.id}" class="${item.id === role.id ? "active" : ""}">${cvEsc(item.name)}<small>${count} 人</small></button>`; }
+  html += `</section><section class="panel"><div class="panel-header"><h2>${cvEsc(role.name)}</h2><small>修改记录在草案，发布后用于已发布体验</small></div><div class="panel-body"><section class="grant-section"><h3 class="config-section-title">操作权限</h3><div class="grant-grid">`;
+  for (const [code, label] of Object.entries(CM_PERMISSIONS)) html += `<label><input type="checkbox" data-grant="permission" value="${code}" ${role.permissions.includes(code) ? "checked" : ""}>${label}</label>`;
+  html += '</div></section><section class="grant-section"><h3 class="config-section-title">菜单与页面授权</h3><div class="grant-grid">';
+  for (const page of c.pages) html += `<label><input type="checkbox" data-grant="page" value="${page.id}" ${role.pages.includes(page.id) ? "checked" : ""}>${cvEsc(page.name)}</label>`;
+  html += '</div></section><section class="grant-section"><h3 class="config-section-title">业务数据范围</h3><label class="field"><select id="role-scope" aria-label="角色数据范围">';
+  for (const [key, label] of Object.entries(CM_SCOPES)) html += `<option value="${key}" ${role.scope === key ? "selected" : ""}>${label}</option>`;
+  html += '</select></label><p class="scope-help">多角色取有效授权并集。全公司范围仍需活动读取权限，配置管理员身份不自动获得业务权限。</p></section><section><h3 class="config-section-title">拥有此角色的员工</h3><div class="grant-members">';
+  for (const user of c.users) if (user.roles.includes(role.id)) html += `<span>${cvEsc(user.name)}${cmActiveUser(c, user.id) ? "" : " · 停用"}</span>`;
+  return html + '</div></section></div></section></div>';
+}
+
+/**
+ * 渲染动态菜单、分组与已注册页面模板绑定。
+ * @returns {string} 页面管理界面
+ */
+function cvPages() {
+  const c = ccDb.draft; let html = cvHeading("动态菜单页面", "通过页面模板生成业务页面，再按角色授权。所有页面访问仍校验权限与数据范围。", "add-page", "＋ 新增菜单页面") + '<div class="config-layout"><section class="panel"><div class="panel-header"><h2>导航入口与业务页面</h2><small>已注册模板</small></div><div class="group-switches">';
+  for (const group of c.groups) html += `<label><input type="checkbox" data-group-enabled="${group.id}" ${group.active ? "checked" : ""}>${cvEsc(group.name)}分组启用</label>`;
+  html += "</div>";
+  for (const page of c.pages) { const roles = []; for (const role of c.roles) if (role.pages.includes(page.id)) roles.push(role.name); html += `<article class="page-config-row"><input type="checkbox" aria-label="启用${cvEsc(page.name)}" data-page-enabled="${page.id}" ${page.active ? "checked" : ""}><div class="page-copy"><strong>${cvEsc(page.name)}</strong><p>${cvEsc(CM_COMPONENTS[page.component]?.[0] || "未注册")} · ${cvEsc(cmFind(c.groups, page.group)?.name)}<br>授权：${cvEsc(roles.join("、") || "尚未授权")}</p></div><div class="row-actions"><button data-c-action="page-up" data-id="${page.id}" aria-label="上移页面">↑</button><button data-c-action="page-down" data-id="${page.id}" aria-label="下移页面">↓</button><button data-c-action="edit-page" data-id="${page.id}">编辑</button></div></article>`; }
+  return html + '</section><section class="panel"><div class="panel-header"><h2>页面与授权关系</h2></div><div class="panel-body"><div class="notice">菜单有效 → 父分组有效 → 角色有页面授权 → 有模板所需权限 → 过滤业务数据。</div><p class="config-note">新增页面复用活动列表、申请表单、待办等模板。表单页面绑定当前活动表单；多模板管理可在后续扩展。</p><button class="btn primary" data-c-action="nav" data-id="runtime" style="margin-top:20px">切换员工验证菜单 →</button></div></section></div>';
+}
+
+/**
+ * 根据选择的配置快照和员工生成运行菜单，并在页面内部继续鉴权。
+ * @returns {string} 五项配置联动体验
+ */
+function cvRuntime() {
+  const c = ccConfig(); const user = cmFind(c.users, ccView.previewUser); const menus = cmPages(c, ccView.previewUser);
+  if (!ccView.runtimePage && menus.length) ccView.runtimePage = menus[0].id;
+  let html = cvHeading("配置联动体验", "选择员工，查看当前菜单、数据与任务。新申请保存提交时的表单及流程快照。") + `<section class="panel runtime-controls"><label>配置来源<select id="runtime-source"><option value="published" ${ccView.source === "published" ? "selected" : ""}>已发布 C${ccDb.published.version}</option><option value="draft" ${ccView.source === "draft" ? "selected" : ""}>当前草案（仅预览）</option></select></label><label>体验员工<select id="runtime-user">${cvUserOptions(c, ccView.previewUser)}</select></label><span class="source-tag">${ccView.source === "draft" ? "草案体验，不代表已发布" : "使用已发布配置"}</span></section><div class="runtime-shell"><nav class="runtime-nav" aria-label="按员工生成的业务菜单"><div class="runtime-person">${cvEsc(user?.name || "成员不存在")}<small>${cvEsc(cmFind(c.departments, user?.department)?.name || "无有效部门")}</small></div>`;
+  for (const group of c.groups) { let found = false; for (const page of menus) if (page.group === group.id) found = true; if (!found) continue; html += `<div class="runtime-group">${cvEsc(group.name)}</div>`; for (const page of menus) if (page.group === group.id) html += `<button data-c-action="runtime-page" data-id="${page.id}" class="${ccView.runtimePage === page.id ? "active" : ""}">${cvEsc(page.name)}</button>`; }
+  if (!menus.length) html += '<p class="config-note">当前身份无可用菜单。</p>';
+  html += `<button class="text-button" data-c-action="direct-page" style="margin-top:25px">验证直接访问页面</button></nav><div class="runtime-content">`;
+  if (!cmPageAllowed(c, ccView.previewUser, ccView.runtimePage)) html += '<div class="runtime-empty"><strong>当前身份无页面访问权限</strong><p>菜单启停、父分组、页面授权和操作权限共同生效。</p></div>';
+  else if (ccView.record) html += cvRuntimeRecord(c, ccView.record);
+  else html += cvRuntimePage(c, cmFind(c.pages, ccView.runtimePage));
+  return html + '</div></div><p class="config-note">体验身份与配置管理员分开。本区的身份切换仅用于评审，真实登录身份由服务端会话决定。</p>';
+}
+
+/**
+ * 渲染已授权的页面模板，列表与摘要使用同一数据范围过滤。
+ * @param {object} config 当前配置
+ * @param {object} page 页面定义
+ * @returns {string} 页面内容
+ */
+function cvRuntimePage(config, page) {
+  const userId = ccView.previewUser; const records = []; for (const record of ccDb.records) if (cmCanRead(config, userId, record)) records.push(record);
+  let html = `<div class="runtime-title"><div><h2>${cvEsc(page.name)}</h2><p>${cvEsc(CM_COMPONENTS[page.component][0])} · ${cvEsc(page.id)}</p></div></div>`;
+  if (page.component === "config_overview") return html + `<div class="notice">拥有配置管理权限。当前可查看配置 C${config.version}，业务数据需另外授权。</div>`;
+  if (page.component === "activity_form") {
+    if (page.formId !== config.form.id) return html + '<div class="notice error">页面绑定的表单不存在。</div>';
+    const user = cmFind(config.users, userId);
+    html += `<div class="runtime-identity-inline"><span>申请人：${cvEsc(user.name)}</span><span>申请部门：${cvEsc(cmFind(config.departments, user.department)?.name)}</span></div><div class="runtime-form-layout"><div class="config-form-preview">${cvErrors(ccView.formErrors)}${cvGeneratedForm(config.form)}${cmHas(config, userId, "activity:submit") ? '<button class="btn primary" data-c-action="submit-runtime">提交并生成审核任务</button>' : '<div class="notice warning">当前角色可以填写，尚未获得提交权限。</div>'}</div><aside class="runtime-side"><h3>根据填写内容生成审核路线</h3><div id="config-live-plan">${cvPlan(config, userId)}</div></aside></div>`;
+    return html;
+  }
+  if (page.component === "summary") {
+    let tasks = 0; for (const record of records) for (const node of record.nodes || []) if (cmCanAct(config, userId, record, node)) tasks += 1;
+    html += `<div class="metric-inline"><div><strong>${records.length}</strong><span>可见活动</span></div><div><strong>${tasks}</strong><span>可办理任务</span></div></div><div class="runtime-access">`;
+    for (const role of cmUserRoles(config, userId)) html += `<span>${cvEsc(role.name)} · ${CM_SCOPES[role.scope]}</span>`;
+    html += '</div><div style="margin-top:22px">';
+  }
+  let shown = 0;
+  for (const record of records) {
+    if (page.component === "archive_list" && record.status !== "archived") continue;
+    if (page.component === "task_list") { let mine = false; for (const node of record.nodes || []) if (cmCanAct(config, userId, record, node)) mine = true; if (!mine) continue; }
+    shown += 1; html += `<article class="runtime-record"><div><strong>${cvEsc(record.name)}</strong><p>${cvEsc(cmFind(config.departments, record.department)?.name)} · ${cvEsc(cmFind(config.users, record.applicant)?.name)} · ${cvEsc(ccStatus(record.status))} · C${record.configVersion}${record.source === "draft" ? "草案体验" : ""}</p></div><button class="btn small" data-c-action="open-record" data-id="${record.id}">查看</button></article>`;
+  }
+  if (!shown) html += '<p class="runtime-empty">当前范围没有匹配记录。可切换为申请人提交一个活动，再切换审核人办理。</p>';
+  if (page.component === "summary") html += "</div>";
+  return html;
+}
+
+/**
+ * 渲染实例原始表单快照与多个审核任务，按钮按当前资格单独计算。
+ * @param {object} config 当前账号与权限配置
+ * @param {string} id 实例标识
+ * @returns {string} 详情内容
+ */
+function cvRuntimeRecord(config, id) {
+  const record = cmFind(ccDb.records, id);
+  if (!record || !cmCanRead(config, ccView.previewUser, record)) return '<div class="runtime-empty">当前身份无此活动的数据访问权限。</div>';
+  let html = `<button class="back" data-c-action="back-record">← 返回当前页面</button><div class="runtime-detail"><div class="runtime-title"><div><h2>${cvEsc(record.name)}</h2><p>提交配置 C${record.configVersion}${record.source === "draft" ? "草案体验" : ""} · ${cvEsc(ccStatus(record.status))} · 实例版本 ${record.version}</p></div></div><div class="notice">实例展示提交时的字段与任务快照。人员启停和审核权限按当前选择的配置检查。</div>`;
+  if (record.schema) { html += '<section class="schema-summary"><dl>'; for (const field of record.schema.fields) if (Object.hasOwn(record.payload, field.key)) html += `<div><dt>${cvEsc(field.label)}</dt><dd>${cvEsc(record.payload[field.key])}</dd></div>`; html += "</dl></section>"; }
+  else html += '<p class="config-note">预置数据仅用于展示部门与本人数据范围。</p>';
+  html += '<h3 style="margin-top:25px;font-size:13px">审核与办理任务</h3>';
+  for (const node of record.nodes || []) {
+    const ready = cmTaskReady(record, node); const owners = []; for (const userId of node.assignees) owners.push(cmFind(config.users, userId)?.name || userId);
+    html += `<div class="config-plan-node ${node.status === "done" ? "done" : ready ? "active" : ""}"><strong>${cvEsc(node.label)}</strong><p>${cvEsc(owners.join("、"))} · ${node.status === "done" ? "已完成" : node.status === "closed" ? "随流程关闭" : ready ? "待办理" : "等待前置"}${node.assignees.length > 1 ? " · 全部受理人完成后汇合" : ""}<br>已办理 ${node.doneBy.length}／${node.assignees.length}</p>${cmCanAct(config, ccView.previewUser, record, node) ? `<button class="btn primary small" data-c-action="act-node" data-id="${record.id}" data-node="${node.id}" data-version="${record.version}">${node.kind === "approval" ? "模拟同意并流转" : "模拟完成任务"}</button>` : ""}</div>`;
+  }
+  return html + "</div>";
+}
+
+</script><script>
+"use strict";
+
+const CC_KEY = "xingzhi-configuration-center-v3";
+const CC_ADMIN = "u-xu";
+let ccStorageAvailable = true;
+let ccDb = ccLoad();
+const ccView = { tab: "overview", department: "d1", role: "applicant", source: "published", previewUser: "u-lin", workflowApplicant: "u-lin", runtimePage: "", record: "", values: {}, formErrors: [], dialog: "", editId: "" };
+let ccToastTimer;
+
+/**
+ * 创建配置中心独立数据，示例活动用于验证本人和部门范围。
+ * @returns {object} 草案、发布版本、活动实例与配置审计
+ */
+function ccSeed() {
+  const published = cmSeedConfig();
+  return { schema: 3, published, draft: cmCopy(published), records: [
+    { id: "sample-1", name: "阅读教学与表达研讨", department: "d1", applicant: "u-lin", status: "archived", configVersion: 1, version: 1, nodes: [] },
+    { id: "sample-2", name: "秋季课程教研分享", department: "d1", applicant: "u-lin", status: "approved", configVersion: 1, version: 1, nodes: [] },
+    { id: "sample-3", name: "整本书阅读专题培训", department: "d2", applicant: "u-qiao", status: "archived", configVersion: 1, version: 1, nodes: [] }
+  ], audit: [{ title: "初始化配置 C1", at: new Date().toLocaleString("zh-CN"), note: "五项配置已建立引用。示例账户与活动用于本地评审。" }] };
+}
+
+/**
+ * 读取配置中心本地数据，无法读取时使用内存中的示例配置。
+ * @returns {object} 独立配置数据库
+ */
+function ccLoad() { try { const raw = localStorage.getItem(CC_KEY); if (raw) { const data = JSON.parse(raw); if (data.schema === 3 && data.published && data.draft && Array.isArray(data.records)) return data; } } catch { ccStorageAvailable = false; } return ccSeed(); }
+
+/**
+ * 保存草案与本地演示实例，存储失败时保留当前页面内数据。
+ */
+function ccPersist() { try { localStorage.setItem(CC_KEY, JSON.stringify(ccDb)); } catch { ccStorageAvailable = false; ccToast("本地存储不可用，修改仅在本次页面内保留。", true); } }
+
+/**
+ * 取得联动体验区选择的配置版本。
+ * @returns {object} 草案或已发布配置
+ */
+function ccConfig() { return ccView.source === "draft" ? ccDb.draft : ccDb.published; }
+
+/**
+ * 根据当前管理员的已发布授权校验配置写权限。
+ * @returns {boolean} 是否允许配置写入
+ */
+function ccCanConfigure() { if (cmHas(ccDb.published, CC_ADMIN, "config:manage")) return true; ccToast("当前配置账号没有管理权限。", true); return false; }
+
+/**
+ * 显示简明操作反馈，不覆盖页面正文。
+ * @param {string} text 中文提示
+ * @param {boolean} error 是否为错误
+ */
+function ccToast(text, error = false) { const node = document.getElementById("config-toast"); node.textContent = text; node.hidden = false; node.classList.toggle("error", error); clearTimeout(ccToastTimer); ccToastTimer = setTimeout(/** 隐藏已展示的配置操作反馈，无返回值。 */ function hideConfigToast() { node.hidden = true; }, 4500); }
+
+/**
+ * 追加配置审计，记录动作与实际配置工作账号。
+ * @param {string} title 配置动作
+ * @param {string} note 变更说明
+ */
+function ccAudit(title, note = "") { ccDb.audit.push({ title, note: "许言 · " + note, at: new Date().toLocaleString("zh-CN", { hour12: false }) }); if (ccDb.audit.length > 200) ccDb.audit.shift(); }
+
+/**
+ * 将配置修改保存到草案并刷新当前模块，发布配置保持不变。
+ * @param {string} title 修改动作
+ */
+function ccDraftChanged(title) { ccAudit("草案：" + title, "未影响已发布配置。"); ccPersist(); cvRender(); }
+
+/**
+ * 显示实例状态，审核完成不直接代表活动已执行。
+ * @param {string} status 实例状态
+ * @returns {string} 中文业务状态
+ */
+function ccStatus(status) { return { approving: "审核中", approved: "审核完成，待安排执行", archived: "已归档" }[status] || status; }
+
+/**
+ * 关闭配置编辑弹窗并清理编辑上下文。
+ */
+function ccCloseDialog() { const dialog = document.getElementById("config-dialog"); if (dialog.open) dialog.close(); ccView.dialog = ""; ccView.editId = ""; }
+
+/**
+ * 打开统一配置编辑弹窗，不直接写入草案。
+ * @param {string} kind 编辑类型
+ * @param {string} title 弹窗标题
+ * @param {string} body 已转义的字段 HTML
+ * @param {string} id 现有对象标识
+ * @param {string} confirm 确认按钮文案
+ */
+function ccDialog(kind, title, body, id = "", confirm = "保存到草案") {
+  ccView.dialog = kind; ccView.editId = id;
+  document.getElementById("config-dialog-title").textContent = title;
+  document.getElementById("config-dialog-body").innerHTML = '<div class="dialog-error" id="config-dialog-error" role="alert" hidden></div><div class="config-dialog-body">' + body + "</div>";
+  document.getElementById("config-dialog-confirm").textContent = confirm;
+  document.getElementById("config-dialog").showModal();
+}
+
+/**
+ * 在弹窗内显示局部校验错误，保留用户填写内容。
+ * @param {string} message 中文错误说明
+ */
+function ccDialogError(message) { const el = document.getElementById("config-dialog-error"); el.textContent = message; el.hidden = false; }
+
+/**
+ * 将列表转换为原生选择控件选项。
+ * @param {Array<object>} list 配置对象列表
+ * @param {string} label 显示属性
+ * @returns {Array<Array<string>>} 选项键值对
+ */
+function ccOptions(list, label = "name") { const result = []; for (const item of list) result.push([item.id, item[label]]); return result; }
+
+/**
+ * 输出多角色或页面授权选择框。
+ * @param {string} name 提交字段名
+ * @param {Array<object>} list 角色对象
+ * @param {Array<string>} selected 已选标识
+ * @returns {string} 多选复选框组
+ */
+function ccChecks(name, list, selected) { let html = '<div class="grant-grid">'; for (const item of list) html += `<label><input type="checkbox" name="${name}" value="${item.id}" ${selected.includes(item.id) ? "checked" : ""}>${cvEsc(item.name)}</label>`; return html + "</div>"; }
+
+/**
+ * 打开字段配置，已有字段键保持稳定，显示条件引用当前 schema。
+ * @param {string} id 已有字段标识，空值表示新建
+ */
+function ccEditField(id = "") {
+  if (!ccCanConfigure()) return;
+  const field = cmFind(ccDb.draft.form.fields, id) || { key: "", label: "", type: "text", required: false, default: "", options: [] };
+  const refs = [["", "始终显示"]]; for (const other of ccDb.draft.form.fields) if (other.id !== id) refs.push([other.key, other.label]);
+  const types = Object.entries(CV_FIELD_TYPES);
+  let body = '<p class="config-dialog-hint">字段键供条件与提交快照引用，现有字段不修改键。下拉选项按逗号或换行分隔。</p><div class="form-grid">';
+  body += cvField("label", "中文标题", field.label, { required: true }) + cvField("key", "字段键（英文）", field.key, { required: true, readonly: !!id, pattern: "[a-z][a-z0-9_]{1,39}" });
+  body += cvField("type", "字段类型", field.type, { options: types }) + cvField("required", "是否必填", field.required ? "yes" : "no", { options: [["yes", "必填"], ["no", "选填"]] });
+  body += cvField("default", "默认值", field.default, { textarea: true, full: true }) + cvField("options", "下拉选项", field.options.join("\n"), { textarea: true, full: true });
+  body += cvField("visible_field", "显示条件字段", field.visible?.field || "", { options: refs }) + cvField("visible_operator", "比较方式", field.visible?.operator || "eq", { options: [["eq", "等于"], ["neq", "不等于"]] }) + cvField("visible_value", "条件值", field.visible?.value || "", { full: true });
+  ccDialog("field", id ? "编辑动态字段" : "新增动态字段", body + "</div>", id);
+}
+
+/**
+ * 打开流程节点配置，新增可选择前插、后插或并行。
+ * @param {string} id 已有节点标识
+ */
+function ccEditNode(id = "") {
+  if (!ccCanConfigure()) return;
+  const c = ccDb.draft; const node = cmFind(c.workflow.nodes, id) || { label: "", kind: "approval", deps: [], assignee: { type: "manager", value: "" } };
+  let body = '<p class="config-dialog-hint">角色命中多人时全部办理后汇合。条件未命中的节点会被跳过，后继继承原前置。</p><div class="form-grid">';
+  body += cvField("label", "节点名称", node.label, { required: true }) + cvField("kind", "节点类型", node.kind, { options: [["approval", "审核"], ["task", "办理任务"], ["notice", "非阻塞知会"]] });
+  body += cvField("assignee_type", "受理规则", node.assignee.type, { options: [["manager", "申请部门负责人"], ["role", "指定角色"], ["user", "指定员工"]], full: true });
+  body += cvField("assignee_role", "受理角色", node.assignee.type === "role" ? node.assignee.value : c.roles[0].id, { options: ccOptions(c.roles) });
+  body += cvField("assignee_user", "受理员工", node.assignee.type === "user" ? node.assignee.value : c.users[0].id, { options: ccOptions(c.users) });
+  if (!id) { body += cvField("anchor", "插入位置参照", c.workflow.nodes[0]?.id || "", { options: ccOptions(c.workflow.nodes, "label") }) + cvField("position", "插入方式", "after", { options: [["before", "节点之前"], ["after", "节点之后"], ["parallel", "与节点并行"]] }); }
+  else { const deps = []; for (const dep of node.deps) deps.push(cmFind(c.workflow.nodes, dep)?.label || dep); body += `<p class="config-dialog-hint full">当前前置：${cvEsc(deps.join(" ＋ ") || "提交申请")}。调整顺序可通过插入新节点完成。</p>`; }
+  const fields = [["", "所有申请生效"]]; for (const field of c.form.fields) fields.push([field.key, field.label]);
+  body += cvField("condition_field", "生效条件字段", node.condition?.field || "", { options: fields }) + cvField("condition_operator", "条件比较", node.condition?.operator || "gte", { options: [["gte", "数字大于等于"], ["eq", "等于"], ["neq", "不等于"]] }) + cvField("condition_value", "条件值", node.condition?.value || "", { full: true });
+  ccDialog("node", id ? "编辑流程节点" : "新增流程节点", body + "</div>", id);
+}
+
+/**
+ * 打开部门配置，负责人选项限定在该部门现有成员。
+ * @param {string} id 已有部门标识
+ */
+function ccEditDepartment(id = "") {
+  if (!ccCanConfigure()) return;
+  const c = ccDb.draft; const dept = cmFind(c.departments, id) || { name: "", parent: ccView.department, manager: "", active: true };
+  let body = cvField("name", "部门名称", dept.name, { required: true });
+  if (!id) body += cvField("parent", "上级部门", dept.parent, { options: ccOptions(c.departments) });
+  else { const members = [["", "暂未配置"]]; for (const user of c.users) if (user.department === id) members.push([user.id, user.name]); body += cvField("manager", "部门负责人", dept.manager, { options: members }); }
+  body += cvField("active", "部门状态", dept.active ? "yes" : "no", { options: [["yes", "启用"], ["no", "停用"]] });
+  body += '<p class="config-dialog-hint">新部门先添加成员，再设置负责人。部门层级、负责人有效性和最后管理员在发布时校验。</p>';
+  ccDialog("department", id ? "编辑部门" : "新增部门", body, id);
+}
+
+/**
+ * 打开成员编辑，维护主部门、账号状态和多个角色。
+ * @param {string} id 成员标识
+ */
+function ccEditUser(id = "") {
+  if (!ccCanConfigure()) return;
+  const c = ccDb.draft; const user = cmFind(c.users, id) || { name: "", department: ccView.department, roles: [], active: true };
+  let body = cvField("name", "员工姓名", user.name, { required: true }) + cvField("department", "主部门", user.department, { options: ccOptions(c.departments) }) + cvField("active", "账号状态", user.active ? "yes" : "no", { options: [["yes", "启用"], ["no", "停用"]] });
+  body += '<h3 class="config-section-title">角色，可多选</h3>' + ccChecks("roles", c.roles, user.roles) + '<p class="config-dialog-hint">主部门用于数据范围和负责人解析，角色决定功能授权。负责人调离部门后需同步调整部门配置。</p>';
+  ccDialog("user", id ? "编辑员工" : "新增员工", body, id);
+}
+
+/**
+ * 打开菜单页面配置，页面只引用已注册模板并授予指定角色。
+ * @param {string} id 页面标识
+ */
+function ccEditPage(id = "") {
+  if (!ccCanConfigure()) return;
+  const c = ccDb.draft; const page = cmFind(c.pages, id) || { name: "", group: "business", component: "activity_list", active: true };
+  const selected = []; for (const role of c.roles) if (role.pages.includes(id)) selected.push(role.id);
+  const components = []; for (const [key, value] of Object.entries(CM_COMPONENTS)) components.push([key, value[0]]);
+  let body = cvField("name", "页面与菜单名称", page.name, { required: true }) + cvField("group", "所属分组", page.group, { options: ccOptions(c.groups) }) + cvField("component", "页面模板", page.component, { options: components }) + cvField("active", "页面状态", page.active ? "yes" : "no", { options: [["yes", "启用"], ["no", "停用"]] });
+  body += '<h3 class="config-section-title">授权角色</h3>' + ccChecks("roles", c.roles, selected) + '<p class="config-dialog-hint">申请表单模板自动绑定活动表单。授权入口后仍需对应操作权限，记录仍受角色数据范围过滤。</p>';
+  ccDialog("page", id ? "编辑菜单页面" : "新增菜单页面", body, id);
+}
+
+/**
+ * 分割下拉选项，移除空项并保留初次出现的顺序。
+ * @param {string} text 逗号或换行分隔的文本
+ * @returns {Array<string>} 去重的选项列表
+ */
+function ccSplit(text) { const values = []; for (const value of text.split(/[,，\n]/)) { const trimmed = value.trim(); if (trimmed && !values.includes(trimmed)) values.push(trimmed); } return values; }
+
+/**
+ * 保存编辑弹窗内容，每类变更先校验局部引用与依赖，再写入草案。
+ * @param {SubmitEvent} event 原生表单提交事件
+ */
+function ccSubmitDialog(event) {
+  event.preventDefault();
+  const kind = ccView.dialog;
+  if (kind === "direct") { const data = new FormData(event.target); ccView.runtimePage = String(data.get("page")); ccView.record = ""; ccCloseDialog(); cvRender(); return; }
+  if (!ccCanConfigure()) return;
+  if (kind === "publish") { ccPublish(); return; }
+  if (kind === "delete-field" || kind === "delete-node" || kind === "reset") { ccConfirmDelete(); return; }
+  const form = new FormData(event.target); const values = Object.fromEntries(form.entries()); const c = ccDb.draft; const id = ccView.editId;
+  if (kind === "field") {
+    const old = cmFind(c.form.fields, id);
+    const key = old?.key || String(values.key || "").trim();
+    if (!/^[a-z][a-z0-9_]{1,39}$/.test(key) || !String(values.label).trim()) { ccDialogError("字段键需为 2—40 位小写英文、数字或下划线，标题不能为空。"); return; }
+    for (const field of c.form.fields) if (field.key === key && field.id !== id) { ccDialogError("字段键已存在。"); return; }
+    if (old && old.type !== values.type && cmFieldRefs(c, old.key).length) { ccDialogError("该字段被条件引用，需先解除引用再改变类型。"); return; }
+    const field = { id: id || cmId("field"), key, label: String(values.label).trim(), type: values.type, required: values.required === "yes", default: values.default || "", options: ccSplit(values.options || "") };
+    if (old?.system && (field.type !== "text" || !field.required)) { ccDialogError("活动名称为系统必填文字字段。"); return; }
+    if (old?.system) field.system = true;
+    if (field.type === "select" && !field.options.length) { ccDialogError("下拉字段至少需要一个选项。"); return; }
+    if (values.visible_field) { if (values.visible_field === key) { ccDialogError("字段不能依赖自身的显示条件。"); return; } field.visible = { field: values.visible_field, operator: values.visible_operator, value: values.visible_value || "" }; }
+    if (old) c.form.fields[c.form.fields.indexOf(old)] = field; else c.form.fields.push(field);
+  }
+  if (kind === "node") {
+    const old = cmFind(c.workflow.nodes, id); const next = cmCopy(c.workflow.nodes);
+    if (!String(values.label || "").trim()) { ccDialogError("请填写节点名称。"); return; }
+    if (old?.protected && (values.kind !== "approval" || values.condition_field)) { ccDialogError("必要审核节点需保留审核类型，不能设置跳过条件。"); return; }
+    const assignee = { type: values.assignee_type, value: values.assignee_type === "role" ? values.assignee_role : values.assignee_type === "user" ? values.assignee_user : "" };
+    const node = { id: id || cmId("node"), label: String(values.label).trim(), kind: values.kind, deps: old ? [...old.deps] : [], assignee };
+    if (old?.protected) node.protected = true;
+    if (values.condition_field) {
+      const field = cmFindField(c, values.condition_field);
+      if (!field || (values.condition_operator === "gte" && (field.type !== "number" || !Number.isFinite(cmNumber(values.condition_value))))) { ccDialogError("大于等于条件必须使用数字字段和有效非负阈值。"); return; }
+      node.condition = { field: values.condition_field, operator: values.condition_operator, value: values.condition_value || "" };
+    }
+    if (old) next[c.workflow.nodes.indexOf(old)] = node;
+    else {
+      const anchor = cmFind(next, values.anchor); if (!anchor) { ccDialogError("请选择参照节点。"); return; }
+      node.deps = values.position === "after" ? [anchor.id] : [...anchor.deps];
+      if (node.kind !== "notice") {
+        if (values.position === "before") anchor.deps = [node.id];
+        else for (const child of next) if (child.deps.includes(anchor.id)) { const deps = []; for (const dep of child.deps) deps.push(dep === anchor.id && values.position === "after" ? node.id : dep); if (values.position === "parallel") deps.push(node.id); child.deps = [...new Set(deps)]; }
+      }
+      next.splice(next.indexOf(anchor) + (values.position === "before" ? 0 : 1), 0, node);
+    }
+    const checked = cmDag(next); if (checked.error) { ccDialogError(checked.error); return; }
+    c.workflow.nodes = next;
+  }
+  if (kind === "department") {
+    const old = cmFind(c.departments, id);
+    if (!String(values.name || "").trim()) { ccDialogError("部门名称不能为空。"); return; }
+    if (old) Object.assign(old, { name: values.name.trim(), manager: values.manager || "", active: values.active === "yes" });
+    else { const dept = { id: cmId("department"), name: values.name.trim(), parent: values.parent, manager: "", active: values.active === "yes" }; c.departments.push(dept); ccView.department = dept.id; }
+  }
+  if (kind === "user") {
+    if (!String(values.name || "").trim()) { ccDialogError("员工姓名不能为空。"); return; }
+    const user = { id: id || cmId("user"), name: values.name.trim(), department: values.department, active: values.active === "yes", roles: form.getAll("roles") };
+    const old = cmFind(c.users, id); if (old) c.users[c.users.indexOf(old)] = user; else c.users.push(user);
+    ccView.department = user.department;
+  }
+  if (kind === "role") {
+    if (!String(values.name || "").trim()) { ccDialogError("角色名称不能为空。"); return; }
+    const role = { id: cmId("role"), name: values.name.trim(), permissions: [], pages: [], scope: "self" }; c.roles.push(role); ccView.role = role.id;
+  }
+  if (kind === "page") {
+    if (!String(values.name || "").trim() || !CM_COMPONENTS[values.component]) { ccDialogError("名称或页面模板无效。"); return; }
+    const page = { id: id || cmId("page"), name: values.name.trim(), group: values.group, component: values.component, active: values.active === "yes" };
+    if (page.component === "activity_form") page.formId = c.form.id;
+    const old = cmFind(c.pages, id); if (old) c.pages[c.pages.indexOf(old)] = page; else c.pages.push(page);
+    const grants = form.getAll("roles"); for (const role of c.roles) { const pages = []; for (const pageId of role.pages) if (pageId !== page.id) pages.push(pageId); if (grants.includes(role.id)) pages.push(page.id); role.pages = pages; }
+  }
+  const actionName = { field: "保存字段", node: "保存流程节点", department: "保存部门", user: "保存员工", role: "新增角色", page: "保存菜单页面" }[kind] || "保存配置";
+  ccCloseDialog(); ccDraftChanged(actionName + " · " + (values.label || values.name || id)); ccToast("已保存到草案，发布后可在已发布体验中验证。");
+}
+
+/**
+ * 发布经过全量结构检查的配置，保持所有已提交实例的内容与流程快照。
+ */
+function ccPublish() {
+  if (!ccCanConfigure()) return;
+  const errors = cmValidateConfig(ccDb.draft);
+  if (!cmHas(ccDb.draft, CC_ADMIN, "config:manage")) errors.push("本演示固定由许言维护配置，请保留该账号配置权限；正式交接需要先切换管理账号。");
+  if (errors.length) { ccDialogError(errors.join("；")); return; }
+  const next = cmCopy(ccDb.draft); next.version = ccDb.published.version + 1;
+  ccDb.published = next; ccDb.draft = cmCopy(next); ccAudit("发布配置 C" + next.version, "表单、流程、角色、组织和菜单同步发布；在途实例保留原快照。");
+  ccPersist(); ccCloseDialog(); cvRender(); ccToast("配置 C" + next.version + " 已发布。");
+}
+
+/**
+ * 确认删除时再次检查字段引用或必要节点，结构删除只修改草案。
+ */
+function ccConfirmDelete() {
+  if (!ccCanConfigure()) return;
+  const c = ccDb.draft; const id = ccView.editId;
+  if (ccView.dialog === "reset") { ccDb = ccSeed(); ccView.record = ""; ccView.runtimePage = ""; ccView.values = {}; ccView.role = "applicant"; ccView.department = "d1"; ccPersist(); ccCloseDialog(); cvRender(); ccToast("已重置配置中心，其他原型演示保持原样。"); return; }
+  if (ccView.dialog === "delete-field") {
+    const field = cmFind(c.form.fields, id); if (!field) return;
+    const refs = cmFieldRefs(c, field.key); if (field.system || refs.length) { ccDialogError(field.system ? "系统活动名称不可删除。" : "请先解除引用：" + refs.join("、")); return; }
+    c.form.fields.splice(c.form.fields.indexOf(field), 1);
+  }
+  if (ccView.dialog === "delete-node") {
+    const node = cmFind(c.workflow.nodes, id); if (!node) return;
+    if (node.protected) { ccDialogError("必要审核节点不可删除。"); return; }
+    let approvals = 0; for (const item of c.workflow.nodes) if (item.kind === "approval") approvals += 1;
+    if (node.kind === "approval" && approvals <= 1) { ccDialogError("流程至少保留一个审核节点。"); return; }
+    for (const child of c.workflow.nodes) if (child.deps.includes(id)) { const deps = []; for (const dep of child.deps) deps.push(...(dep === id ? node.deps : [dep])); child.deps = [...new Set(deps)]; }
+    c.workflow.nodes.splice(c.workflow.nodes.indexOf(node), 1);
+  }
+  ccCloseDialog(); ccDraftChanged("移除配置对象"); ccToast("草案已更新。");
+}
+
+/**
+ * 将当前表单提交为独立演示实例，提交入口二次检查页面、动作和当前身份。
+ */
+function ccSubmitRuntime() {
+  const c = ccConfig(); const userId = ccView.previewUser; const page = cmFind(c.pages, ccView.runtimePage);
+  if (ccView.record || !cmPageAllowed(c, userId, ccView.runtimePage) || page?.component !== "activity_form" || page.formId !== c.form.id || !cmHas(c, userId, "activity:submit")) { ccToast("当前页面或身份没有提交权限。", true); return; }
+  const checked = cmValidateForm(c.form, ccView.values); const plan = cmResolve(c, checked.payload, userId);
+  ccView.formErrors = [...cmValidateConfig(c), ...checked.errors, ...plan.errors]; if (ccView.formErrors.length) { cvRender(); return; }
+  const user = cmFind(c.users, userId);
+  const record = { id: cmId("activity"), name: checked.payload.activity_name || "动态活动申请", department: user.department, applicant: userId, status: "approving", configVersion: c.version, source: ccView.source, schema: cmCopy(c.form), payload: cmCopy(checked.payload), nodes: cmCopy(plan.nodes), version: 1 };
+  ccDb.records.unshift(record); ccView.record = record.id; ccPersist(); cvRender(); ccToast("已生成审核任务。可切换部门负责人查看并办理。");
+}
+
+/**
+ * 模拟办理实例节点，检查任务归属、当前权限、实例版本和前置条件。
+ * @param {string} recordId 实例标识
+ * @param {string} nodeId 任务节点
+ * @param {number} version 按钮展示时的实例版本
+ */
+function ccActNode(recordId, nodeId, version) {
+  const c = ccConfig(); const record = cmFind(ccDb.records, recordId); const node = record && cmFind(record.nodes, nodeId);
+  if (!cmPageAllowed(c, ccView.previewUser, ccView.runtimePage) || !record || !node || record.version !== version || !cmCanAct(c, ccView.previewUser, record, node)) { ccToast("任务已变化，或当前身份不具备办理资格。", true); return; }
+  node.doneBy.push(ccView.previewUser); if (node.doneBy.length === node.assignees.length) node.status = "done";
+  let complete = true; for (const task of record.nodes) if (task.kind !== "notice" && task.status !== "done") complete = false;
+  if (complete) { record.status = "approved"; for (const task of record.nodes) if (task.kind === "notice" && task.status === "todo") task.status = "closed"; }
+  record.version += 1; ccPersist(); cvRender(); ccToast(complete ? "必要任务已全部完成，立项审核通过。" : "本任务办理已记录，后继按依赖激活。");
+}
+
+/**
+ * 调整草案数组顺序，不改变配置对象的稳定标识。
+ * @param {Array<object>} list 待排序配置数组
+ * @param {string} id 对象标识
+ * @param {number} direction 上移为 -1，下移为 1
+ */
+function ccMove(list, id, direction) { if (!ccCanConfigure()) return; const item = cmFind(list, id); const index = list.indexOf(item); const target = index + direction; if (index < 0 || target < 0 || target >= list.length) return; list.splice(index, 1); list.splice(target, 0, item); ccDraftChanged("调整显示顺序"); }
+
+/**
+ * 处理配置导航、编辑、发布及联动体验动作，修改入口统一检查权限。
+ * @param {MouseEvent} event 用户点击事件
+ */
+function ccHandleClick(event) {
+  const button = event.target.closest("[data-c-action]"); if (!button || button.disabled) return;
+  const action = button.dataset.cAction; const id = button.dataset.id;
+  if (action === "close") { ccCloseDialog(); return; }
+  if (action === "nav") { ccView.tab = id; ccView.formErrors = []; cvRender(); return; }
+  if (action === "runtime-page") { if (!cmPageAllowed(ccConfig(), ccView.previewUser, id)) { ccToast("无页面访问权限。", true); return; } ccView.runtimePage = id; ccView.record = ""; ccView.formErrors = []; cvRender(); return; }
+  if (action === "open-record") { const record = cmFind(ccDb.records, id); if (!record || !cmPageAllowed(ccConfig(), ccView.previewUser, ccView.runtimePage) || !cmCanRead(ccConfig(), ccView.previewUser, record)) { ccToast("无此活动的访问权限。", true); return; } ccView.record = id; cvRender(); return; }
+  if (action === "back-record") { ccView.record = ""; cvRender(); return; }
+  if (action === "submit-runtime") { ccSubmitRuntime(); return; }
+  if (action === "act-node") { ccActNode(id, button.dataset.node, Number(button.dataset.version)); return; }
+  if (action === "validate-form") { ccView.formErrors = cmValidateForm(ccDb.draft.form, ccView.values).errors; cvRender(); if (!ccView.formErrors.length) ccToast("当前可见字段校验通过，隐藏字段不参与提交。"); return; }
+  if (action === "select-department") { ccView.department = id; cvRender(); return; }
+  if (action === "select-role") { ccView.role = id; cvRender(); return; }
+  if (action === "direct-page") { ccDialog("direct", "验证页面直接访问", cvField("page", "目标页面", ccView.runtimePage, { options: ccOptions(ccConfig().pages) }) + '<p class="config-dialog-hint">可选择当前菜单未展示的页面，验证页面入口是否拒绝访问。</p>', "", "尝试访问"); return; }
+  if (!ccCanConfigure()) return;
+  if (action === "add-field" || action === "edit-field") { ccEditField(id); return; }
+  if (action === "add-node" || action === "edit-node") { ccEditNode(id); return; }
+  if (action === "add-department" || action === "edit-department") { ccEditDepartment(id); return; }
+  if (action === "add-user" || action === "edit-user") { ccEditUser(id); return; }
+  if (action === "add-page" || action === "edit-page") { ccEditPage(id); return; }
+  if (action === "add-role") { ccDialog("role", "新增角色", cvField("name", "角色名称", "", { required: true }) + '<p class="config-dialog-hint">新角色默认无操作与页面授权，保存后分别配置。</p>'); return; }
+  if (action === "delete-field" || action === "delete-node") { ccDialog(action, action === "delete-field" ? "删除字段？" : "删除流程节点？", '<p class="config-dialog-hint">仅修改草案。字段引用、必要审核与流程依赖会再次检查，已提交实例不受影响。</p>', id, "确认删除"); return; }
+  if (action === "field-up" || action === "field-down") { ccMove(ccDb.draft.form.fields, id, action === "field-up" ? -1 : 1); return; }
+  if (action === "page-up" || action === "page-down") { ccMove(ccDb.draft.pages, id, action === "page-up" ? -1 : 1); return; }
+  if (action === "toggle-user") { const user = cmFind(ccDb.draft.users, id); if (user) { user.active = !user.active; ccDraftChanged("切换成员状态"); } return; }
+  if (action === "save-draft") { ccPersist(); ccToast("草案已保存，尚未改变已发布配置。"); return; }
+  if (action === "check-config") { const errors = cmValidateConfig(ccDb.draft); ccToast(errors.length ? errors.join("；") : "草案结构与引用校验通过。", !!errors.length); return; }
+  if (action === "publish") { ccDialog("publish", "发布配置 C" + (ccDb.published.version + 1) + "？", '<p class="config-dialog-hint">将统一校验字段引用、组织负责人、流程依赖、角色与页面。新提交采用新表单和流程，已有实例保留原快照。当前人员与权限按已发布配置校验。</p>', "", "校验并发布"); return; }
+  if (action === "reset-all") ccDialog("reset", "重置配置中心？", '<p class="config-dialog-hint">清除本配置中心的草案、发布和实例体验数据，恢复初始示例。首版工单与动态流程图的演示数据保留。</p>', "", "确认重置");
+}
+
+/**
+ * 记录动态表单输入并只更新路线预览，输入期间保留光标焦点。
+ * @param {Event} event 字段输入事件
+ */
+function ccHandleInput(event) {
+  const input = event.target; const key = input.dataset.runtimeField; if (!key) return;
+  ccView.values[key] = input.value;
+  const target = document.getElementById("config-live-plan");
+  if (target) target.innerHTML = cvPlan(ccView.tab === "workflow" ? ccDb.draft : ccConfig(), ccView.tab === "workflow" ? ccView.workflowApplicant : ccView.previewUser);
+}
+
+/**
+ * 处理身份、快照来源、角色授权、菜单启停与条件字段变化。
+ * @param {Event} event 控件变化事件
+ */
+function ccHandleChange(event) {
+  const input = event.target;
+  if (input.id === "runtime-user" || input.id === "runtime-source") { if (input.id === "runtime-user") ccView.previewUser = input.value; else ccView.source = input.value; ccView.runtimePage = ""; ccView.record = ""; ccView.formErrors = []; cvRender(); return; }
+  if (input.id === "workflow-applicant") { ccView.workflowApplicant = input.value; cvRender(); return; }
+  if (input.dataset.runtimeField) { ccView.values[input.dataset.runtimeField] = input.value; cvRender(); return; }
+  if (input.dataset.grant || input.id === "role-scope" || input.dataset.pageEnabled || input.dataset.groupEnabled) {
+    if (!ccCanConfigure()) { cvRender(); return; }
+    const c = ccDb.draft; const role = cmFind(c.roles, ccView.role);
+    if (input.dataset.grant) { const property = input.dataset.grant === "permission" ? "permissions" : "pages"; const list = []; for (const value of role[property]) if (value !== input.value) list.push(value); if (input.checked) list.push(input.value); role[property] = list; }
+    if (input.id === "role-scope") role.scope = input.value;
+    if (input.dataset.pageEnabled) cmFind(c.pages, input.dataset.pageEnabled).active = input.checked;
+    if (input.dataset.groupEnabled) cmFind(c.groups, input.dataset.groupEnabled).active = input.checked;
+    ccDraftChanged("更新授权或菜单状态");
+  }
+}
+
+document.addEventListener("click", ccHandleClick);
+document.addEventListener("input", ccHandleInput);
+document.addEventListener("change", ccHandleChange);
+document.getElementById("config-dialog-form").addEventListener("submit", ccSubmitDialog);
+cvRender();
+
+</script>
+</body></html>

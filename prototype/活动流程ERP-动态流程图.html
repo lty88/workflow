@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>活动动态工作流程 · 行知 ERP</title>
+  <style>
+:root{font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:#f4f6fa;color:#23344e;line-height:1.6;font-size:14px;--blue:#295fe7;--muted:#8390a4;--line:#e5eaf3}*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;border:1px solid #dce3ee;background:#fff;border-radius:7px;padding:9px 14px;line-height:1.5;min-height:39px}button:disabled{opacity:.45;cursor:not-allowed}button:hover:not(:disabled){background:#f2f6ff}button:focus-visible,a:focus-visible{outline:3px solid #9bb8ff;outline-offset:3px}a{color:var(--blue);text-decoration:none}h1,h2,p{margin:0}h1{font-size:30px;letter-spacing:-.7px;font-weight:650}h2{font-size:15px;font-weight:600}.topbar{height:64px;background:white;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 35px;font-size:12px;gap:15px}.topbar b{background:#edf3ff;color:var(--blue);padding:3px 6px;border-radius:4px;margin-left:7px;font-size:10px}.topbar .back{color:#8593a9}main{max-width:1550px;margin:auto;padding:33px 35px}.heading{display:flex;justify-content:space-between;align-items:center;gap:25px;margin-bottom:25px}.eyebrow{font-size:10px;font-weight:600;letter-spacing:1.6px;color:var(--blue);margin-bottom:6px}.subtitle{font-size:12px;color:#7d8ba2;margin-top:9px}.primary{background:var(--blue);border-color:var(--blue);color:white;font-size:12px}.primary:hover:not(:disabled){background:#194ed2}.scenarios{display:flex;gap:9px;flex-wrap:wrap}.scenarios button{font-size:12px;background:transparent;border-color:transparent;color:#7889a5;padding:8px 15px}.scenarios button[aria-pressed=true]{color:#285bd1;background:#e7eeff;font-weight:600}.scenario-note{padding:14px 0 20px;font-size:12px;color:#718099;min-height:55px}.workarea{display:grid;grid-template-columns:minmax(0,1fr) 265px;gap:20px;align-items:start}.map-panel{background:#fff;border:1px solid var(--line);border-radius:11px;min-width:0;overflow:hidden}.map-toolbar{padding:18px 21px;display:flex;justify-content:space-between;gap:15px;align-items:center;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap}.map-toolbar strong{font-weight:550}.legend{display:flex;gap:13px;font-size:10px;color:#8793a6;flex-wrap:wrap}.legend span::before{content:"";display:inline-block;width:6px;height:6px;background:#d0d8e5;border-radius:50%;margin-right:5px}.legend .done::before{background:#3b9c83}.legend .ready::before{background:#3e74e9}.legend .optional::before{background:#b58cce}.map-scroll{overflow-x:auto;padding:24px 20px 27px}.canvas{position:relative;min-width:920px;min-height:490px}.columns{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:33px;position:relative;align-items:start}.phase-head{height:49px;font-size:12px;color:#8392ab;font-weight:550}.phase-head span{display:inline-grid;place-items:center;border-radius:5px;background:#eef2f8;color:#91a0b6;width:20px;height:20px;margin-right:7px;font-size:10px}.node-stack{display:flex;flex-direction:column;gap:35px}.flow-node{width:100%;position:relative;z-index:1;border:1px solid #dfe6f1;padding:13px 12px 11px;background:#fff;border-radius:8px;text-align:left;min-height:91px;display:block;white-space:normal;box-shadow:0 2px 5px #1f3c6205}.flow-node .kind{font-size:9px;color:#98a3b6;margin-bottom:5px;display:block}.flow-node strong{font-size:12px;font-weight:550;display:block;line-height:1.7;overflow-wrap:anywhere}.flow-node .node-foot{display:flex;justify-content:space-between;gap:5px;flex-wrap:wrap;font-size:10px;color:#8897ac;margin-top:8px}.flow-node.done{background:#f5faf8;border-color:#cfe4db}.flow-node.done .node-status{color:#438d78}.flow-node.ready{background:#f3f7ff;border-color:#a8c0f6}.flow-node.ready .node-status{color:#366de0}.flow-node.selected{box-shadow:0 0 0 3px #2c66e319}.flow-node.optional{border-style:dashed}.flow-node .inserted{font-size:9px;color:#9560b8;position:absolute;top:-9px;right:8px;background:#f9f0ff;border:1px solid #e8d8f4;padding:0 5px;border-radius:4px}.flow-node .group-label{font-size:9px;color:#a182b7;display:block;margin-bottom:3px}.node-status{white-space:nowrap}#edges{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:0}.edge{fill:none;stroke:#c5cfdf;stroke-width:1.3}.edge.complete{stroke:#8ebcae}.edge.optional{stroke-dasharray:4 4;stroke:#bca7cf}.map-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#7f8da3;align-items:center}.text-button{color:var(--blue);font-size:11px;padding:4px 0;border:0;min-height:30px;background:transparent;white-space:nowrap}.inspector{background:white;border:1px solid var(--line);border-radius:10px;padding:22px 20px}.inspector .kind-label{color:#8190a7;font-size:10px;letter-spacing:.5px;margin-bottom:8px}.inspector h2{font-size:17px;line-height:1.6;word-break:break-word}.inspector .node-state{font-size:11px;color:#4372d4;margin:8px 0 20px}.inspector dl{margin:0}.inspector dt{font-size:10px;color:#95a1b3;margin-top:17px}.inspector dd{font-size:12px;margin:5px 0 0;color:#526883;overflow-wrap:anywhere}.dependency{display:inline-block;background:#f2f5fa;color:#6d809e;padding:3px 7px;font-size:11px;border-radius:4px;margin:3px 3px 0 0;min-height:27px;border:0}.inspector .actions{display:grid;gap:9px;margin-top:25px}.inspector .actions button{font-size:12px;width:100%}.inspector .hint{font-size:11px;color:#8c98ab;border-top:1px solid var(--line);padding-top:15px;margin-top:18px;line-height:1.9}.principles{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin:28px 0}.principles article{display:flex;align-items:flex-start;gap:11px}.principles article>span{font-size:11px;color:#9cacc3;margin-top:2px}.principles h2{font-size:12px;margin-bottom:6px}.principles p{font-size:11px;color:#8794a9;line-height:1.9}.audit{border:1px solid var(--line);border-radius:10px;background:#fff;padding:20px 22px}.audit>div:first-child{display:flex;justify-content:space-between;gap:15px;align-items:center}.audit h2{font-size:13px}.audit small{font-size:10px;color:#929fb2}.audit-row{display:grid;grid-template-columns:110px 1fr;gap:15px;border-top:1px solid #edf0f6;padding-top:13px;margin-top:14px;font-size:11px}.audit-row time{color:#9aa7b9}.audit-row p{color:#8492a7;margin-top:4px}.audit-empty{color:#95a1b5;font-size:11px;margin-top:13px}.footnote{font-size:10px;color:#9aa6b8;margin-top:18px}.feedback{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);max-width:90%;background:#243c5e;color:#fff;padding:12px 19px;border-radius:7px;z-index:10;font-size:12px;box-shadow:0 8px 30px #1e355833}.feedback.error{background:#ae4855}[hidden]{display:none!important}dialog{padding:0;border:1px solid var(--line);border-radius:12px;width:560px;max-width:calc(100% - 28px);max-height:90vh;box-shadow:0 25px 90px #1233513d;color:#304865}dialog::backdrop{background:#12294b66}.dialog-heading{padding:21px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;align-items:center}.dialog-heading h2{font-size:19px}.dialog-heading>button{border:0;font-size:21px;padding:1px 8px}.dialog-body{padding:20px 24px 5px}.dialog-body label{display:flex;flex-direction:column;gap:7px;font-size:12px;margin-bottom:17px;color:#637791}.dialog-body input,.dialog-body select,.dialog-body textarea{width:100%;min-width:0;border:1px solid #d9e1ed;border-radius:6px;background:white;padding:9px 11px;font-size:13px}.dialog-body input:focus,.dialog-body select:focus,.dialog-body textarea:focus{outline:2px solid #a9c1fb;outline-offset:1px}.dialog-body textarea{min-height:75px;resize:vertical}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:17px}.dialog-actions{padding:17px 24px 23px;display:flex;justify-content:flex-end;gap:10px}.insert-hint{font-size:11px;color:#8b99ae;background:#f3f6fb;padding:10px 12px;border-radius:5px;margin-bottom:17px}#insert-error{color:#b34e5a;background:#fff0f1;font-size:12px;padding:10px 12px;margin-bottom:16px;border-radius:5px}
+@media(min-width:1500px){.canvas{min-width:980px}.workarea{grid-template-columns:minmax(0,1fr) 275px}}
+@media(max-width:1100px){.workarea{grid-template-columns:1fr}.inspector{display:grid;grid-template-columns:1fr 2fr 1fr;gap:0 24px}.inspector .kind-label{grid-column:1}.inspector h2{grid-column:1}.inspector .node-state{grid-column:1;margin-bottom:0}.inspector dl{grid-column:2;grid-row:1/5;display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.inspector dt{margin-top:4px}.inspector dd{margin:0 0 13px}.inspector .actions{grid-column:3;grid-row:1/5;margin-top:0;align-content:center}.inspector .hint{grid-column:1/-1}.heading{align-items:flex-start}.canvas{min-width:900px}}
+@media(max-width:600px){.topbar{height:auto;min-height:62px;padding:14px 17px;flex-wrap:wrap;font-size:11px}.topbar>span{display:none}main{padding:25px 16px}.heading{display:block;margin-bottom:17px}h1{font-size:27px}.heading>button{margin-top:17px;min-height:44px}.subtitle{font-size:12px}.scenarios{gap:5px}.scenarios button{padding:8px 10px;font-size:11px;min-height:44px}.scenario-note{font-size:11px;padding-bottom:17px}.map-toolbar{padding:15px}.legend{gap:10px}.map-scroll{padding:20px 22px}.canvas{min-width:0;min-height:0}.columns{grid-template-columns:1fr;gap:26px}.phase-head{height:38px}.node-stack{gap:22px;padding-right:17px}.flow-node{min-height:85px;padding:13px 15px}.flow-node strong{font-size:14px}.flow-node .kind,.flow-node .node-foot{font-size:11px}.flow-node .group-label{font-size:10px}.map-foot{font-size:10px;padding:12px 14px}.inspector{display:block;padding:20px}.inspector dl{display:grid;grid-template-columns:1fr 1fr;margin-top:15px}.inspector .actions{margin-top:20px}.inspector .actions button{min-height:44px}.principles{grid-template-columns:1fr;gap:17px;margin:24px 0}.principles p{font-size:12px}.principles h2{font-size:13px}.audit{padding:17px}.audit>div:first-child{display:block}.audit small{display:block;margin-top:6px}.audit-row{grid-template-columns:1fr;gap:5px}.form-row{grid-template-columns:1fr;gap:0}.dialog-body input,.dialog-body select,.dialog-body textarea{font-size:16px}.dialog-actions button{min-height:44px;font-size:13px}.dialog-body{padding:18px}.dialog-heading{padding:18px}.dialog-actions{padding:15px 18px 20px}.footnote{font-size:11px}}
+
+</style>
+</head>
+<body>
+  <header class="topbar"><a href="活动流程ERP-可点击原型.html" class="back">← 返回活动原型</a><span>行知 · 流程设计评审 <b>V0.2</b></span><a href="活动流程ERP-配置中心.html">配置中心 ↗</a><a href="../docs/动态流程设计.md">设计说明 ↗</a></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">ACTIVITY WORKFLOW</p><h1>活动工作流程</h1><p class="subtitle">阶段清晰，任务按需编排。点击环节查看依赖，插入新任务或模拟推进。</p></div><button class="primary" data-action="add">＋ 新增环节／子流程</button></div>
+    <div class="scenarios" role="group" aria-label="选择流程场景" id="scenarios"></div>
+    <div class="scenario-note" id="scenario-note"></div>
+    <div class="workarea">
+      <section class="map-panel" aria-label="动态流程图"><div class="map-toolbar"><strong id="map-title"></strong><div class="legend"><span class="done">已完成</span><span class="ready">可办理</span><span class="waiting">等前置</span><span class="optional">非阻塞</span></div></div><div class="map-scroll"><div class="canvas" id="canvas"><svg id="edges" aria-hidden="true"></svg><div id="columns" class="columns"></div></div></div><div class="map-foot"><span id="map-summary" aria-live="polite"></span><button data-action="reset" class="text-button">恢复当前场景</button></div></section>
+      <aside class="inspector" id="inspector" aria-label="选中环节详情"></aside>
+    </div>
+    <section class="principles"><article><span>01</span><div><h2>审批与筹备可以穿插</h2><p>询期与资料准备可提前。正式开办仍等待必要审批、资源与人员到位。</p></div></article><article><span>02</span><div><h2>新增环节要接回流程</h2><p>必办任务加入后继依赖；并行任务全部完成再汇合；知会不阻塞主线。</p></div></article><article><span>03</span><div><h2>实例调整保留历史</h2><p>新增只影响这场活动未完成的部分，记录结构版本和调整原因。</p></div></article></section>
+    <section class="audit"><div><h2>本场景调整记录</h2><small>流程图演示独立保存，不会改变原工单待办。</small></div><div id="audit-list"></div></section>
+    <p class="footnote">本页用于评审流程结构。完成按钮模拟各环节办理，真实系统按任务角色授权；当前内容保存在此浏览器。</p>
+  </main>
+  <dialog id="insert-dialog" aria-labelledby="insert-title"><form id="insert-form"><div class="dialog-heading"><div><p class="eyebrow">INSERT WORKFLOW</p><h2 id="insert-title">新增一个业务环节</h2></div><button type="button" data-action="close" aria-label="关闭">×</button></div><div class="dialog-body"><div id="insert-error" role="alert" hidden></div><label>环节名称<input name="name" required minlength="2" maxlength="40" placeholder="例如：专家方案复核"></label><div class="form-row"><label>环节类型<select name="kind"><option value="approval">审批</option><option value="task">办理任务</option><option value="notice">知会</option><option value="subflow">子流程：资料补充 → 专项审核</option></select></label><label>负责人<input name="owner" required minlength="2" maxlength="30" placeholder="例如：教研专家"></label></div><label>围绕哪个环节调整<select name="anchor" id="anchor-select"></select></label><div class="form-row"><label>插入位置<select name="position"><option value="before">该环节之前</option><option value="after">该环节之后</option><option value="parallel">与该环节并行</option></select></label><label>对后续的影响<select name="blocking"><option value="required">必办，完成后才能流转</option><option value="optional">协作，不阻塞后续</option></select></label></div><p class="insert-hint" id="insert-hint">必办任务将重接未完成后继的依赖，已完成记录保持原样。</p><label>调整原因<textarea name="reason" required minlength="5" maxlength="200" placeholder="说明为什么需要增加该环节，至少 5 字"></textarea></label></div><div class="dialog-actions"><button type="button" data-action="close">取消</button><button type="submit" class="primary">确认加入当前场景</button></div></form></dialog>
+  <div class="feedback" id="feedback" role="status" aria-live="polite" hidden></div>
+  <script>
+"use strict";
+
+const FLOW_STORE = "xingzhi-dynamic-flow-v2";
+const SCENARIOS = {
+  standard: ["标准办理", "三层审批后安排资源准备，全部开办条件满足后才能进入活动执行。"],
+  sign: ["审批中加签", "部门初审后插入预算复核，分管院领导等待该加签完成，再继续原审批路线。"],
+  parallel: ["审批与筹备并行", "部门初审后，教研、营销并行审核，协调员同时做低风险资源询期；开办门槛仍要求必要事项全部完成。"],
+  execution: ["执行中追加任务", "活动已经开始，结果汇报前新增现场设备复核。新增必办任务接入原后继，完成后才能汇报。"]
+};
+const PHASES = ["活动申请", "审批确认", "资源筹备", "活动执行", "结果归档"];
+const KINDS = { approval: "审批", task: "办理任务", notice: "知会", gate: "阶段门槛" };
+let storageEnabled = true;
+let saved = readStorage();
+let mode = saved.mode || "parallel";
+if (!SCENARIOS[mode]) mode = "parallel";
+let graph = saved.scenes?.[mode] || createScenario(mode);
+let selectedId = "department";
+let messageTimer;
+
+/**
+ * 安全转义流程节点和办理说明中的 HTML 字符。
+ * @param {unknown} value 原始内容
+ * @returns {string} 可用于文本或属性的安全内容
+ */
+function escapeText(value) {
+  return String(value ?? "").replace(/[&<>"']/g,
+    /**
+     * 将特殊字符替换为 HTML 实体。
+     * @param {string} char 单个待替换字符
+     * @returns {string} 转义后的实体
+     */
+    function replaceCharacter(char) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]; });
+}
+
+/**
+ * 克隆流程图，结构校验成功前不改写当前场景。
+ * @param {object} value 可序列化的流程数据
+ * @returns {object} 独立数据副本
+ */
+function copyGraph(value) { return JSON.parse(JSON.stringify(value)); }
+
+/**
+ * 构造单个流程实例节点。
+ * @param {string} id 节点标识
+ * @param {string} title 业务名称
+ * @param {string} kind 节点类型
+ * @param {number} phase 所属业务阶段序号
+ * @param {string} owner 负责人
+ * @param {Array<string>} deps 前置节点标识
+ * @returns {object} 未完成的必办节点
+ */
+function makeNode(id, title, kind, phase, owner, deps) { return { id, title, kind, phase, owner, deps, status: "todo", mandatory: true, inserted: false }; }
+
+/**
+ * 生成四种业务场景的依赖图，保证开办与归档存在明确汇合点。
+ * @param {string} key 场景标识
+ * @returns {object} 包含节点、结构版本及调整历史的场景
+ */
+function createScenario(key) {
+  const nodes = [
+    makeNode("apply", "提交活动申请", "task", 0, "申请人", []),
+    makeNode("department", "部门初审", "approval", 1, "部门领导", ["apply"]),
+    makeNode("academic", "教研方案审核", "approval", 1, "分管院领导", ["department"]),
+    makeNode("marketing", "营销与校方确认", "approval", 1, "营销负责人", ["academic"]),
+    makeNode("assign", "协调与执行指派", "task", 2, "活动协调员", ["marketing"]),
+    makeNode("venue", "场地与需求确认", "task", 2, "校方联系人", ["assign"]),
+    makeNode("expert", "专家档期与资料准备", "task", 2, "活动安排人", ["assign"]),
+    makeNode("start", "开办条件确认", "gate", 3, "活动执行人", ["marketing", "venue", "expert"]),
+    makeNode("execute", "开展活动", "task", 3, "活动执行人", ["start"]),
+    makeNode("report", "执行结果汇报", "task", 3, "活动执行人", ["execute"]),
+    makeNode("archive", "成果整理与档案提交", "task", 4, "申请人", ["report"]),
+    makeNode("review", "档案审核", "approval", 4, "归档审核人", ["archive"]),
+    makeNode("finish", "活动归档完成", "gate", 4, "系统汇总", ["review"])
+  ];
+  nodes[0].status = "done";
+  if (key === "sign") {
+    nodes[1].status = "done";
+    nodes[2].deps = ["budget-review"];
+    const extra = makeNode("budget-review", "新增：预算复核", "approval", 1, "专项复核人", ["department"]);
+    extra.inserted = true; nodes.splice(2, 0, extra);
+  }
+  if (key === "parallel") {
+    nodes[1].status = "done";
+    nodes[3].deps = ["department"];
+    nodes[4].deps = ["department"];
+    nodes[4].title = "协调与拟定执行安排";
+    nodes[5].title = "场地询期与需求确认";
+    nodes[6].title = "专家询期与资料准备";
+    nodes[7].deps = ["academic", "marketing", "venue", "expert"];
+  }
+  if (key === "execution") {
+    for (let index = 0; index <= 8; index += 1) nodes[index].status = "done";
+    const extra = makeNode("onsite", "新增：现场设备复核", "task", 3, "现场协调人", ["execute"]);
+    extra.inserted = true; nodes[9].deps = ["onsite"]; nodes.splice(9, 0, extra);
+  }
+  return { nodes, revision: 1, log: [] };
+}
+
+/**
+ * 读取动态流程场景的本地保存内容，存储不可用时继续内存演示。
+ * @returns {object} 已保存场景或空对象
+ */
+function readStorage() {
+  try { const raw = localStorage.getItem(FLOW_STORE); if (raw) { const data = JSON.parse(raw); if (data.schema === 2) return data; } }
+  catch { storageEnabled = false; }
+  return { schema: 2, scenes: {} };
+}
+
+/**
+ * 独立保存流程图场景，不触碰原活动工单的数据库。
+ */
+function saveScene() {
+  saved.mode = mode; saved.schema = 2; saved.scenes ||= {}; saved.scenes[mode] = graph;
+  try { localStorage.setItem(FLOW_STORE, JSON.stringify(saved)); }
+  catch { storageEnabled = false; feedback("本地存储不可用，当前修改仅在本次页面内保留。", true); }
+}
+
+/**
+ * 从指定场景获取节点。
+ * @param {string} id 节点标识
+ * @param {object} scene 目标场景，默认当前图
+ * @returns {object|undefined} 匹配的节点
+ */
+function getNode(id, scene = graph) { for (const node of scene.nodes) if (node.id === id) return node; return undefined; }
+
+/**
+ * 根据前置完成情况计算节点是否可办理。
+ * @param {object} node 待判断节点
+ * @param {object} scene 所属场景
+ * @returns {boolean} 是否已满足全部前置
+ */
+function ready(node, scene = graph) { if (node.status !== "todo") return false; for (const id of node.deps) if (getNode(id, scene)?.status !== "done") return false; return true; }
+
+/**
+ * 取得节点状态的文字与样式，计算结果不写回业务数据。
+ * @param {object} node 节点
+ * @returns {Array<string>} 状态标识与中文说明
+ */
+function stateOf(node) {
+  if (node.status === "done") return ["done", "已完成"];
+  if (node.status === "closed") return ["closed", "随归档关闭"];
+  return ready(node) ? ["ready", "可办理"] : ["waiting", "等前置"];
+}
+
+/**
+ * 获取依赖某一节点的直接后继。
+ * @param {string} id 前置节点标识
+ * @param {object} scene 目标流程
+ * @returns {Array<object>} 直接后继列表
+ */
+function successors(id, scene = graph) { const result = []; for (const node of scene.nodes) if (node.deps.includes(id)) result.push(node); return result; }
+
+/**
+ * 检查重复标识、悬空依赖、循环和必办节点是否接回归档出口。
+ * @param {object} scene 待校验流程图
+ * @returns {string} 错误说明，合法时为空字符串
+ */
+function validateGraph(scene) {
+  const ids = new Set(); const resolved = new Set();
+  for (const node of scene.nodes) { if (ids.has(node.id)) return "存在重复环节标识。"; ids.add(node.id); if (!node.owner.trim()) return "环节缺少负责人。"; }
+  if (!ids.has("start") || !ids.has("finish")) return "必须保留开办与归档门槛。";
+  for (const node of scene.nodes) for (const id of node.deps) if (!ids.has(id)) return "存在找不到的前置环节。";
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const node of scene.nodes) {
+      if (resolved.has(node.id)) continue;
+      let all = true; for (const id of node.deps) if (!resolved.has(id)) all = false;
+      if (all) { resolved.add(node.id); changed = true; }
+    }
+  }
+  if (resolved.size !== ids.size) return "调整会形成循环依赖，请重新选择插入位置。";
+  const reachesEnd = new Set(["finish"]); changed = true;
+  while (changed) { changed = false; for (const node of scene.nodes) if (reachesEnd.has(node.id)) for (const id of node.deps) if (!reachesEnd.has(id)) { reachesEnd.add(id); changed = true; } }
+  for (const node of scene.nodes) if (node.mandatory && !reachesEnd.has(node.id)) return "新增必办任务需要接回归档前的后继环节。";
+  return "";
+}
+
+/**
+ * 渲染五阶段流程、节点详情和调整记录，再请求绘制依赖连线。
+ */
+function renderFlow() {
+  let tabs = "";
+  for (const [key, labels] of Object.entries(SCENARIOS)) tabs += `<button data-action="scenario" data-id="${key}" aria-pressed="${key === mode}">${labels[0]}</button>`;
+  document.getElementById("scenarios").innerHTML = tabs;
+  document.getElementById("scenario-note").textContent = SCENARIOS[mode][1];
+  document.getElementById("map-title").textContent = `单场活动流程 · 结构 R${graph.revision}`;
+  let columns = "";
+  for (let phase = 0; phase < PHASES.length; phase += 1) {
+    columns += `<div class="phase-column"><div class="phase-head"><span>${phase + 1}</span>${PHASES[phase]}</div><div class="node-stack">`;
+    for (const node of graph.nodes) {
+      if (node.phase !== phase) continue;
+      const [state, label] = stateOf(node);
+      columns += `<button id="node-${node.id}" class="flow-node ${state} ${node.id === selectedId ? "selected" : ""} ${!node.mandatory ? "optional" : ""}" data-action="select" data-id="${node.id}" aria-pressed="${node.id === selectedId}">${node.inserted ? '<span class="inserted">动态新增</span>' : ""}<span class="kind">${KINDS[node.kind]}${node.mandatory ? " · 必办" : " · 非阻塞"}</span>${node.group ? `<span class="group-label">子流程：${escapeText(node.group)}</span>` : ""}<strong>${escapeText(node.title)}</strong><span class="node-foot"><span>${escapeText(node.owner)}</span><span class="node-status">${label}</span></span></button>`;
+    }
+    columns += "</div></div>";
+  }
+  document.getElementById("columns").innerHTML = columns;
+  if (!getNode(selectedId)) selectedId = "department";
+  renderInspector(); renderAudit();
+  let active = 0; let complete = 0;
+  for (const node of graph.nodes) { if (ready(node)) active += 1; if (node.status === "done") complete += 1; }
+  document.getElementById("map-summary").textContent = `${graph.nodes.length} 个环节 · ${active} 个可办理 · ${complete} 个已完成${storageEnabled ? "" : " · 仅本次页面保存"}`;
+  requestAnimationFrame(drawEdges);
+}
+
+/**
+ * 输出依赖节点的可点击引用。
+ * @param {Array<object>} nodes 前置或后继节点
+ * @returns {string} 引用按钮或无依赖提示
+ */
+function references(nodes) { let html = ""; for (const node of nodes) html += `<button class="dependency" data-action="select" data-id="${node.id}">${escapeText(node.title)}</button>`; return html || "无"; }
+
+/**
+ * 渲染当前环节的前置、后继、责任人与模拟操作。
+ */
+function renderInspector() {
+  const node = getNode(selectedId); const [state, label] = stateOf(node);
+  const deps = []; for (const id of node.deps) deps.push(getNode(id));
+  let pending = 0; for (const dep of deps) if (dep.status !== "done") pending += 1;
+  document.getElementById("inspector").innerHTML = `<div class="kind-label">${KINDS[node.kind]} / ${PHASES[node.phase]}</div><h2>${escapeText(node.title)}</h2><p class="node-state">${label}${state === "waiting" ? ` · 还有 ${pending} 项前置未完成` : ""}</p><dl><div><dt>负责人</dt><dd>${escapeText(node.owner)}</dd></div><div><dt>后续影响</dt><dd>${node.mandatory ? "必办，后继需等待" : "协作知会，不阻塞"}</dd></div><div><dt>前置条件</dt><dd>${references(deps)}</dd></div><div><dt>接回的后继</dt><dd>${references(successors(node.id))}</dd></div></dl><div class="actions"><button class="primary" data-action="complete" data-id="${node.id}" ${ready(node) ? "" : "disabled"}>模拟完成此环节</button><button data-action="add" ${getNode("finish").status === "done" ? "disabled" : ""}>在此处新增环节</button></div><p class="hint">${node.kind === "gate" ? "阶段门槛须等待所有必要前置完成。" : "必办的前加签会暂停本环节；并行新增会在后继汇合。"}已完成环节保留原记录。</p>`;
+}
+
+/**
+ * 根据实际卡片位置绘制依赖线，桌面使用横向阶段，窄屏使用纵向阶段。
+ */
+function drawEdges() {
+  const canvas = document.getElementById("canvas"); const svg = document.getElementById("edges");
+  const root = canvas.getBoundingClientRect(); if (!root.width) return;
+  const width = Math.ceil(root.width); const height = Math.ceil(root.height);
+  svg.setAttribute("width", width); svg.setAttribute("height", height); svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const vertical = window.innerWidth <= 600;
+  let paths = '<defs><marker id="arrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L6 3 L0 6Z" fill="#a8b8ce"/></marker></defs>';
+  for (const node of graph.nodes) {
+    const target = document.getElementById("node-" + node.id)?.getBoundingClientRect(); if (!target) continue;
+    for (const id of node.deps) {
+      const from = getNode(id); const source = document.getElementById("node-" + id)?.getBoundingClientRect(); if (!source) continue;
+      let path;
+      if (vertical || from.phase === node.phase) {
+        const sx = source.right - root.left - 15; const sy = source.bottom - root.top; const tx = target.right - root.left - 15; const ty = target.top - root.top;
+        if (ty - sy < 70 && ty > sy) path = `M${sx} ${sy} C${sx} ${sy + 12} ${tx} ${ty - 12} ${tx} ${ty}`;
+        else { const rail = Math.max(source.right, target.right) - root.left + 11; path = `M${source.right - root.left} ${source.top - root.top + source.height / 2} C${rail} ${source.top - root.top + source.height / 2} ${rail} ${target.top - root.top + target.height / 2} ${target.right - root.left} ${target.top - root.top + target.height / 2}`; }
+      } else {
+        const sx = source.right - root.left; const sy = source.top - root.top + source.height / 2; const tx = target.left - root.left; const ty = target.top - root.top + target.height / 2; const bend = Math.max(18, (tx - sx) / 2);
+        path = `M${sx} ${sy} C${sx + bend} ${sy} ${tx - bend} ${ty} ${tx} ${ty}`;
+      }
+      paths += `<path class="edge ${from.status === "done" ? "complete" : ""} ${!node.mandatory ? "optional" : ""}" d="${path}" marker-end="url(#arrow)"/>`;
+    }
+  }
+  svg.innerHTML = paths;
+}
+
+/**
+ * 追加场景办理记录，结构变更与任务完成使用不同标题。
+ * @param {string} title 操作标题
+ * @param {string} reason 原因或说明
+ */
+function appendLog(title, reason) { graph.log.push({ title, reason, time: new Date().toLocaleString("zh-CN", { hour12: false }) }); }
+
+/**
+ * 输出按最新优先排列的结构调整与办理记录。
+ */
+function renderAudit() {
+  let html = "";
+  for (const entry of [...graph.log].reverse()) html += `<div class="audit-row"><time>${escapeText(entry.time)}</time><div><strong>${escapeText(entry.title)}</strong><p>${escapeText(entry.reason)}</p></div></div>`;
+  document.getElementById("audit-list").innerHTML = html || '<p class="audit-empty">当前是预置流程示例；新增或模拟办理后，记录会显示在这里。</p>';
+}
+
+/**
+ * 模拟完成一个已满足前置的环节，归档时关闭尚未完成的非阻塞任务。
+ * @param {string} id 待完成节点标识
+ */
+function completeNode(id) {
+  const node = getNode(id);
+  if (!node || !ready(node)) { feedback("请先完成本环节的所有前置。", true); return; }
+  node.status = "done"; let suffix = "";
+  if (id === "finish") {
+    let count = 0; for (const item of graph.nodes) if (!item.mandatory && item.status === "todo") { item.status = "closed"; count += 1; }
+    if (count) suffix = `；${count} 项未完成的非阻塞任务随归档关闭。`;
+  }
+  appendLog("模拟完成：" + node.title, node.owner + "办理。后继按依赖自动激活" + suffix); saveScene(); renderFlow(); feedback("环节已完成，后继任务已重新计算。" + suffix);
+}
+
+/**
+ * 打开插入环节表单，默认围绕当前选中的环节调整。
+ */
+function openInsert() {
+  if (getNode("finish").status === "done") { feedback("已归档场景保持只读，可恢复场景重新体验。", true); return; }
+  const form = document.getElementById("insert-form"); form.reset();
+  let options = "";
+  for (const node of graph.nodes) options += `<option value="${node.id}" ${node.id === selectedId ? "selected" : ""}>${escapeText(node.title)} · ${stateOf(node)[1]}</option>`;
+  document.getElementById("anchor-select").innerHTML = options;
+  if (getNode(selectedId).status === "done") form.elements.position.value = "after";
+  document.getElementById("insert-error").hidden = true; refreshInsertHint(); document.getElementById("insert-dialog").showModal();
+}
+
+/**
+ * 更新插入位置的影响提示，审批与子流程固定必办，知会固定非阻塞。
+ */
+function refreshInsertHint() {
+  const form = document.getElementById("insert-form");
+  const notice = form.elements.kind.value === "notice";
+  const required = ["approval", "subflow"].includes(form.elements.kind.value);
+  if (notice) form.elements.blocking.value = "optional";
+  if (required) form.elements.blocking.value = "required";
+  form.elements.blocking.disabled = notice || required;
+  const nonblocking = form.elements.blocking.value === "optional";
+  const tips = { before: "当前环节将等待新增任务完成，原前置改为连接新增任务。", after: "新增任务等待当前环节完成，再激活原后继。", parallel: "新增任务与当前环节共享前置，二者全部完成后才激活后继。" };
+  document.getElementById("insert-hint").textContent = nonblocking ? "非阻塞项保留自己的触发条件，不修改必办后继；归档时对未完成协作项作关闭记录。" : tips[form.elements.position.value];
+}
+
+/**
+ * 在副本中插入单环节或两步子流程，必办环节重接后继依赖，校验通过才返回。
+ * @param {object} config 名称、类型、负责人、锚点、位置、阻塞方式与原因
+ * @returns {object} 含新图与新节点标识的结果，失败时包含 error
+ */
+function insertNodes(config) {
+  const name = String(config.name || "").trim(); const owner = String(config.owner || "").trim(); const reason = String(config.reason || "").trim();
+  if (name.length < 2 || owner.length < 2 || reason.length < 5) return { error: "名称和负责人至少 2 字，调整原因至少 5 字。" };
+  if (!["approval", "task", "notice", "subflow"].includes(config.kind) || !["before", "after", "parallel"].includes(config.position) || !["required", "optional"].includes(config.blocking)) return { error: "插入类型或位置无效。" };
+  if (getNode("finish").status === "done") return { error: "归档后的场景不再调整。" };
+  const next = copyGraph(graph); const anchor = getNode(config.anchor, next);
+  if (!anchor) return { error: "请选择有效的关联环节。" };
+  if (config.position === "before" && anchor.status !== "todo") return { error: "已完成环节不能前插任务，请选择未完成环节。" };
+  if (anchor.id === "finish" && config.position !== "before") return { error: "新增环节需要放在归档完成之前。" };
+  const blocking = ["approval", "subflow"].includes(config.kind) || (config.kind === "task" && config.blocking === "required");
+  const children = successors(anchor.id, next); const mutable = [];
+  for (const child of children) if (child.status === "todo") mutable.push(child);
+  if (blocking && config.position !== "before" && !mutable.length) return { error: "此处后继已完成，请选择未完成后继之前的位置。" };
+  const id = "extra-" + Date.now() + "-" + next.revision;
+  const initialDeps = config.position === "after" ? [anchor.id] : [...anchor.deps];
+  const inserted = makeNode(id, name, config.kind === "subflow" ? "task" : config.kind, anchor.phase, owner, initialDeps);
+  inserted.inserted = true; inserted.mandatory = blocking;
+  const additions = [inserted];
+  if (config.kind === "subflow") {
+    inserted.title = "资料补充"; inserted.group = name;
+    const review = makeNode(id + "-review", "专项审核", "approval", anchor.phase, "专项审核人", [id]);
+    review.inserted = true; review.mandatory = blocking; review.group = name; additions.push(review);
+  }
+  const tail = additions[additions.length - 1].id;
+  if (blocking) {
+    if (config.position === "before") anchor.deps = [tail];
+    else for (const child of mutable) {
+      const deps = [];
+      for (const dep of child.deps) deps.push(dep === anchor.id && config.position === "after" ? tail : dep);
+      if (config.position === "parallel") deps.push(tail);
+      child.deps = [...new Set(deps)];
+    }
+  }
+  let index = next.nodes.indexOf(anchor); if (config.position !== "before") index += 1;
+  next.nodes.splice(index, 0, ...additions); next.revision += 1;
+  const error = validateGraph(next); if (error) return { error };
+  return { next, id, name, reason, anchor: anchor.title, blocking, position: config.position, count: additions.length };
+}
+
+/**
+ * 提交新增环节，保留校验失败时的表单内容，成功后记录结构版本。
+ * @param {SubmitEvent} event 新增表单提交事件
+ */
+function handleInsert(event) {
+  event.preventDefault();
+  const form = document.getElementById("insert-form"); const data = new FormData(form);
+  const config = Object.fromEntries(data.entries()); if (config.kind === "notice") config.blocking = "optional";
+  if (["approval", "subflow"].includes(config.kind)) config.blocking = "required";
+  const result = insertNodes(config);
+  if (result.error) { const error = document.getElementById("insert-error"); error.textContent = result.error; error.hidden = false; return; }
+  graph = result.next; selectedId = result.id;
+  appendLog(`结构 R${graph.revision}：新增${result.count > 1 ? "子流程" : "环节"}「${result.name}」`, `围绕「${result.anchor}」${{ before: "前插", after: "后插", parallel: "并行" }[result.position]}，${result.blocking ? "必办并接回后继" : "非阻塞协作"}。原因：${result.reason}`);
+  saveScene(); document.getElementById("insert-dialog").close(); renderFlow(); feedback("已加入当前活动的流程，依赖已更新。");
+}
+
+/**
+ * 显示短暂的办理结果或错误反馈。
+ * @param {string} message 反馈文本
+ * @param {boolean} error 是否为错误
+ */
+function feedback(message, error = false) {
+  const node = document.getElementById("feedback"); node.textContent = message; node.classList.toggle("error", error); node.hidden = false; clearTimeout(messageTimer);
+  messageTimer = setTimeout(/** 隐藏已经展示的流程操作提示，无返回值。 */ function hideFeedback() { node.hidden = true; }, 5000);
+}
+
+/**
+ * 处理场景选择、节点查看、新增、模拟完成与场景恢复。
+ * @param {MouseEvent} event 用户点击事件
+ */
+function handleFlowClick(event) {
+  const button = event.target.closest("[data-action]"); if (!button || button.disabled) return;
+  const action = button.dataset.action;
+  if (action === "select") { selectedId = button.dataset.id; renderFlow(); }
+  if (action === "scenario") { saveScene(); mode = button.dataset.id; graph = saved.scenes[mode] || createScenario(mode); selectedId = mode === "execution" ? "onsite" : mode === "sign" ? "budget-review" : "department"; saveScene(); renderFlow(); }
+  if (action === "complete") completeNode(button.dataset.id);
+  if (action === "add") openInsert();
+  if (action === "close") document.getElementById("insert-dialog").close();
+  if (action === "reset") { if (!window.confirm("恢复当前场景？本场景新增环节和模拟办理记录会清除。")) return; graph = createScenario(mode); selectedId = mode === "execution" ? "onsite" : "department"; saveScene(); renderFlow(); }
+}
+
+/**
+ * 在页面尺寸变化后重画依赖线，节点及业务状态保持不变。
+ */
+function handleFlowResize() { requestAnimationFrame(drawEdges); }
+
+document.addEventListener("click", handleFlowClick);
+document.getElementById("insert-form").addEventListener("submit", handleInsert);
+document.getElementById("insert-form").addEventListener("change", refreshInsertHint);
+window.addEventListener("resize", handleFlowResize);
+if (typeof ResizeObserver !== "undefined") new ResizeObserver(handleFlowResize).observe(document.getElementById("columns"));
+renderFlow();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "work-flow",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.21.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @workflow/web --filter @workflow/server dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @workflow/server test",
+    "db:init": "pnpm --filter @workflow/server db:init",
+    "db:setup": "pnpm --filter @workflow/server db:setup",
+    "build": "pnpm -r build",
+    "format": "prettier --write apps packages *.json *.yaml",
+    "format:check": "prettier --check apps packages *.json *.yaml"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10"
+  }
+}

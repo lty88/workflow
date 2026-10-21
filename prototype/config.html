@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>行知 · 活动配置中心</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="config.css"></head>
+<body class="config-app">
+  <header class="config-top"><a href="index.html">← 活动原型</a><div class="config-brand"><span>行</span>行知 <small>活动配置中心</small><b>V0.3</b></div><a href="flow.html">动态流程全景 ↗</a></header>
+  <div class="config-shell"><aside class="config-sidebar"><div class="sidebar-caption">公司配置工作空间</div><nav id="config-nav" aria-label="配置模块"></nav><div class="config-admin"><span class="avatar">许</span><div>许言<small>系统配置管理员</small></div></div></aside><div class="config-workspace"><div class="config-toolbar"><div id="config-version"></div><div class="actions"><button class="btn" data-c-action="save-draft">保存草案</button><button class="btn primary" data-c-action="publish">校验并发布</button></div></div><main id="config-main"></main></div></div>
+  <dialog id="config-dialog" aria-labelledby="config-dialog-title"><form id="config-dialog-form"><div class="dialog-head"><h2 id="config-dialog-title"></h2><button type="button" class="btn ghost small" data-c-action="close" aria-label="关闭">×</button></div><div class="dialog-body" id="config-dialog-body"></div><div class="dialog-foot"><button type="button" class="btn" data-c-action="close">取消</button><button type="submit" class="btn primary" id="config-dialog-confirm">保存到草案</button></div></form></dialog>
+  <div class="toast" id="config-toast" role="status" aria-live="polite" hidden></div>
+  <script src="config-model.js"></script><script src="config-views.js"></script><script src="config.js"></script>
+</body></html>
