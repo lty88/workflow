@@ -46,6 +46,7 @@ import { publishConfig, saveConfigDraft } from './services/config-service';
 import { listActivities } from './services/list-service';
 import type { ActivityListItem } from './services/list-service';
 import { uploadFile } from './services/file-service';
+import { isAllowedOrigin } from './services/origin';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -121,7 +122,7 @@ export async function buildApp(pool: Pool, env: Environment) {
   app.decorateRequest('profile', null);
 
   /**
-   * 验证写入来源、真实登录会话和CSRF令牌。
+   * 验证写入来源、本机开发地址兼容性、真实登录会话和CSRF令牌。
    * @param request 请求
    * @param _reply 响应
    */
@@ -129,7 +130,12 @@ export async function buildApp(pool: Pool, env: Environment) {
     const path = request.url.split('?')[0]!;
     const writing = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
     if (writing && request.headers.origin)
-      ensure(request.headers.origin === env.APP_ORIGIN, 403, 'ORIGIN_REJECTED', '请求来源不被允许');
+      ensure(
+        isAllowedOrigin(request.headers.origin, env),
+        403,
+        'ORIGIN_REJECTED',
+        '请求来源不被允许，请使用配置的前端地址访问',
+      );
     if (path === '/api/auth/login' || path === '/api/health') return;
     request.profile = await sessionProfile(pool, request.cookies.workflow_session);
     if (writing) {

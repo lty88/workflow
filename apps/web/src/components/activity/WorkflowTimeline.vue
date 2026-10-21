@@ -185,7 +185,7 @@ function taskWarning(id: string): string {
       <BusinessGraph
         :model="model"
         :selected-key="selectedNode ? 'runtime:' + selectedNode : ''"
-        :height="mobile ? 360 : 440"
+        :height="mobile ? 420 : 560"
         label="实际审批节点、状态和后续业务阶段"
         class="mb"
         @select="selectGraphNode"

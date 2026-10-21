@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PERMISSIONS } from './constants';
+import { PASSWORD_MIN_LENGTH, PERMISSIONS } from './constants';
 import type { Permission } from './types';
 
 const id = z.string().min(1).max(80);
@@ -207,7 +207,7 @@ export const actionSchema = z
   })
   .strict();
 export type ActionCommand = Omit<z.infer<typeof actionSchema>, 'idempotencyKey'>;
-export const passwordSchema = z.object({ password: z.string().min(12).max(200) }).strict();
+export const passwordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(200) }).strict();
 export const listQuerySchema = z.object({
   q: z.string().max(100).default(''),
   status: z.string().max(40).default(''),

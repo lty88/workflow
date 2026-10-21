@@ -1,5 +1,15 @@
 import { randomBytes } from 'node:crypto';
 import { parseEnv } from 'node:util';
+import { DEFAULT_PASSWORD, passwordSchema } from '@workflow/domain';
+
+/**
+ * 读取应用账号初始密码，未填写或仍为占位值时使用统一默认密码。
+ * @param value 环境变量中的初始密码
+ * @returns 满足应用密码规则的初始值
+ */
+export function initialPassword(value?: string): string {
+  return passwordSchema.parse({ password: configuredPassword(value) ? value : DEFAULT_PASSWORD }).password;
+}
 
 /** 判断密码是否仍为示例占位值，避免将模板内容用作真实凭据。
  * @param value 本地配置值

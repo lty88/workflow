@@ -10,6 +10,8 @@ import type {
   WorkflowTask,
 } from '@workflow/domain';
 import type { Environment } from '../env';
+import { DEFAULT_PASSWORD } from '@workflow/domain';
+import { hashPassword } from '../services/password';
 
 export type Database = Pool | PoolConnection;
 
@@ -117,11 +119,14 @@ export async function loadConfig(
 }
 
 /**
- * 在配置发布事务内同步组织、成员与菜单，既有密码不会被配置覆盖。
+ * 在发布事务内同步组织、成员与菜单，新成员默认密码123456，既有密码保持不变。
  * @param db 事务连接
  * @param config 发布配置
  */
 export async function materializeConfig(db: Database, config: CompanyConfig): Promise<void> {
+  const existingMembers = await query<{ id: string }>(db, 'SELECT id FROM members');
+  const existingIds = new Set<string>();
+  for (const item of existingMembers) existingIds.add(item.id);
   await db.execute("UPDATE members SET active=FALSE,username=CONCAT('~',LEFT(SHA2(id,256),40))");
   await db.execute('DELETE FROM departments');
   await db.execute('DELETE FROM roles');
@@ -144,9 +149,10 @@ export async function materializeConfig(db: Database, config: CompanyConfig): Pr
       page.active,
       JSON.stringify(page),
     ]);
-  for (const user of config.users)
+  for (const user of config.users) {
+    const passwordHash = existingIds.has(user.id) ? null : await hashPassword(DEFAULT_PASSWORD);
     await db.execute(
-      'INSERT INTO members(id,username,name,department_id,active,roles) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE username=?,name=?,department_id=?,active=?,roles=?',
+      'INSERT INTO members(id,username,name,department_id,active,roles,password_hash) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE username=?,name=?,department_id=?,active=?,roles=?',
       [
         user.id,
         user.username,
@@ -154,6 +160,7 @@ export async function materializeConfig(db: Database, config: CompanyConfig): Pr
         user.department,
         user.active,
         JSON.stringify(user.roles),
+        passwordHash,
         user.username,
         user.name,
         user.department,
@@ -161,6 +168,7 @@ export async function materializeConfig(db: Database, config: CompanyConfig): Pr
         JSON.stringify(user.roles),
       ],
     );
+  }
 }
 
 /**

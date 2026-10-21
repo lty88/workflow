@@ -10,6 +10,7 @@
     "build": "tsc --noEmit",
     "db:init": "tsx --env-file=../../.env src/db/init.ts",
     "db:setup": "tsx src/db/setup-local.ts",
+    "db:reset-admin": "tsx src/db/reset-admin.ts",
     "test": "vitest run"
   },
   "dependencies": {

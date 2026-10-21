@@ -1,4 +1,6 @@
 import type { ActivityStatus, PageComponent, Permission, Scope } from './types';
+export const DEFAULT_PASSWORD = '123456';
+export const PASSWORD_MIN_LENGTH = 6;
 export const PERMISSIONS: Record<Permission, string> = {
   'activity:read': '查看活动',
   'activity:create': '新建活动',

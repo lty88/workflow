@@ -287,13 +287,10 @@ function simulate(): void {
       ><NAlert type="info" :bordered="false" class="mb"
         >没有前置的节点同时开始；多个前置全部完成后激活。多人审批采用全员通过，任一退回或拒绝将结束本轮。</NAlert
       ><NAlert v-if="graph.error" type="error" class="mb">{{ graph.error }}</NAlert>
-      <div class="flow-banner mb">
-        <b>发起申请</b>→<b>条件匹配</b>→<b>节点并行 / 汇合</b>→<b>指派执行</b>→<b>成果归档</b>
-      </div>
       <BusinessGraph
         :model="workflowGraph"
         :selected-key="selectedNode ? 'workflow:' + selectedNode : ''"
-        :height="mobile ? 380 : 520"
+        :height="mobile ? 420 : 640"
         label="活动审批模板依赖图"
         class="mb"
         @select="selectGraphNode"
@@ -347,7 +344,7 @@ function simulate(): void {
         <BusinessGraph
           v-if="simulatedGraph"
           :model="simulatedGraph"
-          :height="360"
+          :height="mobile ? 420 : 560"
           label="条件分支与实际受理人演算图"
           class="mb"
         />

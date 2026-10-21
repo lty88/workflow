@@ -23,6 +23,13 @@ async function httpCase(): Promise<void> {
       payload: { username: 'admin', password: 'x' },
     });
     expect(origin.statusCode).toBe(403);
+    const localOrigin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers: { origin: 'http://127.0.0.1:5173' },
+      payload: { username: 'a', password: '' },
+    });
+    expect(localOrigin.statusCode).toBe(403);
     const invalid = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
@@ -34,6 +41,28 @@ async function httpCase(): Promise<void> {
   }
 }
 test('接口注入检查存活、未登录、跨站来源和参数校验', httpCase);
+
+/** 验证本机开发地址通过来源检查后进入登录参数校验，不访问真实数据库。
+ */
+async function developmentLoginCase(): Promise<void> {
+  const app = await buildApp(
+    {} as Pool,
+    readEnv({ NODE_ENV: 'development', MYSQL_PASSWORD: 'unused-in-local-test' }),
+  );
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers: { origin: 'http://127.0.0.1:5173' },
+      payload: { username: 'a', password: '' },
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.code).toBe('VALIDATION');
+  } finally {
+    await app.close();
+  }
+}
+test('开发登录请求兼容Vite显示的127.0.0.1地址', developmentLoginCase);
 
 /**
  * 使用只读内存仓储检查真实会话解析、页面授权和CSRF边界。

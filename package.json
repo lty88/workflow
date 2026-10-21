@@ -12,6 +12,7 @@
     "test": "pnpm --filter @workflow/server test",
     "db:init": "pnpm --filter @workflow/server db:init",
     "db:setup": "pnpm --filter @workflow/server db:setup",
+    "db:reset-admin": "pnpm --filter @workflow/server db:reset-admin",
     "build": "pnpm -r build",
     "format": "prettier --write apps packages *.json *.yaml",
     "format:check": "prettier --check apps packages *.json *.yaml"

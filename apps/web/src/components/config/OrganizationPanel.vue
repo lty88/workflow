@@ -18,6 +18,7 @@ import {
 } from 'naive-ui';
 import type { TreeOption } from 'naive-ui';
 import type { CompanyConfig, Department, Member } from '@workflow/domain';
+import { DEFAULT_PASSWORD, passwordSchema } from '@workflow/domain';
 import type { ConfigPanelProps } from './types';
 import { setMemberPasswordApi } from '../../api';
 import { clone, newId } from '../../composables/format';
@@ -258,20 +259,20 @@ function saveMember(): void {
   memberOpen.value = false;
 }
 /**
- * 打开已发布成员的密码设置抽屉。
+ * 打开已发布成员的密码设置抽屉，预填统一默认密码。
  * @param item 成员
  */
 function openPassword(item: Member): void {
   passwordMember.value = item;
-  password.value = '';
+  password.value = DEFAULT_PASSWORD;
   passwordOpen.value = true;
 }
 /**
- * 调用真实密码接口，立即撤销该成员旧会话。
+ * 校验6至200位成员密码并调用接口更新，立即撤销该成员旧会话。
  */
 async function savePassword(): Promise<void> {
-  if (!passwordMember.value || password.value.length < 12) {
-    feedback.failure(new Error('密码至少12位'));
+  if (!passwordMember.value || !passwordSchema.safeParse({ password: password.value }).success) {
+    feedback.failure(new Error('密码需为6至200位'));
     return;
   }
   busy.value = true;
@@ -296,7 +297,7 @@ async function savePassword(): Promise<void> {
     ><BusinessGraph
       :model="organization"
       :selected-key="selected ? 'dept:' + selected : ''"
-      :height="mobile ? 360 : 440"
+      :height="mobile ? 420 : 560"
       label="公司部门与成员组织架构图"
       @select="selectGraphNode"
       @clear="clearDepartment"
@@ -374,7 +375,7 @@ async function savePassword(): Promise<void> {
           ><NSelect v-model:value="member.roles" :options="roles" multiple filterable /></NFormItem
         ><NFormItem label="启用"><NSwitch v-model:value="member.active" /></NFormItem
         ><NAlert type="info"
-          >新成员需先发布配置，再设置登录密码。停用后现有待办保留，重新分配前无法由该成员办理。</NAlert
+          >新成员发布后初始密码为123456，可按需修改。停用后现有待办保留，重新分配前无法由该成员办理。</NAlert
         ></NForm
       ><template #footer
         ><NButton type="primary" @click="saveMember">应用到草案</NButton></template
@@ -389,7 +390,7 @@ async function savePassword(): Promise<void> {
         type="password"
         show-password-on="click"
         autocomplete="new-password"
-        placeholder="至少12位"
+        placeholder="6至200位，默认123456"
       /><template #footer
         ><NButton type="primary" :loading="busy" @click="savePassword">立即设置密码</NButton></template
       ></NDrawerContent

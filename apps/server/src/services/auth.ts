@@ -1,13 +1,13 @@
-import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import { promisify } from 'node:util';
+import { createHash, randomBytes } from 'node:crypto';
 import type { Pool } from 'mysql2/promise';
 import { activeMember, findById, pagesFor, permissionsFor } from '@workflow/domain';
 import type { SessionProfile } from '@workflow/domain';
 import { loadConfig, query } from '../db/repository';
 import { ensure } from '../errors';
 import type { Environment } from '../env';
+import { verifyPassword } from './password';
 
-const scryptAsync = promisify(scrypt);
+export { hashPassword, verifyPassword } from './password';
 /**
  * 计算会话或幂等请求摘要，数据库不保存原始会话令牌。
  * @param value 原文
@@ -15,31 +15,6 @@ const scryptAsync = promisify(scrypt);
  */
 export function digest(value: string): string {
   return createHash('sha256').update(value).digest('hex');
-}
-
-/**
- * 使用随机盐对账号密码派生哈希。
- * @param password 原始密码
- * @returns 带盐派生结果
- */
-export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString('hex');
-  const key = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `scrypt:${salt}:${key.toString('hex')}`;
-}
-
-/**
- * 恒定时间校验密码，格式异常时拒绝。
- * @param password 输入密码
- * @param encoded 存储哈希
- * @returns 密码是否正确
- */
-export async function verifyPassword(password: string, encoded: string): Promise<boolean> {
-  const [kind, salt, hash] = encoded.split(':');
-  if (kind !== 'scrypt' || !salt || !hash) return false;
-  const expected = Buffer.from(hash, 'hex');
-  const actual = (await scryptAsync(password, salt, 64)) as Buffer;
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 /**

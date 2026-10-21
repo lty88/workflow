@@ -8,12 +8,16 @@ body {
   font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   font-size: 14px;
 }
+small {
+  font-size: max(12px, 0.875em);
+}
 a {
   color: #235de9;
   text-decoration: none;
 }
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -94,8 +98,8 @@ h3 {
 }
 .brand-sub {
   display: block;
-  font-size: 9px;
-  letter-spacing: 2px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
   margin-top: 4px;
   color: #8f9fbb;
 }
@@ -105,7 +109,7 @@ h3 {
 }
 .nav-group {
   color: #7789a9;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 2px;
   margin: 24px 18px 10px;
 }
@@ -139,7 +143,7 @@ h3 {
   align-items: start;
   gap: 12px;
   padding: 24px 15px 0;
-  font-size: 11px;
+  font-size: 13px;
   color: #8292af;
 }
 .main-shell {
@@ -199,7 +203,7 @@ h3 {
   text-align: center;
   color: #9ca6b7;
   padding: 16px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .page-heading {
   display: flex;
@@ -216,7 +220,7 @@ h3 {
 }
 .eyebrow {
   color: #597fce;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 2px;
   font-weight: 600;
 }
@@ -261,7 +265,7 @@ h3 {
 }
 .metric-note {
   color: #9da6b7;
-  font-size: 11px;
+  font-size: 13px;
 }
 .dashboard-grid {
   display: grid;
@@ -394,7 +398,7 @@ h3 {
 }
 .file-meta {
   color: #98a2b5;
-  font-size: 11px;
+  font-size: 13px;
 }
 .node-card {
   padding: 16px;

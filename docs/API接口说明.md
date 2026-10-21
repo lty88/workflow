@@ -5,7 +5,7 @@
 ## 认证与请求约定
 
 - `POST /auth/login` 返回当前员工、权限、菜单、表单定义和 `csrfToken`，并设置 HttpOnly、SameSite=Strict 的 `workflow_session` Cookie。
-- 其余接口读取 Cookie 会话；写入还需 `x-csrf-token`。浏览器写入来源必须与 `APP_ORIGIN` 一致。前端统一封装在 `apps/web/src/api/`。
+- 其余接口读取 Cookie 会话；写入还需 `x-csrf-token`。浏览器写入来源按 `APP_ORIGIN` 校验；仅开发模式允许同协议同端口的 `localhost`、`127.0.0.1` 和 `[::1]` 互通，局域网和生产来源按配置精确匹配。前端统一封装在 `apps/web/src/api/`。
 - 工单写操作必须带幂等键。草稿创建／保存、附件上传通过 `idempotency-key` 请求头，其余通过 JSON 的 `idempotencyKey`。
 - 操作者始终取服务端会话，不接受前端提交任意操作者、组织范围或下一节点。
 - 主单动作携带 `expectedVersion`，个人任务携带 `expectedTaskVersion`，流程调整携带 `expectedStructureRevision`，配置携带 `expectedDraftRevision`。

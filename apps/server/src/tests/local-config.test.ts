@@ -1,6 +1,12 @@
 import { expect, test } from 'vitest';
 import { parseEnv } from 'node:util';
-import { configuredPassword, grantDatabaseName, localPassword, updateEnv } from '../db/local-config';
+import {
+  configuredPassword,
+  grantDatabaseName,
+  initialPassword,
+  localPassword,
+  updateEnv,
+} from '../db/local-config';
 
 /** 检查本机向导生成的凭据满足初始化长度和数据库密码复杂度。 */
 function passwordCase(): void {
@@ -37,3 +43,15 @@ function envCase(): void {
   expect(result).toContain('# 自定义配置');
 }
 test('写入.env保留已有配置和密码，不使用会损坏凭据的JSON转义', envCase);
+
+/** 检查应用密码默认123456，并保留自定义值、拒绝不符合长度规则的值。 */
+function initialPasswordCase(): void {
+  expect(initialPassword()).toBe('123456');
+  expect(initialPassword('')).toBe('123456');
+  expect(initialPassword('replace-with-password')).toBe('123456');
+  expect(initialPassword('123456')).toBe('123456');
+  expect(initialPassword('Custom!Password')).toBe('Custom!Password');
+  expect(initialPassword.bind(undefined, '12345')).toThrow();
+  expect(initialPassword.bind(undefined, 'a'.repeat(201))).toThrow();
+}
+test('应用账号默认六位密码，数据库密码仍随机生成', initialPasswordCase);

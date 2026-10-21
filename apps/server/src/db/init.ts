@@ -1,21 +1,17 @@
 import { readFile } from 'node:fs/promises';
-import { configSchema, seedConfig, validateConfig } from '@workflow/domain';
+import { DEFAULT_PASSWORD, configSchema, seedConfig, validateConfig } from '@workflow/domain';
 import { readEnv } from '../env';
 import { createPool, materializeConfig, query, transaction } from './repository';
 import { hashPassword } from '../services/auth';
+import { initialPassword } from './local-config';
 
 /**
- * 显式初始化迁移和种子账号，已有业务配置不会覆盖。
- * @returns 初始化完成状态
+ * 显式初始化迁移和种子账号，默认密码123456，已有业务配置和密码不会覆盖。
  */
 async function initialize(): Promise<void> {
   const env = readEnv();
-  const adminPassword = process.env.ADMIN_PASSWORD || '';
-  const demoPassword = process.env.SEED_USER_PASSWORD || '';
-  if (adminPassword.length < 12 || adminPassword.startsWith('replace-'))
-    throw new Error('请在项目.env设置至少12位的ADMIN_PASSWORD');
-  if (demoPassword && (demoPassword.length < 12 || demoPassword.startsWith('replace-')))
-    throw new Error('SEED_USER_PASSWORD需至少12位且不能使用占位值；留空则只开通管理员密码');
+  const adminPassword = initialPassword(process.env.ADMIN_PASSWORD);
+  const demoPassword = initialPassword(process.env.SEED_USER_PASSWORD);
   const pool = createPool(env);
   try {
     const sql = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
@@ -46,7 +42,7 @@ async function initialize(): Promise<void> {
       await materializeConfig(connection, config);
       for (const user of config.users) {
         const password = user.id === 'u-admin' ? adminPassword : demoPassword;
-        if (password)
+        if (password !== DEFAULT_PASSWORD)
           await connection.execute('UPDATE members SET password_hash=? WHERE id=?', [
             await hashPassword(password),
             user.id,
@@ -55,7 +51,7 @@ async function initialize(): Promise<void> {
       await connection.execute('INSERT IGNORE INTO schema_migrations(version) VALUES (1)');
     }
     await transaction(pool, seed);
-    console.info('初始化完成。管理员账号：admin；示例员工是否可登录取决于SEED_USER_PASSWORD。');
+    console.info('初始化完成。管理员账号：admin；管理员和示例员工默认密码123456，可由.env配置初始值。');
   } finally {
     await pool.end();
   }

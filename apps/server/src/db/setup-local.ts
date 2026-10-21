@@ -6,7 +6,14 @@ import { Writable } from 'node:stream';
 import { createInterface } from 'node:readline/promises';
 import mysql from 'mysql2/promise';
 import type { RowDataPacket } from 'mysql2/promise';
-import { configuredPassword, grantDatabaseName, localPassword, updateEnv } from './local-config';
+import {
+  configuredPassword,
+  grantDatabaseName,
+  initialPassword,
+  localPassword,
+  updateEnv,
+} from './local-config';
+import { passwordSchema } from '@workflow/domain';
 
 const envPath = fileURLToPath(new URL('../../../../.env', import.meta.url));
 const examplePath = fileURLToPath(new URL('../../../../.env.example', import.meta.url));
@@ -40,7 +47,7 @@ function setupError(error: unknown): string {
   return error instanceof Error ? error.message : '本机数据库配置未完成';
 }
 
-/** 检查既有本机项目凭据是否可用，成功时直接复用，避免重复创建用户。
+/** 检查既有本机项目凭据和应用初始密码是否可用，成功时直接复用。
  * @param env 当前环境配置
  * @returns 是否已经配置成功
  */
@@ -52,7 +59,7 @@ async function alreadyConfigured(env: Record<string, string | undefined>): Promi
     !env.MYSQL_DATABASE ||
     !configuredPassword(env.MYSQL_PASSWORD) ||
     !configuredPassword(env.ADMIN_PASSWORD) ||
-    env.ADMIN_PASSWORD!.length < 12
+    !passwordSchema.safeParse({ password: env.ADMIN_PASSWORD }).success
   )
     return false;
   let connection: mysql.Connection | undefined;
@@ -74,7 +81,7 @@ async function alreadyConfigured(env: Record<string, string | undefined>): Promi
   }
 }
 
-/** 交互式建立本机MySQL专用数据库和账号，并写入项目.env；不启动应用、不重置已有账号。
+/** 交互式建立本机MySQL账号并写入.env，应用密码默认123456；不启动应用或重置已有账号。
  */
 async function setup(): Promise<void> {
   if (!process.stdin.isTTY) throw new Error('请在交互式终端运行 pnpm db:setup，以便安全输入MySQL管理密码。');
@@ -155,14 +162,8 @@ async function setup(): Promise<void> {
     }
     const appUser = 'wf_local_' + randomBytes(6).toString('hex');
     const appPassword = localPassword();
-    const adminPassword =
-      configuredPassword(env.ADMIN_PASSWORD) && env.ADMIN_PASSWORD!.length >= 12
-        ? env.ADMIN_PASSWORD!
-        : localPassword();
-    const seedPassword =
-      configuredPassword(env.SEED_USER_PASSWORD) && env.SEED_USER_PASSWORD!.length >= 12
-        ? env.SEED_USER_PASSWORD!
-        : localPassword();
+    const adminPassword = initialPassword(env.ADMIN_PASSWORD);
+    const seedPassword = initialPassword(env.SEED_USER_PASSWORD);
     await connection.query(
       'CREATE DATABASE IF NOT EXISTS ?? CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci',
       [database],
