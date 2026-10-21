@@ -5,18 +5,34 @@ import { parseEnv } from 'node:util';
  * @param value 本地配置值
  * @returns 是否已填写真实值
  */
-export function configuredPassword(value?: string): boolean { return !!value && !value.startsWith('replace-'); }
+export function configuredPassword(value?: string): boolean {
+  return !!value && !value.startsWith('replace-');
+}
 
 /** 生成本地开发凭据，保证包含大小写、数字和特殊字符。
  * @returns 新的随机密码
  */
-export function localPassword(): string { return 'Wf9!' + randomBytes(24).toString('hex'); }
+export function localPassword(): string {
+  return 'Wf9!' + randomBytes(24).toString('hex');
+}
+
+/** 按MySQL授权模式转义库名中的下划线，确保授权仅匹配项目数据库。
+ * @param database 实际项目库名
+ * @param partialRevokes MySQL是否启用按字面量解析数据库名的模式
+ * @returns 用于GRANT数据库限定符的名称
+ */
+export function grantDatabaseName(database: string, partialRevokes: boolean): string {
+  return partialRevokes ? database : database.replaceAll('_', '\\_');
+}
 
 /** 选择Node环境文件支持的引号，保留密码中的反斜杠、空格和井号。
  * @param value 环境变量值
  * @returns 可以直接写入.env的文本
  */
-function quoteEnv(value: string): string { for (const quote of ['"', "'", '`']) if (!value.includes(quote)) return quote + value + quote; throw new Error('配置值包含三种引号，请手动编辑对应.env变量后重试。'); }
+function quoteEnv(value: string): string {
+  for (const quote of ['"', "'", '`']) if (!value.includes(quote)) return quote + value + quote;
+  throw new Error('配置值包含三种引号，请手动编辑对应.env变量后重试。');
+}
 
 /** 更新指定环境变量，保留其他变量、说明及已正确填写的原始行。
  * @param source 原始环境文件
@@ -24,7 +40,20 @@ function quoteEnv(value: string): string { for (const quote of ['"', "'", '`']) 
  * @returns 更新后的环境文件内容
  */
 export function updateEnv(source: string, values: Record<string, string>): string {
-  const remaining = new Map(Object.entries(values)); const current = parseEnv(source); const lines = source.split(/\r?\n/); const result: string[] = [];
-  for (const line of lines) { const key = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/)?.[1]; if (key && Object.hasOwn(values, key)) { if (remaining.has(key)) { const value = remaining.get(key)!; result.push(current[key] === value ? line : key + '=' + quoteEnv(value)); remaining.delete(key); } } else result.push(line); }
-  for (const [key, value] of remaining) result.push(key + '=' + quoteEnv(value)); return result.join('\n').trimEnd() + '\n';
+  const remaining = new Map(Object.entries(values));
+  const current = parseEnv(source);
+  const lines = source.split(/\r?\n/);
+  const result: string[] = [];
+  for (const line of lines) {
+    const key = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/)?.[1];
+    if (key && Object.hasOwn(values, key)) {
+      if (remaining.has(key)) {
+        const value = remaining.get(key)!;
+        result.push(current[key] === value ? line : key + '=' + quoteEnv(value));
+        remaining.delete(key);
+      }
+    } else result.push(line);
+  }
+  for (const [key, value] of remaining) result.push(key + '=' + quoteEnv(value));
+  return result.join('\n').trimEnd() + '\n';
 }

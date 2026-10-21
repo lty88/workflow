@@ -10,7 +10,12 @@ import { requireDatabaseReady } from './db/readiness';
 async function main(): Promise<void> {
   const env = readEnv();
   const pool = createPool(env);
-  try { await requireDatabaseReady(pool); } catch (error) { await pool.end(); throw error; }
+  try {
+    await requireDatabaseReady(pool);
+  } catch (error) {
+    await pool.end();
+    throw error;
+  }
   const app = await buildApp(pool, env);
   /**
    * 投递已提交事务产生的站内消息，不改变审批决定。
@@ -58,12 +63,20 @@ async function main(): Promise<void> {
   }
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
-  try { await app.listen({ host: env.HOST, port: env.PORT }); } catch (error) { await app.close(); throw error; }
+  try {
+    await app.listen({ host: env.HOST, port: env.PORT });
+  } catch (error) {
+    await app.close();
+    throw error;
+  }
 }
 
 /** 以明确的启动错误结束当前进程，避免数据库未就绪时仍显示API监听成功。
  * @param error 启动异常
  */
-function startupFailure(error: unknown): void { console.error('服务启动中止：' + (error instanceof Error ? error.message : '请检查配置后重试')); process.exitCode = 1; }
+function startupFailure(error: unknown): void {
+  console.error('服务启动中止：' + (error instanceof Error ? error.message : '请检查配置后重试'));
+  process.exitCode = 1;
+}
 
 main().catch(startupFailure);

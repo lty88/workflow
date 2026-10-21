@@ -9,7 +9,9 @@ async function missingDatabaseCase(): Promise<void> {
   /** 模拟数据库连接失败。
    * @returns 被拒绝的数据库查询
    */
-  async function execute(): Promise<never> { throw new Error('connection refused'); }
+  async function execute(): Promise<never> {
+    throw new Error('connection refused');
+  }
   await expect(requireDatabaseReady({ execute } as unknown as Pool)).rejects.toThrow('pnpm db:setup');
 }
 test('启动检查在数据库未就绪时明确提示配置和初始化步骤', missingDatabaseCase);
@@ -20,7 +22,10 @@ async function readyDatabaseCase(): Promise<void> {
   /** 模拟读取已发布的业务配置。
    * @returns 配置查询结果
    */
-  async function execute(): Promise<[unknown[], unknown[]]> { const config = seedConfig(); return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []]; }
+  async function execute(): Promise<[unknown[], unknown[]]> {
+    const config = seedConfig();
+    return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
+  }
   await expect(requireDatabaseReady({ execute } as unknown as Pool)).resolves.toBeUndefined();
 }
 test('已初始化项目数据库通过启动前检查', readyDatabaseCase);
