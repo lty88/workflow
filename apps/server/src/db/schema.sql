@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS activities (
   id VARCHAR(80) PRIMARY KEY, code VARCHAR(80) NOT NULL UNIQUE, applicant_id VARCHAR(80) NOT NULL,
   department_id VARCHAR(80) NOT NULL, status VARCHAR(30) NOT NULL, version INT NOT NULL,
   data JSON NOT NULL, created_at DATETIME(3) NOT NULL, updated_at DATETIME(3) NOT NULL,
+  deleted_at DATETIME(3) NULL, deleted_by VARCHAR(80) NULL, deletion_reason VARCHAR(500) NULL,
   INDEX idx_activity_department (department_id, status), INDEX idx_activity_applicant (applicant_id, updated_at)
 );
 CREATE TABLE IF NOT EXISTS workflow_nodes (
@@ -58,7 +59,8 @@ CREATE TABLE IF NOT EXISTS idempotency_records (
 CREATE TABLE IF NOT EXISTS files (
   id VARCHAR(80) PRIMARY KEY, activity_id VARCHAR(80) NOT NULL, uploader_id VARCHAR(80) NOT NULL,
   name VARCHAR(255) NOT NULL, storage_key VARCHAR(80) NOT NULL UNIQUE, mime VARCHAR(120) NOT NULL,
-  size BIGINT UNSIGNED NOT NULL, stage VARCHAR(20) NOT NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  size BIGINT UNSIGNED NOT NULL, stage VARCHAR(20) NOT NULL,
+  node_id VARCHAR(80) NULL, access_rule JSON NULL, download_rule JSON NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   INDEX idx_file_activity (activity_id, stage), FOREIGN KEY (activity_id) REFERENCES activities(id)
 );
 CREATE TABLE IF NOT EXISTS outbox_events (
@@ -70,4 +72,26 @@ CREATE TABLE IF NOT EXISTS notifications (
   id VARCHAR(80) PRIMARY KEY, event_id VARCHAR(80) NOT NULL UNIQUE, recipient_id VARCHAR(80) NOT NULL,
   activity_id VARCHAR(80) NOT NULL, title VARCHAR(200) NOT NULL, read_at DATETIME(3) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), INDEX idx_notification_inbox (recipient_id, read_at, created_at)
+);
+CREATE TABLE IF NOT EXISTS template_catalog_lock (id VARCHAR(40) PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS activity_types (
+  id VARCHAR(80) PRIMARY KEY, code VARCHAR(60) NOT NULL UNIQUE, name VARCHAR(80) NOT NULL,
+  active BOOLEAN NOT NULL, sort INT NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS workflow_templates (
+  id VARCHAR(80) PRIMARY KEY, code VARCHAR(60) NOT NULL UNIQUE, active BOOLEAN NOT NULL DEFAULT TRUE,
+  current_version INT NOT NULL DEFAULT 0, draft_revision INT NOT NULL DEFAULT 1,
+  draft JSON NOT NULL, published JSON NULL, created_by VARCHAR(80) NOT NULL,
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+);
+CREATE TABLE IF NOT EXISTS workflow_template_releases (
+  template_id VARCHAR(80) NOT NULL, version INT NOT NULL, definition JSON NOT NULL,
+  form_snapshot JSON NOT NULL, published_by VARCHAR(80) NOT NULL,
+  published_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY(template_id,version), FOREIGN KEY(template_id) REFERENCES workflow_templates(id)
+);
+CREATE TABLE IF NOT EXISTS activity_type_templates (
+  activity_type_id VARCHAR(80) NOT NULL, template_id VARCHAR(80) NOT NULL, is_default BOOLEAN NOT NULL,
+  PRIMARY KEY(activity_type_id,template_id), FOREIGN KEY(activity_type_id) REFERENCES activity_types(id),
+  FOREIGN KEY(template_id) REFERENCES workflow_templates(id)
 );

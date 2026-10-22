@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>活动流程模板 · 交互评审</title>
+  <link rel="stylesheet" href="template-designer.css">
+</head>
+<body>
+  <header class="top"><a href="config.html">← 配置中心</a><strong>活动流程模板</strong><span class="tag">交互评审稿</span><nav><button data-view="library">模板库</button><button data-view="application">新建活动</button><button data-view="instances">实例对比</button></nav></header>
+  <main>
+    <div class="notice">离线交互原型：数据只保存在当前浏览器，不连接业务接口。模板选择与多版本功能待开发；G6 沿用项目本地依赖。</div>
+    <section id="library" class="page">
+      <div class="heading"><div><p class="eyebrow">WORKFLOW TEMPLATES</p><h1>让不同活动，走合适的流程</h1><p>默认流程保留，常用场景各有模板。发布新版本，已提交活动保持原路线。</p></div><button id="new-template" class="primary">＋ 新建模板</button></div>
+      <div class="filters"><label>活动类型<select id="filter-type"><option value="">全部类型</option><option>教研交流</option><option>线上研讨</option><option>收费培训</option><option>内部分享</option></select></label><label>部门范围<select id="filter-department"><option value="">全部部门</option><option>教研一部</option><option>教研二部</option></select></label><span>模板设计与发布：配置管理员</span></div>
+      <div id="template-cards" class="cards"></div>
+      <p class="muted">建议规则：收费培训始终复核，线上公益可简化营销环节；由业务确认后正式发布。</p>
+    </section>
+    <section id="designer" class="page" hidden>
+      <div class="heading compact"><div><button data-view="library">← 模板库</button><h1 id="designer-title">设计模板</h1><p id="version-label"></p></div><div class="actions"><button id="save-draft">保存草稿</button><button id="validate">校验结构</button><button id="publish" class="primary">发布新版本</button></div></div>
+      <div class="designer-grid">
+        <aside class="panel palette"><h2>节点库</h2><p>拖动节点到画布下方接入区。先点选一个参考节点。</p><button draggable="true" data-kind="approval">▣ 审批节点</button><button draggable="true" data-kind="task">✓ 办理任务</button><button draggable="true" data-kind="notice">♧ 知会节点</button><p class="muted">也可选中节点后，点接入区直接新增审批。拖动画布节点只调整展示位置。</p><hr><label>模板名称<input id="template-name" maxlength="60"></label><label>活动类型<select id="template-type"><option>教研交流</option><option>线上研讨</option><option>收费培训</option><option>内部分享</option></select></label><label>授权部门<select id="template-department"><option value="all">教研一部、教研二部</option><option value="教研一部">仅教研一部</option><option value="教研二部">仅教研二部</option></select></label></aside>
+        <section class="panel graph-panel" id="graph-panel"><div class="toolbar"><strong>流程画布</strong><span id="zoom-label">100%</span><button id="zoom-out" aria-label="缩小画布">−</button><button id="zoom-in" aria-label="放大画布">＋</button><button id="fit">适配</button><button id="reset-zoom">100%</button><button id="expand">全屏</button></div><div id="graph"></div><div id="graph-error" role="alert" hidden></div><div class="drop-row"><button data-position="before">拖到这里：参考节点之前</button><button data-position="after">拖到这里：参考节点之后</button><button data-position="parallel">拖到这里：与参考节点并行</button></div><p class="graph-help">点节点编辑属性；拖入接入区改变流程依赖；右侧可精确设置前置。Esc退出全屏。</p></section>
+        <aside class="panel inspector"><h2>节点属性</h2><p id="empty-node">请选择画布节点。</p><form id="node-form" hidden><label>节点名称<input id="node-label" required minlength="2" maxlength="60"></label><label>节点类型<select id="node-kind"><option value="approval">审批 · 全员通过</option><option value="task">任务 · 全员完成</option><option value="notice">知会 · 不阻断</option></select></label><label>受理人<select id="node-owner"></select></label><label>进入条件<select id="node-condition"><option value="always">始终进入</option><option value="budget">预算达到阈值</option></select></label><label id="threshold-label" hidden>预算阈值（元）<input id="node-threshold" type="number" min="0" step="0.01"></label><fieldset><legend>前置节点（全部完成后激活）</legend><div id="node-deps"></div></fieldset><p id="protected-hint" class="muted"></p><button class="primary" type="submit">应用节点属性</button><button type="button" id="delete-node" class="danger">删除节点</button></form></aside>
+      </div>
+      <section class="panel simulation"><div><h2>发布前演算</h2><p>不创建真实工单；检查预算条件、受理人和串并行关系。</p></div><label>申请人<select id="simulate-applicant"><option value="linxiao">林晓 · 教研一部</option><option value="qiaoan">乔安 · 教研二部</option></select></label><label>预算（元）<input id="simulate-budget" type="number" min="0" value="12000" step="0.01"></label><button id="simulate">演算当前草稿</button><div id="simulation-result" aria-live="polite"></div></section>
+    </section>
+    <section id="application" class="page" hidden>
+      <div class="heading"><div><p class="eyebrow">NEW ACTIVITY</p><h1>先选活动类型，再选审批流程</h1><p>根据申请人的部门展示可用模板；填写预算后预览实际路线。</p></div><button data-view="library">查看模板库</button></div>
+      <div class="application-grid"><form class="panel" id="application-form"><label>申请人<select id="applicant"><option value="linxiao">林晓 · 教研一部</option><option value="qiaoan">乔安 · 教研二部</option></select></label><label>活动类型<select id="activity-type"><option>教研交流</option><option>线上研讨</option><option>收费培训</option><option>内部分享</option></select></label><label>流程模板<select id="activity-template" required></select></label><label>活动名称<input id="activity-name" required value="[UAT] 多流程模板体验活动" maxlength="100"></label><label>预算（元）<input id="activity-budget" type="number" required min="0" step="0.01" value="12000"></label><div class="actions"><button type="button" id="preview-route">预览审批路线</button><button type="submit" class="primary">模拟提交活动</button></div><p class="muted">此页只演示模板选择，正式申请仍需填写完整活动表单。切换模板后请重新预览。</p></form><section class="panel"><h2>将要走的审批路线</h2><div id="route-preview">请先预览。</div><div id="application-feedback" role="status"></div></section></div>
+    </section>
+    <section id="instances" class="page" hidden>
+      <div class="heading"><div><p class="eyebrow">IMMUTABLE SNAPSHOTS</p><h1>模板持续更新，实例各自运行</h1><p>先模拟提交一个活动，再修改并发布模板，返回这里核对旧活动的版本与路线。</p></div><button data-view="application" class="primary">新建演示活动</button></div><div id="instance-cards" class="cards"></div>
+    </section>
+    <p class="footer"><a href="../docs/多流程模板与设计器-需求设计.md">需求设计</a> · <a href="../docs/全角色流程测试计划.md">全角色测试计划</a> · <button id="reset-demo">清空原型演示数据</button></p>
+  </main>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="../apps/web/node_modules/@antv/g6/dist/g6.min.js"></script>
+  <script src="template-designer.js"></script>
+</body>
+</html>

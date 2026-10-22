@@ -3,11 +3,11 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { NAlert, NButton, NCard, NEmpty, NSpin, NTag } from 'naive-ui';
 import { STATUSES } from '@workflow/domain';
-import type { ActivityListItem } from '../../typings/api';
-import { activitiesApi } from '../../api';
-import { useAuthStore } from '../../stores/auth';
-import { useFeedback } from '../../composables/use-feedback';
-import { formatTime } from '../../composables/format';
+import type { ActivityListItem } from '@/typings/api';
+import { activitiesApi } from '@/api';
+import { useAuthStore } from '@/stores/auth';
+import { useFeedback } from '@/composables/use-feedback';
+import { formatTime } from '@/composables/format';
 const auth = useAuthStore();
 const feedback = useFeedback();
 const busy = ref(false);
@@ -81,7 +81,9 @@ onMounted(load);
               class="config-item"
               ><div>
                 <strong style="color: #35445e">{{ item.name || '未命名草稿' }}</strong
-                ><small>{{ item.code }} · {{ formatTime(item.startAt) }}</small>
+                ><small
+                  >{{ item.code }} · 发起人 {{ item.applicantName }} · {{ formatTime(item.startAt) }}</small
+                >
               </div>
               <NTag size="small" :bordered="false" type="info">{{ STATUSES[item.status] }}</NTag></RouterLink
             >

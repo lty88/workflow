@@ -18,8 +18,8 @@ import {
 import { PAGE_COMPONENTS } from '@workflow/domain';
 import type { CompanyConfig, MenuGroup, PageDefinition, Role } from '@workflow/domain';
 import type { ConfigPanelProps } from './types';
-import { clone, newId } from '../../composables/format';
-import { useFeedback } from '../../composables/use-feedback';
+import { clone, newId } from '@/composables/format';
+import { useFeedback } from '@/composables/use-feedback';
 const props = defineProps<ConfigPanelProps>();
 const emit = defineEmits<{ 'update:modelValue': [value: CompanyConfig] }>();
 const feedback = useFeedback();

@@ -11,7 +11,9 @@
     "db:init": "tsx --env-file=../../.env src/db/init.ts",
     "db:setup": "tsx src/db/setup-local.ts",
     "db:reset-admin": "tsx src/db/reset-admin.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:migrate": "tsx --env-file=../../.env src/db/migrate.ts",
+    "db:seed-organization": "tsx --env-file=../../.env src/db/seed-organization.ts"
   },
   "dependencies": {
     "@workflow/domain": "workspace:*",

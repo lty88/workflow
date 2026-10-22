@@ -17,14 +17,15 @@ import {
 import { topological, instantiateWorkflow, defaultValues } from '@workflow/domain';
 import type { CompanyConfig, NodeDefinition } from '@workflow/domain';
 import type { ConfigPanelProps } from './types';
-import type { WorkflowPreview } from '../../typings/api';
-import { clone, newId } from '../../composables/format';
-import { useFeedback } from '../../composables/use-feedback';
+import type { WorkflowPreview } from '@/typings/api';
+import { clone, newId } from '@/composables/format';
+import { useFeedback } from '@/composables/use-feedback';
 import AssigneeEditor from './AssigneeEditor.vue';
 import ConditionEditor from './ConditionEditor.vue';
-import BusinessGraph from '../graph/BusinessGraph.vue';
-import { templateGraph, runtimeGraph } from '../graph/models';
-import type { GraphSelection } from '../graph/types';
+import NodeAccessEditor from '@/components/security/NodeAccessEditor.vue';
+import BusinessGraph from '@/components/graph/BusinessGraph.vue';
+import { templateGraph, runtimeGraph } from '@/components/graph/models';
+import type { GraphSelection } from '@/components/graph/types';
 const props = defineProps<ConfigPanelProps>();
 const emit = defineEmits<{ 'update:modelValue': [value: CompanyConfig] }>();
 const feedback = useFeedback();
@@ -386,8 +387,9 @@ function simulate(): void {
         ><AssigneeEditor v-model="editing.assignee" :config="modelValue" /><ConditionEditor
           v-if="!editing.protected"
           v-model="editing.condition"
-          :fields="modelValue.form.fields"
-        /><NAlert v-else type="info">必要审核节点始终进入，不设置跳过条件。</NAlert></NForm
+          :fields="modelValue.form.fields" /><NAlert v-else type="info"
+          >必要审核节点始终进入，不设置跳过条件。</NAlert
+        ><NodeAccessEditor v-model="editing" :config="modelValue" /></NForm
       ><template #footer
         ><div class="gap">
           <NButton @click="insertFromEditor('before')">保存并前插</NButton

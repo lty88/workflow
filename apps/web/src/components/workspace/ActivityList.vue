@@ -15,11 +15,12 @@ import {
 } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import { STATUSES } from '@workflow/domain';
-import type { ActivityListItem, ActivityPage, ListParams } from '../../typings/api';
-import { activitiesApi, exportActivitiesApi } from '../../api';
-import { useAuthStore } from '../../stores/auth';
-import { useFeedback } from '../../composables/use-feedback';
-import { formatTime, formatMoney } from '../../composables/format';
+import type { ActivityListItem, ActivityPage, ListParams } from '@/typings/api';
+import { activitiesApi, exportActivitiesApi } from '@/api';
+import { useAuthStore } from '@/stores/auth';
+import { useFeedback } from '@/composables/use-feedback';
+import { formatTime, formatMoney } from '@/composables/format';
+import ActivityDeleteButton from '@/components/activity/ActivityDeleteButton.vue';
 const props = withDefaults(defineProps<{ scope?: ListParams['scope']; title?: string }>(), {
   scope: 'all',
   title: '活动工单',
@@ -97,25 +98,29 @@ function renderStart(row: ActivityListItem): string {
  * @returns 金额文本
  */
 function renderBudget(row: ActivityListItem): string {
-  return formatMoney(row.budget);
+  return row.restrictedFields?.includes('budget') ? '权限受限' : formatMoney(row.budget);
 }
 /**
- * 渲染行内详情入口。
+ * 渲染行内详情和受权限及状态限制的删除入口。
  * @param row 列表行
- * @returns 详情链接
+ * @returns 详情链接与删除确认按钮
  */
 function renderAction(row: ActivityListItem) {
   return (
-    <RouterLink to={'/activities/' + row.id}>{props.scope === 'tasks' ? '去办理 →' : '查看 →'}</RouterLink>
+    <div class="gap">
+      <RouterLink to={'/activities/' + row.id}>{props.scope === 'tasks' ? '去办理 →' : '查看 →'}</RouterLink>
+      <ActivityDeleteButton activity={row} allowed={row.canDelete} onDeleted={afterDelete} onRefresh={load} />
+    </div>
   );
 }
 const columns: DataTableColumns<ActivityListItem> = [
   { title: '活动名称 / 编号', key: 'name', minWidth: 220, render: renderName },
+  { title: '发起人', key: 'applicantName', width: 110 },
   { title: '状态', key: 'status', width: 120, render: renderStatus },
   { title: '计划开始', key: 'startAt', width: 165, render: renderStart },
   { title: '地点', key: 'location', minWidth: 140, ellipsis: { tooltip: true } },
   { title: '预算', key: 'budget', width: 125, render: renderBudget },
-  { title: '操作', key: 'actions', width: 90, render: renderAction },
+  { title: '操作', key: 'actions', width: 150, render: renderAction },
 ];
 /**
  * 读取真实分页数据，忽略被新查询取代的旧响应。
@@ -148,6 +153,11 @@ async function load(): Promise<void> {
   } finally {
     if (current === requestId) busy.value = false;
   }
+}
+/** 删除后刷新列表，当前页仅剩一条时回到上一页，避免停留空页。 */
+async function afterDelete(): Promise<void> {
+  if (data.value.items.length === 1 && page.value > 1) page.value -= 1;
+  await load();
 }
 /**
  * 搜索或过滤条件变化时回到第一页。
@@ -266,23 +276,32 @@ function rowKey(row: ActivityListItem): string {
         :loading="busy"
         :bordered="false"
         :row-key="rowKey"
-        :scroll-x="850" /><NSpin :show="busy" class="mobile-activity"
-        ><NEmpty v-if="!data.items.length && !busy" description="暂无活动" /><RouterLink
-          v-for="row in data.items"
-          :key="row.id"
-          :to="'/activities/' + row.id"
-          class="activity-card"
-          ><div class="spread">
-            <small class="muted">{{ row.code }}</small
-            ><NTag size="small" :bordered="false" type="info">{{ STATUSES[row.status] }}</NTag>
+        :scroll-x="1030" /><NSpin :show="busy" class="mobile-activity"
+        ><NEmpty v-if="!data.items.length && !busy" description="暂无活动" />
+        <article v-for="row in data.items" :key="row.id" class="activity-card">
+          <RouterLink :to="'/activities/' + row.id">
+            <div class="spread">
+              <small class="muted">{{ row.code }}</small
+              ><NTag size="small" :bordered="false" type="info">{{ STATUSES[row.status] }}</NTag>
+            </div>
+            <h3>{{ row.name || '未命名草稿' }}</h3>
+            <div class="meta">
+              发起人：{{ row.applicantName }}<br />{{ formatTime(row.startAt) }}<br />{{ row.location
+              }}<br />{{ renderBudget(row) }}
+            </div>
+          </RouterLink>
+          <div class="spread" style="margin-top: 12px">
+            <RouterLink :to="'/activities/' + row.id"
+              >{{ scope === 'tasks' ? '去办理' : '查看详情' }} →</RouterLink
+            ><ActivityDeleteButton
+              :activity="row"
+              :allowed="row.canDelete"
+              @deleted="afterDelete"
+              @refresh="load"
+            />
           </div>
-          <h3>{{ row.name || '未命名草稿' }}</h3>
-          <div class="meta">
-            {{ formatTime(row.startAt) }}<br />{{ row.location }}<br />{{ formatMoney(row.budget) }}
-          </div>
-          <div style="margin-top: 12px">{{ scope === 'tasks' ? '去办理' : '查看详情' }} →</div></RouterLink
-        ></NSpin
-      >
+        </article>
+      </NSpin>
       <div class="spread" style="margin-top: 22px">
         <span class="help-text">共 {{ data.total }} 个活动</span
         ><NPagination

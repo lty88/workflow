@@ -1,9 +1,12 @@
 import type {
+  FileAccessInput,
+  ActivityDeleteResult,
   ActionCommand,
   Adjustment,
   ConfigState,
   PageDefinition,
   TransferCommand,
+  TemplateSelection,
 } from '@workflow/domain';
 import type {
   ActivityDetail,
@@ -15,7 +18,7 @@ import type {
   Notification,
   SessionProfile,
   WorkflowPreview,
-} from '../typings/api';
+} from '@/typings/api';
 import { ApiError, mutation, request } from './http';
 const uploadKeys = new Map<string, string>();
 
@@ -93,16 +96,18 @@ export function activityApi(id: string): Promise<ActivityDetail> {
  * @param payload 输入字段
  * @param id 已有标识
  * @param expectedVersion 当前版本
+ * @param selection 活动类型、模板和预览版本
  * @returns 草稿标识
  */
 export function saveDraftApi(
   payload: Record<string, string>,
   id?: string,
   expectedVersion?: number,
+  selection?: TemplateSelection,
 ): Promise<MutationResult> {
   return mutation(
     '/activities' + (id ? '/' + id : ''),
-    { payload, ...(id ? { expectedVersion } : {}) },
+    { payload, ...(id ? { expectedVersion } : {}), ...selection },
     id ? 'PATCH' : 'POST',
     true,
   );
@@ -111,17 +116,23 @@ export function saveDraftApi(
  * 提交本人草稿并创建流程实例。
  * @param id 活动标识
  * @param expectedVersion 当前版本
+ * @param expectedTemplateVersion 已预览并保存的模板版本
  * @returns 新版本
  */
-export function submitApi(id: string, expectedVersion: number): Promise<MutationResult> {
-  return mutation(`/activities/${id}/submit`, { expectedVersion });
+export function submitApi(
+  id: string,
+  expectedVersion: number,
+  expectedTemplateVersion?: number,
+): Promise<MutationResult> {
+  return mutation(`/activities/${id}/submit`, { expectedVersion, expectedTemplateVersion });
 }
 /**
  * 办理个人审核任务。
  * @param id 个人任务标识
  * @param expectedTaskVersion 任务版本
  * @param decision 决策
- * @param comment 意见
+ * @param comment 节点内部说明
+ * @param publicComment 活动内共享的结论或补充要求
  * @returns 更新结果
  */
 export function decisionApi(
@@ -129,8 +140,9 @@ export function decisionApi(
   expectedTaskVersion: number,
   decision: 'approve' | 'return' | 'reject',
   comment: string,
+  publicComment = '',
 ): Promise<MutationResult> {
-  return mutation(`/tasks/${id}/decisions`, { expectedTaskVersion, decision, comment });
+  return mutation(`/tasks/${id}/decisions`, { expectedTaskVersion, decision, comment, publicComment });
 }
 /**
  * 执行完整业务闭环动作。
@@ -218,16 +230,21 @@ export function setMemberPasswordApi(id: string, password: string): Promise<{ ok
  * @param activityId 活动标识
  * @param file 浏览器文件
  * @param stage 文件阶段
+ * @param access 所属节点和只收紧的附件授权
  * @returns 文件元数据
  */
 export async function uploadApi(
   activityId: string,
   file: File,
   stage: FileRecord['stage'],
+  access: FileAccessInput = {},
 ): Promise<FileRecord> {
   const data = new FormData();
+  data.set('access', JSON.stringify(access));
   data.set('file', file);
-  const identity = [activityId, stage, file.name, file.size, file.lastModified].join(':');
+  const identity = [activityId, stage, file.name, file.size, file.lastModified, JSON.stringify(access)].join(
+    ':',
+  );
   const key = uploadKeys.get(identity) || crypto.randomUUID();
   uploadKeys.set(identity, key);
   try {
@@ -257,4 +274,38 @@ export function notificationsApi(): Promise<Notification[]> {
  */
 export function readNotificationApi(id: string): Promise<{ ok: boolean }> {
   return request(`/notifications/${id}/read`, { method: 'POST' });
+}
+
+/**
+ * 修改已上传附件的附加权限，使用主单版本和幂等键防止并发覆盖。
+ * @param id 文件标识
+ * @param expectedVersion 当前主单版本
+ * @param access 新查看和下载授权
+ * @returns 主单新版本
+ */
+export function updateFileAccessApi(
+  id: string,
+  expectedVersion: number,
+  access: FileAccessInput,
+): Promise<MutationResult> {
+  return mutation(
+    `/files/${encodeURIComponent(id)}/access`,
+    { expectedVersion, access: access.access, downloadAccess: access.downloadAccess },
+    'PATCH',
+  );
+}
+
+/**
+ * 逻辑删除活动，提交版本与原因，网络重试沿用幂等键。
+ * @param id 活动标识
+ * @param expectedVersion 用户确认时的活动版本
+ * @param reason 删除原因
+ * @returns 删除成功的活动标识
+ */
+export function deleteActivityApi(
+  id: string,
+  expectedVersion: number,
+  reason: string,
+): Promise<ActivityDeleteResult> {
+  return mutation(`/activities/${encodeURIComponent(id)}`, { expectedVersion, reason }, 'DELETE');
 }

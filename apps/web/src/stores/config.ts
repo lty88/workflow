@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { CompanyConfig, ConfigState } from '@workflow/domain';
-import { configApi, publishConfigApi, saveConfigApi } from '../api';
+import { configApi, publishConfigApi, saveConfigApi } from '@/api';
 
 /**
  * 管理五项配置的同一份草案、版本冲突与发布状态。

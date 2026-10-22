@@ -130,7 +130,7 @@ export function pagesFor(config: CompanyConfig, userId: string): PageDefinition[
 }
 
 /**
- * 校验活动读取权限及多角色数据范围。
+ * 校验活动未删除、读取权限及多角色数据范围。
  * @param config 当前配置
  * @param userId 当前成员
  * @param activity 活动及参与信息
@@ -139,9 +139,9 @@ export function pagesFor(config: CompanyConfig, userId: string): PageDefinition[
 export function canReadActivity(
   config: CompanyConfig,
   userId: string,
-  activity: Pick<Activity, 'applicant' | 'department' | 'nodes' | 'executor' | 'cancellation'>,
+  activity: Pick<Activity, 'applicant' | 'department' | 'nodes' | 'executor' | 'cancellation' | 'deleted'>,
 ): boolean {
-  if (!hasPermission(config, userId, 'activity:read')) return false;
+  if (activity.deleted || !hasPermission(config, userId, 'activity:read')) return false;
   const user = findById(config.users, userId)!;
   for (const role of rolesFor(config, userId)) {
     if (!role.permissions.includes('activity:read')) continue;
@@ -195,7 +195,16 @@ export function canHandleTask(
     !findById(config.users, userId)?.roles.includes(node.assigneeRule.value)
   )
     return false;
-  return hasPermission(config, userId, node.kind === 'approval' ? 'approval:decide' : 'task:complete');
+  if (
+    !task.delegated &&
+    node.assigneeRule.type === 'manager' &&
+    findById(config.departments, activity.department)?.manager !== userId
+  )
+    return false;
+  return (
+    node.assignees.includes(userId) &&
+    hasPermission(config, userId, node.kind === 'approval' ? 'approval:decide' : 'task:complete')
+  );
 }
 
 /**

@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { Permission, SessionProfile } from '@workflow/domain';
-import { loginApi, logoutApi, meApi } from '../api';
-import { ApiError, setCsrfToken } from '../api/http';
+import { loginApi, logoutApi, meApi } from '@/api';
+import { ApiError, setCsrfToken } from '@/api/http';
 
 /**
  * 管理真实服务端会话、动态菜单与当前动作权限。

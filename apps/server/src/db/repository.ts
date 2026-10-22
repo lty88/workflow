@@ -172,7 +172,7 @@ export async function materializeConfig(db: Database, config: CompanyConfig): Pr
 }
 
 /**
- * 读取活动和规范化任务、节点、审计，详情与写入共用。
+ * 读取未删除活动和规范化任务、节点、审计，统一阻止访问已删除活动。
  * @param db 数据库连接
  * @param id 活动标识
  * @param lock 是否锁定主单
@@ -181,7 +181,7 @@ export async function materializeConfig(db: Database, config: CompanyConfig): Pr
 export async function loadActivity(db: Database, id: string, lock = false): Promise<Activity | null> {
   const rows = await query<{ data: unknown }>(
     db,
-    `SELECT data FROM activities WHERE id=?${lock ? ' FOR UPDATE' : ''}`,
+    `SELECT data FROM activities WHERE id=? AND deleted_at IS NULL${lock ? ' FOR UPDATE' : ''}`,
     [id],
   );
   if (!rows[0]) return null;
@@ -211,7 +211,7 @@ export async function loadActivity(db: Database, id: string, lock = false): Prom
 }
 
 /**
- * 原子保存主单、节点和个人任务，历史意见不删除。
+ * 原子保存模板选择索引、主单、节点和个人任务，历史意见不删除。
  * @param db 事务连接
  * @param activity 活动实例
  * @param create 是否新建
@@ -221,7 +221,7 @@ export async function saveActivity(db: Database, activity: Activity, create = fa
   const now = new Date(activity.updatedAt);
   if (create)
     await db.execute(
-      'INSERT INTO activities(id,code,applicant_id,department_id,status,version,data,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO activities(id,code,applicant_id,department_id,status,version,data,created_at,updated_at,activity_type_id,template_id,template_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
       [
         activity.id,
         activity.code,
@@ -232,12 +232,25 @@ export async function saveActivity(db: Database, activity: Activity, create = fa
         JSON.stringify(stored),
         new Date(activity.createdAt),
         now,
+        activity.activityTypeId ?? null,
+        activity.templateId ?? null,
+        activity.templateVersion ?? null,
       ],
     );
   else
     await db.execute(
-      'UPDATE activities SET department_id=?,status=?,version=?,data=?,updated_at=? WHERE id=?',
-      [activity.department, activity.status, activity.version, JSON.stringify(stored), now, activity.id],
+      'UPDATE activities SET department_id=?,status=?,version=?,data=?,updated_at=?,activity_type_id=?,template_id=?,template_version=? WHERE id=?',
+      [
+        activity.department,
+        activity.status,
+        activity.version,
+        JSON.stringify(stored),
+        now,
+        activity.activityTypeId ?? null,
+        activity.templateId ?? null,
+        activity.templateVersion ?? null,
+        activity.id,
+      ],
     );
   for (const node of activity.nodes)
     await db.execute(
@@ -287,7 +300,7 @@ export async function saveActivity(db: Database, activity: Activity, create = fa
 }
 
 /**
- * 列出活动附件元数据，不返回磁盘路径。
+ * 列出服务端完整附件授权元数据，调用方必须投影后返回给客户端。
  * @param db 数据库连接
  * @param id 活动标识
  * @returns 文件列表
@@ -300,10 +313,14 @@ export async function activityFiles(db: Database, id: string): Promise<FileRecor
     size: number;
     mime: string;
     stage: FileRecord['stage'];
+    uploader_id: string;
+    node_id: string | null;
+    access_rule: unknown;
+    download_rule: unknown;
     created_at: string;
   }>(
     db,
-    'SELECT id,activity_id,name,size,mime,stage,created_at FROM files WHERE activity_id=? ORDER BY created_at',
+    'SELECT id,activity_id,uploader_id,name,size,mime,stage,node_id,access_rule,download_rule,created_at FROM files WHERE activity_id=? ORDER BY created_at',
     [id],
   );
   const files: FileRecord[] = [];
@@ -315,6 +332,12 @@ export async function activityFiles(db: Database, id: string): Promise<FileRecor
       size: Number(row.size),
       mime: row.mime,
       stage: row.stage,
+      nodeId: row.node_id || undefined,
+      uploaderId: row.uploader_id,
+      access: row.access_rule ? jsonValue<FileRecord['access']>(row.access_rule) : undefined,
+      downloadAccess: row.download_rule
+        ? jsonValue<FileRecord['downloadAccess']>(row.download_rule)
+        : undefined,
       createdAt: row.created_at,
     });
   return files;

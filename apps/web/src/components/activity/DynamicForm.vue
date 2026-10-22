@@ -11,6 +11,7 @@ import {
   NCheckboxGroup,
 } from 'naive-ui';
 import { visibleFields, amountFen } from '@workflow/domain';
+import type { FormField } from '@workflow/domain';
 import type { DynamicFormProps } from './types';
 const props = defineProps<DynamicFormProps>();
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, string>] }>();
@@ -24,11 +25,22 @@ function inSection(field: { key: string }): boolean {
   return !props.keys || props.keys.includes(field.key);
 }
 /**
- * 更新字段并从费用明细计算总预算。
+ * 只更新可编辑字段并从费用明细计算总预算，受限字段保持只读。
  * @param key 字段键
  * @param value 输入值
  */
 function update(key: string, value: string | number | null): void {
+  const field = props.schema.fields.find(
+    /**
+     * 查找要修改字段的服务端只读标记。
+     * @param item 表单字段
+     * @returns 是否匹配字段键
+     */
+    function match(item) {
+      return item.key === key;
+    },
+  );
+  if (props.disabled || !field || field.readOnly || field.redacted) return;
   const next = { ...props.modelValue, [key]: value === null ? '' : String(value) };
   if (['expert_fee', 'conference_fee', 'travel_fee'].includes(key)) {
     const total = amountFen(next.expert_fee) + amountFen(next.conference_fee) + amountFen(next.travel_fee);
@@ -78,22 +90,19 @@ function updateChecks(key: string, values: Array<string | number>): void {
   update(key, values.join('、'));
 }
 /**
- * 查找当前字段的校验错误，供表单反馈与读屏提示使用。
- * @param label 字段名称
- * @returns 该字段的错误文本
+ * 优先按字段键匹配分步校验反馈，兼容未提供结构化问题的旧表单。
+ * @param field 当前字段定义
+ * @returns 当前字段的错误说明
  */
-function fieldError(label: string): string {
-  return (props.errors || [])
-    .filter(
-      /**
-       * 匹配字段名称对应的校验错误。
-       * @param message 错误文本
-       * @returns 是否匹配
-       */ function match(message) {
-        return message.includes(label);
-      },
-    )
-    .join('；');
+function fieldError(field: FormField): string {
+  const messages: string[] = [];
+  if (props.issues?.length) {
+    for (const issue of props.issues)
+      if (issue.key === field.key && !messages.includes(issue.message)) messages.push(issue.message);
+  } else {
+    for (const message of props.errors || []) if (message.includes(field.label)) messages.push(message);
+  }
+  return messages.join('；');
 }
 </script>
 <template>
@@ -103,14 +112,15 @@ function fieldError(label: string): string {
         v-for="field in fields"
         :key="field.id"
         :id="'field-' + field.key"
-        :validation-status="fieldError(field.label) ? 'error' : undefined"
-        :feedback="fieldError(field.label) || undefined"
+        :validation-status="fieldError(field) ? 'error' : undefined"
+        :feedback="fieldError(field) || undefined"
         :label="field.label"
         :required="field.required"
         :class="{ 'form-wide': field.type === 'textarea' || field.type === 'checkboxes' }"
         ><NInput
           v-if="field.type === 'text' || field.type === 'textarea'"
           :value="modelValue[field.key] || ''"
+          :disabled="disabled || field.readOnly || field.redacted"
           :type="field.type === 'textarea' ? 'textarea' : 'text'"
           :autosize="field.type === 'textarea' ? { minRows: 3, maxRows: 7 } : undefined"
           :maxlength="3000"
@@ -121,23 +131,26 @@ function fieldError(label: string): string {
           :min="0"
           :precision="field.key === 'people' ? 0 : 2"
           :max="100000000"
-          :disabled="disabled || field.key === 'budget'"
+          :disabled="disabled || field.readOnly || field.redacted || field.key === 'budget'"
           style="width: 100%"
           :placeholder="field.key === 'budget' ? '费用明细自动合计' : '请输入数字'"
           @update:value="update(field.key, $event)" /><NSelect
           v-else-if="field.type === 'select'"
           :value="modelValue[field.key] || null"
+          :disabled="disabled || field.readOnly || field.redacted"
           :options="optionsFor(field.options)"
           clearable
           @update:value="update(field.key, $event)" /><NDatePicker
           v-else-if="field.type === 'datetime'"
           :value="timestamp(modelValue[field.key])"
+          :disabled="disabled || field.readOnly || field.redacted"
           type="datetime"
           clearable
           style="width: 100%"
           @update:value="updateDate(field.key, $event)" /><NCheckboxGroup
           v-else-if="field.type === 'checkboxes'"
           :value="modelValue[field.key] ? modelValue[field.key]!.split('、') : []"
+          :disabled="disabled || field.readOnly || field.redacted"
           @update:value="updateChecks(field.key, $event)"
           ><div class="gap">
             <NCheckbox

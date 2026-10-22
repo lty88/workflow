@@ -4,20 +4,21 @@ import { RouterLink, useRoute } from 'vue-router';
 import { NAlert, NButton, NCard, NPopconfirm, NSpin, NTag } from 'naive-ui';
 import { validateConfig } from '@workflow/domain';
 import type { ConfigSlot } from './types';
-import { useConfigStore } from '../../stores/config';
-import { useAuthStore } from '../../stores/auth';
-import { useFeedback } from '../../composables/use-feedback';
+import { useConfigStore } from '@/stores/config';
+import { useAuthStore } from '@/stores/auth';
+import { useFeedback } from '@/composables/use-feedback';
 const store = useConfigStore();
 const auth = useAuthStore();
 const feedback = useFeedback();
 const route = useRoute();
 const errorText = ref('');
+const props = defineProps<{ independent?: boolean }>();
 defineSlots<{ default(props: ConfigSlot): unknown }>();
-const validation = computed(() => (store.draft ? validateConfig(store.draft) : []));
+const validation = computed(() => (!props.independent && store.draft ? validateConfig(store.draft) : []));
 const tabs = [
   { path: '/settings', name: '配置概览' },
   { path: '/settings/forms', name: '动态表单' },
-  { path: '/settings/workflow', name: '动态流程' },
+  { path: '/settings/workflow', name: '流程模板' },
   { path: '/settings/organization', name: '组织架构' },
   { path: '/settings/permissions', name: '角色权限' },
   { path: '/settings/menus', name: '菜单页面' },
@@ -73,9 +74,15 @@ onMounted(initialize);
       <div>
         <span class="eyebrow">CONFIGURATION CENTER</span>
         <h1>配置中心</h1>
-        <p>统一维护表单、流程、组织与授权。新申请使用发布版本，在途实例保留快照。</p>
+        <p>
+          {{
+            independent
+              ? '流程模板独立保存与发布。新申请选择模板，在途实例保留原版本。'
+              : '统一维护表单、组织与授权；流程模板在对应页面独立发布。'
+          }}
+        </p>
       </div>
-      <div class="gap">
+      <div v-if="!independent" class="gap">
         <NTag type="info" :bordered="false">已发布 V{{ store.state?.published.version || '—' }}</NTag
         ><NTag v-if="store.dirty" type="warning" :bordered="false">本地未保存</NTag
         ><NTag v-else-if="store.unpublished" type="warning" :bordered="false">草案待发布</NTag>
@@ -97,7 +104,7 @@ onMounted(initialize);
         ><NAlert v-if="validation.length" type="warning" title="发布前需解决的配置问题" class="mb"
           ><div v-for="error in validation" :key="error">{{ error }}</div></NAlert
         ><slot :config="store.draft" :update="store.update" />
-        <div class="sticky-actions">
+        <div v-if="!independent" class="sticky-actions">
           <span class="help-text"
             >草案版本 R{{ store.state?.draftRevision }} · 发布前将校验引用、必要审核及管理员资格</span
           >

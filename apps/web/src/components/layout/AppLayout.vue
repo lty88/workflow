@@ -3,12 +3,14 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useMediaQuery } from '@vueuse/core';
 import { NButton, NDrawer, NDrawerContent, NBadge, NEmpty, NTag, NSpin } from 'naive-ui';
-import { notificationsApi, readNotificationApi } from '../../api';
-import type { Notification } from '../../typings/api';
-import { useAuthStore } from '../../stores/auth';
-import { useConfigStore } from '../../stores/config';
-import { useFeedback } from '../../composables/use-feedback';
-import { formatTime } from '../../composables/format';
+import { notificationsApi, readNotificationApi } from '@/api';
+import type { Notification } from '@/typings/api';
+import type { PageDefinition } from '@workflow/domain';
+import { workspaceNavigation, menuDestination } from './navigation';
+import { useAuthStore } from '@/stores/auth';
+import { useConfigStore } from '@/stores/config';
+import { useFeedback } from '@/composables/use-feedback';
+import { formatTime } from '@/composables/format';
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
@@ -20,7 +22,11 @@ const messagesOpen = ref(false);
 const messages = ref<Notification[]>([]);
 const loading = ref(false);
 const unread = computed(() => messages.value.filter(isUnread).length);
-const activePage = computed(() => auth.profile?.menus.find(matchesPage));
+const navigationMenus = computed(() => workspaceNavigation(auth.profile?.menus || []));
+const configurationFallback = computed(
+  () => auth.can('config:manage') && !navigationMenus.value.some(isConfigurationPage),
+);
+const activePage = computed(() => navigationMenus.value.find(matchesPage));
 const title = computed(() =>
   route.path.startsWith('/settings')
     ? '配置中心'
@@ -43,8 +49,19 @@ function isUnread(item: Notification): boolean {
  * @param item 页面
  * @returns 是否当前页
  */
-function matchesPage(item: { id: string }): boolean {
-  return route.path === '/workspace/' + item.id;
+function matchesPage(item: PageDefinition): boolean {
+  return (
+    route.path === '/workspace/' + item.id ||
+    (item.component === 'config_overview' && route.path.startsWith('/settings'))
+  );
+}
+/**
+ * 识别已有的配置中心导航，防止再次追加固定入口。
+ * @param page 当前授权菜单
+ * @returns 是否配置中心
+ */
+function isConfigurationPage(page: PageDefinition): boolean {
+  return page.component === 'config_overview';
 }
 /**
  * 判断分组是否包含可见页面。
@@ -52,7 +69,7 @@ function matchesPage(item: { id: string }): boolean {
  * @returns 是否可见
  */
 function groupVisible(id: string): boolean {
-  return !!auth.profile?.menus.some(
+  return navigationMenus.value.some(
     /**
      * 筛选当前导航分组下的授权页面。
      * @param page 当前集合项
@@ -122,17 +139,17 @@ async function signOut(): Promise<void> {
         <template v-for="group in auth.profile?.groups" :key="group.id"
           ><template v-if="group.active && groupVisible(group.id)"
             ><div class="nav-group">{{ group.name }}</div>
-            <template v-for="page in auth.profile?.menus" :key="page.id"
+            <template v-for="page in navigationMenus" :key="page.id"
               ><RouterLink
                 v-if="page.group === group.id"
-                :to="'/workspace/' + page.id"
+                :to="menuDestination(page)"
                 class="nav-item"
                 :class="{ selected: matchesPage(page) }"
                 ><span class="nav-dot" />{{ page.name }}</RouterLink
               ></template
             ></template
           ></template
-        ><template v-if="auth.can('config:manage')"
+        ><template v-if="configurationFallback"
           ><div class="nav-group">系统管理</div>
           <RouterLink
             to="/settings"
@@ -168,10 +185,10 @@ async function signOut(): Promise<void> {
   <NDrawer v-model:show="menuOpen" placement="left" :width="280"
     ><NDrawerContent title="活动流程" closable
       ><nav class="mobile-nav">
-        <RouterLink v-for="page in auth.profile?.menus" :key="page.id" :to="'/workspace/' + page.id">{{
+        <RouterLink v-for="page in navigationMenus" :key="page.id" :to="menuDestination(page)">{{
           page.name
         }}</RouterLink
-        ><RouterLink v-if="auth.can('config:manage')" to="/settings">配置中心</RouterLink>
+        ><RouterLink v-if="configurationFallback" to="/settings">配置中心</RouterLink>
       </nav></NDrawerContent
     ></NDrawer
   >

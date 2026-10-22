@@ -1,6 +1,6 @@
 <script setup lang="tsx">
-import ConfigLayout from '../../components/config/ConfigLayout.vue';
-import FormsPanel from '../../components/config/FormsPanel.vue';
+import ConfigLayout from '@/components/config/ConfigLayout.vue';
+import FormsPanel from '@/components/config/FormsPanel.vue';
 </script>
 <template>
   <ConfigLayout v-slot="{ config, update }"

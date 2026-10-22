@@ -1,6 +1,6 @@
 <script setup lang="tsx">
-import ConfigLayout from '../../components/config/ConfigLayout.vue';
-import PermissionsPanel from '../../components/config/PermissionsPanel.vue';
+import ConfigLayout from '@/components/config/ConfigLayout.vue';
+import PermissionsPanel from '@/components/config/PermissionsPanel.vue';
 </script>
 <template>
   <ConfigLayout v-slot="{ config, update }"

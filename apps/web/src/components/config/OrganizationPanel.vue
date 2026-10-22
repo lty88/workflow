@@ -20,12 +20,13 @@ import type { TreeOption } from 'naive-ui';
 import type { CompanyConfig, Department, Member } from '@workflow/domain';
 import { DEFAULT_PASSWORD, passwordSchema } from '@workflow/domain';
 import type { ConfigPanelProps } from './types';
-import { setMemberPasswordApi } from '../../api';
-import { clone, newId } from '../../composables/format';
-import { useFeedback } from '../../composables/use-feedback';
-import BusinessGraph from '../graph/BusinessGraph.vue';
-import { organizationGraph } from '../graph/models';
-import type { GraphSelection } from '../graph/types';
+import { setMemberPasswordApi } from '@/api';
+import { clone, newId } from '@/composables/format';
+import { useFeedback } from '@/composables/use-feedback';
+import BusinessGraph from '@/components/graph/BusinessGraph.vue';
+import { organizationGraph } from '@/components/graph/models';
+import type { GraphSelection } from '@/components/graph/types';
+import OrganizationPresetButton from './OrganizationPresetButton.vue';
 const props = defineProps<ConfigPanelProps>();
 const emit = defineEmits<{ 'update:modelValue': [value: CompanyConfig] }>();
 const feedback = useFeedback();
@@ -298,6 +299,9 @@ async function savePassword(): Promise<void> {
       :model="organization"
       :selected-key="selected ? 'dept:' + selected : ''"
       :height="mobile ? 420 : 560"
+      fit="readable"
+      direction="LR"
+      :node-width="260"
       label="公司部门与成员组织架构图"
       @select="selectGraphNode"
       @clear="clearDepartment"

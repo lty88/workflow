@@ -4,6 +4,7 @@ import type { actionSchema, decisionSchema, TransferCommand } from './schemas';
 import { activeMember, canHandleTask, canReadActivity, findById, hasPermission } from './permissions';
 import { amountFen, isHttps } from './forms';
 import { advanceWorkflow, invalidatePending, resolveAssignees, settleNode, topological } from './workflow';
+import { canDeleteActivity } from './activity-deletion';
 
 export class RuleViolation extends Error {
   /**
@@ -43,6 +44,7 @@ export function requireRule(
 export function activityActions(config: CompanyConfig, userId: string, activity: Activity): string[] {
   if (!canReadActivity(config, userId, activity)) return [];
   const actions: string[] = [];
+  if (canDeleteActivity(config, userId, activity)) actions.push('delete');
   const own = activity.applicant === userId;
   if (own && ['draft', 'needs_info', 'withdrawn'].includes(activity.status)) {
     if (hasPermission(config, userId, 'activity:create')) actions.push('edit');
@@ -94,6 +96,7 @@ export function activityActions(config: CompanyConfig, userId: string, activity:
  * @param actor 操作者
  * @param action 动作名称
  * @param note 意见或原因
+ * @param nodeId 可选内容归属节点，供审计内容授权
  */
 export function auditActivity(
   config: CompanyConfig,
@@ -101,6 +104,7 @@ export function auditActivity(
   actor: string,
   action: string,
   note: string,
+  nodeId?: string,
 ): void {
   activity.audit.push({
     id: crypto.randomUUID(),
@@ -108,6 +112,7 @@ export function auditActivity(
     actorName: findById(config.users, actor)?.name || actor,
     action,
     note,
+    nodeId,
     createdAt: new Date().toISOString(),
   });
 }
@@ -136,8 +141,18 @@ export function decideTask(
     '任务与知会节点只支持完成',
   );
   if (command.decision !== 'approve')
-    requireRule(command.comment.trim().length >= 5, '退回或拒绝请填写至少5字原因');
+    requireRule(
+      (command.publicComment || command.comment).trim().length >= 5,
+      '退回或拒绝请填写至少5字公开补充要求或原因',
+    );
   task.comment = command.comment.trim();
+  task.publicComment =
+    command.publicComment?.trim() ||
+    (command.decision === 'return'
+      ? '申请已退回，请联系审核人确认补充要求'
+      : command.decision === 'reject'
+        ? '申请未通过，请联系审核人确认原因'
+        : '');
   task.version += 1;
   task.actedAt = new Date().toISOString();
   if (command.decision === 'approve') {
@@ -155,6 +170,7 @@ export function decideTask(
     actor,
     `${findById(activity.nodes, task.nodeId)?.label}：${{ approve: '通过', return: '退回补充', reject: '拒绝' }[command.decision]}`,
     command.comment,
+    task.nodeId,
   );
 }
 
@@ -227,6 +243,7 @@ export function transferTask(
     actor,
     `转交待办：${node.label}`,
     `${findById(config.users, previous)?.name || previous} → ${findById(config.users, command.assignee)?.name || command.assignee}；${command.reason}`,
+    node.id,
   );
 }
 
@@ -419,7 +436,7 @@ function allChecked(value: boolean): boolean {
 }
 
 /**
- * 在事务中的实例副本插入节点，失效受影响的旧待办并开启新轮次。
+ * 在事务中的实例副本插入本场新增节点，失效受影响的旧待办并开启新轮次，不修改公共模板。
  * @param config 当前配置
  * @param actor 操作者
  * @param activity 实例
@@ -448,6 +465,11 @@ export function adjustWorkflow(
   const people = resolveAssignees(config, input.assignee, activity.applicant, input.kind);
   requireRule(!people.errors.length, people.errors.join('；'));
   const node: WorkflowNode = {
+    access: structuredClone(
+      anchor.access || { mode: 'restricted', roleIds: [], userIds: [], nodeAssignees: true },
+    ),
+    downloadAccess: anchor.downloadAccess ? structuredClone(anchor.downloadAccess) : undefined,
+    origin: 'instance',
     id: crypto.randomUUID(),
     key: `extra-${crypto.randomUUID()}`,
     label: input.name,
@@ -501,5 +523,6 @@ export function adjustWorkflow(
     actor,
     `新增${{ approval: '审核', task: '任务', notice: '知会' }[input.kind]}：${input.name}`,
     `${input.position} ${anchor.label}；${input.reason}；结构R${activity.structureRevision}`,
+    node.id,
   );
 }

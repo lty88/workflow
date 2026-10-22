@@ -2,6 +2,7 @@ import type { CompanyConfig } from './types';
 import { activeMember, findById, hasPermission, withinDepartment } from './permissions';
 import { topological } from './workflow';
 import { amountFen } from './forms';
+import { validateDataAccessRule } from './data-access';
 
 /**
  * 检查配置引用、组织有效性与必要业务门槛。
@@ -29,6 +30,18 @@ export function validateConfig(config: CompanyConfig): string[] {
   for (const field of config.form.fields) {
     if (keys.has(field.key)) errors.push(`字段键重复：${field.key}`);
     keys.add(field.key);
+    errors.push(
+      ...validateDataAccessRule(config, field.access?.read, `${field.label}查看`),
+      ...validateDataAccessRule(config, field.access?.write, `${field.label}编辑`),
+    );
+    if (field.key === 'activity_name' && field.access?.read.mode === 'restricted')
+      errors.push('活动名称属于流程公共标识，请保持活动内共享');
+    if (field.access?.read.nodeAssignees || field.access?.write?.nodeAssignees)
+      errors.push(`${field.label}为申请字段，请使用指定角色、人员或申请人授权`);
+    if (field.required && field.access?.read.mode === 'restricted' && !field.access.read.applicant)
+      errors.push(`${field.label}为申请必填字段，必须允许申请人查看`);
+    if (field.required && field.access?.write?.mode === 'restricted' && !field.access.write.applicant)
+      errors.push(`${field.label}为申请必填字段，必须允许申请人填写`);
     if (
       ['select', 'checkboxes'].includes(field.type) &&
       (!field.options.length || new Set(field.options).size !== field.options.length)
@@ -87,6 +100,12 @@ export function validateConfig(config: CompanyConfig): string[] {
   if (graph.error) errors.push(graph.error);
   let protectedCount = 0;
   for (const node of config.workflow.nodes) {
+    errors.push(
+      ...validateDataAccessRule(config, node.access, `${node.label}内容`),
+      ...validateDataAccessRule(config, node.downloadAccess, `${node.label}下载`),
+    );
+    if (node.access?.mode === 'restricted' && !node.access.nodeAssignees)
+      errors.push(`${node.label}必须允许本节点受理人查看办理资料`);
     if (node.protected) {
       protectedCount += 1;
       if (node.kind !== 'approval' || node.condition) errors.push('必要审核不能降级或设置跳过条件');
@@ -134,8 +153,21 @@ export function validateConfig(config: CompanyConfig): string[] {
     if (page.component === 'activity_form' && page.formId !== config.form.id)
       errors.push(`${page.name}表单绑定无效`);
   }
+  for (const role of config.roles) {
+    if (role.permissions.some(isDataPermission) && !role.permissions.includes('activity:read'))
+      errors.push(`${role.name}的敏感或下载授权需同时授予活动查看权限`);
+  }
   for (const role of config.roles)
     for (const page of role.pages)
       if (!findById(config.pages, page)) errors.push(`${role.name}绑定页面不存在`);
   return [...new Set(errors)];
+}
+
+/**
+ * 标识必须绑定同一角色活动范围的内容权限。
+ * @param permission 权限码
+ * @returns 是否为数据内容权限
+ */
+function isDataPermission(permission: string): boolean {
+  return ['activity:sensitive:read', 'activity:sensitive:export', 'file:download'].includes(permission);
 }

@@ -10,6 +10,9 @@ import { z, ZodError } from 'zod';
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import type { Pool, PoolConnection } from 'mysql2/promise';
 import {
+  fileAccessInputSchema,
+  activityDeleteSchema,
+  fileAccessWriteSchema,
   actionSchema,
   adjustmentSchema,
   canReadActivity,
@@ -17,20 +20,18 @@ import {
   draftSchema,
   findById,
   hasPermission,
-  instantiateWorkflow,
   listQuerySchema,
   loginSchema,
   pageAllowed,
   passwordSchema,
   RuleViolation,
   transferSchema,
-  validateForm,
-  versionSchema,
+  submitSchema,
 } from '@workflow/domain';
-import type { SessionProfile } from '@workflow/domain';
+import type { SessionProfile, FileAccessInput, Notification } from '@workflow/domain';
 import type { Environment } from './env';
 import { ensure, HttpError } from './errors';
-import { activityFiles, loadConfig, query, transaction } from './db/repository';
+import { activityFiles, loadActivity, loadConfig, query, transaction } from './db/repository';
 import { digest, hashPassword, login, sessionProfile, verifyPassword } from './services/auth';
 import {
   createDraft,
@@ -43,10 +44,14 @@ import {
   updateDraft,
 } from './services/activity-service';
 import { publishConfig, saveConfigDraft } from './services/config-service';
+import { deleteActivity } from './services/activity-deletion-service';
 import { listActivities } from './services/list-service';
 import type { ActivityListItem } from './services/list-service';
-import { uploadFile } from './services/file-service';
+import { uploadFile, authorizeFileRead, updateFileAccess } from './services/file-service';
 import { isAllowedOrigin } from './services/origin';
+import { registerInsightsRoutes } from './routes/insights';
+import { registerTemplateRoutes } from './routes/templates';
+import { previewTemplate } from './services/template-service';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -122,21 +127,33 @@ export async function buildApp(pool: Pool, env: Environment) {
   app.decorateRequest('profile', null);
 
   /**
-   * 验证写入来源、本机开发地址兼容性、真实登录会话和CSRF令牌。
+   * 验证写入来源及内部会话和CSRF令牌，仅指定公开评价路由豁免账号认证。
    * @param request 请求
-   * @param _reply 响应
+   * @param reply 响应，禁止缓存会话及敏感内容
    */
-  async function authenticate(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
+  async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    reply.header('Cache-Control', 'private, no-store');
     const path = request.url.split('?')[0]!;
     const writing = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
     if (writing && request.headers.origin)
       ensure(
-        isAllowedOrigin(request.headers.origin, env),
+        isAllowedOrigin(request.headers.origin, env) ||
+          (request.routeOptions.config.publicEvaluation === true &&
+            !!env.PUBLIC_APP_URL &&
+            isAllowedOrigin(request.headers.origin, {
+              ...env,
+              APP_ORIGIN: env.PUBLIC_APP_URL,
+            })),
         403,
         'ORIGIN_REJECTED',
         '请求来源不被允许，请使用配置的前端地址访问',
       );
-    if (path === '/api/auth/login' || path === '/api/health') return;
+    if (
+      path === '/api/auth/login' ||
+      path === '/api/health' ||
+      request.routeOptions.config.publicEvaluation === true
+    )
+      return;
     request.profile = await sessionProfile(pool, request.cookies.workflow_session);
     if (writing) {
       const token = request.headers['x-csrf-token'];
@@ -153,6 +170,8 @@ export async function buildApp(pool: Pool, env: Environment) {
     }
   }
   app.addHook('onRequest', authenticate);
+  registerTemplateRoutes(app, pool);
+  registerInsightsRoutes(app, pool, env);
 
   /**
    * 将校验与业务错误转换成统一响应，内部异常不暴露SQL或密码。
@@ -327,11 +346,11 @@ export async function buildApp(pool: Pool, env: Environment) {
     async function readExport(connection: PoolConnection): Promise<ActivityListItem[]> {
       const current = (await loadConfig(connection)).published;
       ensure(hasPermission(current, actor, 'activity:export'), 403, 'FORBIDDEN', '无导出权限');
-      const first = await listActivities(connection, actor, { ...input, page: 1, pageSize: 100 });
+      const first = await listActivities(connection, actor, { ...input, page: 1, pageSize: 100 }, true);
       ensure(first.total <= 2000, 422, 'EXPORT_LIMIT', '单次最多导出2000条，请缩小筛选范围');
       const items = [...first.items];
       for (let page = 2; (page - 1) * 100 < first.total; page += 1) {
-        const batch = await listActivities(connection, actor, { ...input, page, pageSize: 100 });
+        const batch = await listActivities(connection, actor, { ...input, page, pageSize: 100 }, true);
         items.push(...batch.items);
       }
       return items;
@@ -339,11 +358,13 @@ export async function buildApp(pool: Pool, env: Environment) {
     const items = await transaction(pool, readExport);
     const rows = [
       csvCell(`导出人：${request.profile!.user.name}；时间：${new Date().toISOString()}`),
-      '编号,活动名称,状态,开始时间,地点,预算',
+      '编号,活动名称,发起人,状态,开始时间,地点,预算',
     ];
     for (const item of items)
       rows.push(
-        [item.code, item.name, item.status, item.startAt, item.location, item.budget].map(csvCell).join(','),
+        [item.code, item.name, item.applicantName, item.status, item.startAt, item.location, item.budget]
+          .map(csvCell)
+          .join(','),
       );
     await pool.execute('INSERT INTO audit_events(id,actor_id,action,data) VALUES (?,?,?,?)', [
       crypto.randomUUID(),
@@ -395,18 +416,34 @@ export async function buildApp(pool: Pool, env: Environment) {
   app.get('/api/activities/:id', detail);
 
   /**
-   * 提交活动并创建节点任务。
+   * 逻辑删除活动，服务端重新校验身份、状态、版本、原因及幂等键。
+   * @param request 已通过登录和CSRF检查的请求
+   * @returns 删除结果
+   */
+  async function removeActivity(request: FastifyRequest) {
+    return deleteActivity(
+      pool,
+      actorId(request),
+      resourceId(request),
+      activityDeleteSchema.parse(request.body),
+    );
+  }
+  app.delete('/api/activities/:id', removeActivity);
+
+  /**
+   * 以已预览模板版本提交活动并创建节点任务。
    * @param request 请求
    * @returns 提交结果
    */
   async function submit(request: FastifyRequest) {
-    const body = versionSchema.parse(request.body);
+    const body = submitSchema.parse(request.body);
     return submitActivity(
       pool,
       actorId(request),
       resourceId(request),
       body.expectedVersion,
       body.idempotencyKey,
+      body.expectedTemplateVersion,
     );
   }
   app.post('/api/activities/:id/submit', submit);
@@ -457,25 +494,13 @@ export async function buildApp(pool: Pool, env: Environment) {
   app.post('/api/activities/:id/adjustments', adjust);
 
   /**
-   * 预览当前输入的生效审核路线，不创建真实任务。
+   * 预览所选模板的生效路线，兼容旧客户端默认模板，不创建真实任务。
    * @param request 请求
    * @returns 路线和校验提示
    */
   async function preview(request: FastifyRequest) {
     const body = draftSchema.parse(request.body);
-    const config = (await loadConfig(pool)).published;
-    ensure(hasPermission(config, actorId(request), 'activity:create'), 403, 'FORBIDDEN', '无申请权限');
-    const checked = validateForm(config.form, body.payload);
-    const plan = instantiateWorkflow(config, checked.payload, actorId(request));
-    const people: Array<{ id: string; name: string }> = [];
-    const seen = new Set<string>();
-    for (const node of plan.nodes)
-      for (const id of node.assignees)
-        if (!seen.has(id)) {
-          seen.add(id);
-          people.push({ id, name: findById(config.users, id)?.name || id });
-        }
-    return { nodes: plan.nodes, participants: people, errors: plan.errors };
+    return previewTemplate(pool, actorId(request), body);
   }
   app.post('/api/workflow/preview', preview);
 
@@ -503,7 +528,7 @@ export async function buildApp(pool: Pool, env: Environment) {
           canExecute: hasPermission(config, member.id, 'execution:report'),
         });
     const roles = [];
-    if (hasPermission(config, actor, 'workflow:adjust') || hasPermission(config, actor, 'config:manage'))
+    if (hasPermission(config, actor, 'activity:read') || hasPermission(config, actor, 'config:manage'))
       for (const role of config.roles) roles.push({ id: role.id, name: role.name });
     return { users, roles, departments: config.departments };
   }
@@ -584,11 +609,28 @@ export async function buildApp(pool: Pool, env: Environment) {
   async function upload(request: FastifyRequest) {
     const id = resourceId(request);
     const stage = z
-      .object({ stage: z.enum(['application', 'execution', 'archive']) })
+      .object({ stage: z.enum(['application', 'execution', 'archive', 'node']) })
       .parse(request.query).stage;
     const file = await request.file();
     ensure(file, 422, 'FILE_REQUIRED', '请选择文件');
     const buffer = await file.toBuffer();
+    let access: FileAccessInput = {};
+    const field = file.fields.access;
+    if (field) {
+      ensure(
+        !Array.isArray(field) && field.type === 'field' && typeof field.value === 'string',
+        422,
+        'FILE_ACCESS',
+        '附件授权格式无效',
+      );
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(field.value);
+      } catch {
+        throw new HttpError(422, 'FILE_ACCESS', '附件授权必须为有效JSON');
+      }
+      access = fileAccessInputSchema.parse(parsed);
+    }
     return uploadFile(
       pool,
       resolve(env.UPLOAD_DIR),
@@ -598,6 +640,7 @@ export async function buildApp(pool: Pool, env: Environment) {
       file.filename,
       buffer,
       requestKey(request),
+      access,
     );
   }
   app.post('/api/activities/:id/files', upload);
@@ -609,18 +652,40 @@ export async function buildApp(pool: Pool, env: Environment) {
    * @returns 文件流
    */
   async function download(request: FastifyRequest, reply: FastifyReply) {
-    const rows = await query<{ activity_id: string; storage_key: string; name: string; mime: string }>(
-      pool,
-      'SELECT activity_id,storage_key,name,mime FROM files WHERE id=?',
-      [resourceId(request)],
-    );
-    ensure(rows[0] && /^[a-f0-9]{64}$/.test(rows[0].storage_key), 404, 'NOT_FOUND', '文件不存在');
-    await getDetail(pool, actorId(request), rows[0].activity_id);
-    reply.header('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(rows[0].name)}`);
-    reply.type(rows[0].mime);
-    return reply.send(createReadStream(resolve(env.UPLOAD_DIR, rows[0].storage_key)));
+    const file = await authorizeFileRead(pool, actorId(request), resourceId(request));
+    reply.header('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`);
+    reply.type(file.mime);
+    return reply.send(createReadStream(resolve(env.UPLOAD_DIR, file.storageKey)));
   }
   app.get('/api/files/:id', download);
+  /**
+   * 在线预览有阅读权限的PDF或图片，其他格式保持独立下载授权。
+   * @param request HTTP请求
+   * @param reply HTTP响应
+   * @returns 文件流
+   */
+  async function previewFile(request: FastifyRequest, reply: FastifyReply) {
+    const file = await authorizeFileRead(pool, actorId(request), resourceId(request), true);
+    reply.header('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`);
+    reply.header('Cache-Control', 'private, no-store');
+    reply.type(file.mime);
+    return reply.send(createReadStream(resolve(env.UPLOAD_DIR, file.storageKey)));
+  }
+  app.get('/api/files/:id/preview', previewFile);
+  /**
+   * 调整已上传资料的访问范围，服务端限制上传者只能收紧原有规则。
+   * @param request HTTP请求
+   * @returns 主单新版本
+   */
+  async function fileAccess(request: FastifyRequest) {
+    return updateFileAccess(
+      pool,
+      actorId(request),
+      resourceId(request),
+      fileAccessWriteSchema.parse(request.body),
+    );
+  }
+  app.patch('/api/files/:id/access', fileAccess);
 
   /**
    * 导出单张授权活动，默认排除联系方式并记录导出审计。
@@ -629,7 +694,7 @@ export async function buildApp(pool: Pool, env: Environment) {
    * @returns CSV文件
    */
   async function exportActivity(request: FastifyRequest, reply: FastifyReply) {
-    const detail = await getDetail(pool, actorId(request), resourceId(request));
+    const detail = await getDetail(pool, actorId(request), resourceId(request), true);
     ensure(detail.actions.includes('export'), 403, 'FORBIDDEN', '无导出权限');
     const exportId = crypto.randomUUID();
     const rows = ['字段,内容'];
@@ -663,11 +728,19 @@ export async function buildApp(pool: Pool, env: Environment) {
    * @returns 消息列表
    */
   async function notifications(request: FastifyRequest) {
-    return query(
+    const actor = actorId(request);
+    const config = (await loadConfig(pool)).published;
+    const rows = await query<Notification>(
       pool,
-      'SELECT id,title,activity_id AS activityId,read_at AS readAt,created_at AS createdAt FROM notifications WHERE recipient_id=? ORDER BY created_at DESC LIMIT 100',
-      [actorId(request)],
+      'SELECT n.id,n.title,n.activity_id AS activityId,n.read_at AS readAt,n.created_at AS createdAt FROM notifications n JOIN activities a ON a.id=n.activity_id WHERE n.recipient_id=? AND a.deleted_at IS NULL ORDER BY n.created_at DESC LIMIT 100',
+      [actor],
     );
+    const visible: Notification[] = [];
+    for (const row of rows) {
+      const activity = await loadActivity(pool, row.activityId);
+      if (activity && canReadActivity(config, actor, activity)) visible.push(row);
+    }
+    return visible;
   }
   app.get('/api/notifications', notifications);
 

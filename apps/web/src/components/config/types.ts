@@ -24,3 +24,8 @@ export const FIELD_TYPES: Record<FormField['type'], string> = {
   datetime: '日期时间',
   checkboxes: '多选',
 };
+
+export interface OrganizationPresetPreview {
+  result: import('@workflow/domain').OrganizationSupplement | null;
+  error: string;
+}

@@ -4,6 +4,10 @@ import { readEnv } from '../env';
 import { createPool, materializeConfig, query, transaction } from './repository';
 import { hashPassword } from '../services/auth';
 import { initialPassword } from './local-config';
+import { migrateTemplates } from './template-migration';
+import { migrateDataSecurity } from './security-migration';
+import { migrateInsights } from './insights-migration';
+import { migrateActivityDeletion } from './activity-deletion-migration';
 
 /**
  * 显式初始化迁移和种子账号，默认密码123456，已有业务配置和密码不会覆盖。
@@ -18,6 +22,10 @@ async function initialize(): Promise<void> {
     for (const statement of sql.split(';')) if (statement.trim()) await pool.query(statement);
     const existing = await query<{ id: string }>(pool, 'SELECT id FROM configuration LIMIT 1');
     if (existing.length) {
+      await migrateTemplates(pool);
+      await migrateDataSecurity(pool);
+      await migrateInsights(pool);
+      await migrateActivityDeletion(pool);
       console.info('数据库结构已检查，现有配置和密码均保留。');
       return;
     }
@@ -51,6 +59,10 @@ async function initialize(): Promise<void> {
       await connection.execute('INSERT IGNORE INTO schema_migrations(version) VALUES (1)');
     }
     await transaction(pool, seed);
+    await migrateTemplates(pool);
+    await migrateDataSecurity(pool);
+    await migrateInsights(pool);
+    await migrateActivityDeletion(pool);
     console.info('初始化完成。管理员账号：admin；管理员和示例员工默认密码123456，可由.env配置初始值。');
   } finally {
     await pool.end();

@@ -28,11 +28,35 @@ export interface GraphSelection {
   kind: GraphNodeKind;
 }
 export interface BusinessGraphProps {
+  fill?: boolean;
+  hideFooter?: boolean;
+  focusOnSelect?: boolean;
+  editable?: boolean;
+  connectMode?: boolean;
+  positions?: Record<string, { x: number; y: number }>;
   model: BusinessGraphModel;
   selectedKey?: string;
   height?: number;
   direction?: GraphDirection;
   label?: string;
+  /** 初始视图：overview 适配全图，focus 聚焦单点，readable 在100%下优先完整居中、长图聚焦选中节点 */
+  fit?: 'overview' | 'focus' | 'readable';
+  /** 节点基准宽度，窄容器可调大以保证文字可读 */
+  nodeWidth?: number;
+}
+export interface GraphToolbarControls extends GraphToolbarProps {
+  locate: (value: string | null) => void;
+  zoomBy: (ratio: number) => Promise<void>;
+  fit: () => Promise<void>;
+  reset: () => Promise<void>;
+  changeDirection: (value: GraphDirection) => void;
+}
+export interface GraphToolbarSlot {
+  controls: GraphToolbarControls;
+}
+export interface GraphConnection {
+  source: string;
+  target: string;
 }
 export interface GraphNodeMeta {
   businessId: string;

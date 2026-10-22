@@ -1,16 +1,48 @@
-import type { ActivityDetail, FileRecord, WorkflowTask } from '@workflow/domain';
+import type {
+  ActivityDetail,
+  FileRecord,
+  FormDefinition,
+  FormValidationIssue,
+  WorkflowTask,
+} from '@workflow/domain';
+import type { ComputedRef, Ref } from 'vue';
+export interface DeleteActivityProps {
+  activity: Pick<ActivityDetail['activity'], 'id' | 'code' | 'name' | 'version'>;
+  allowed: boolean;
+}
+export interface ActivityTemplateOptions {
+  existingDetail?: ComputedRef<ActivityDetail | null>;
+  payload: Ref<Record<string, string>>;
+  fallbackForm: ComputedRef<FormDefinition>;
+  invalidatePreview: () => void;
+}
 export interface DynamicFormProps {
   schema: ActivityDetail['activity']['schema'];
   modelValue: Record<string, string>;
   disabled?: boolean;
   keys?: string[];
   errors?: string[];
+  issues?: FormValidationIssue[];
+}
+export interface ActivityStepOptions {
+  schema: ComputedRef<FormDefinition>;
+  payload: Ref<Record<string, string>>;
+  hasTemplate: ComputedRef<boolean>;
+  disabled: ComputedRef<boolean>;
+}
+export interface ActivityStepValidation {
+  step: number;
+  errors: string[];
+  issues: FormValidationIssue[];
 }
 export interface SubmissionAttempt {
+  templateVersion?: number;
   id: string;
   version: number;
 }
 export interface AttachmentProps {
+  nodeId?: string;
+  activityVersion?: number;
   activityId: string;
   files: FileRecord[];
   stage: FileRecord['stage'];
@@ -66,3 +98,9 @@ export const TASK_STATUSES: Record<string, string> = {
   rejected: '已拒绝',
   cancelled: '已取消',
 };
+
+export interface FileAccessDialogProps {
+  show: boolean;
+  file: FileRecord | null;
+  activityVersion: number;
+}

@@ -1,5 +1,5 @@
 import { useMessage } from 'naive-ui';
-import { errorMessages } from '../api/http';
+import { errorMessages } from '@/api/http';
 
 /**
  * 提供统一的成功和业务错误反馈。

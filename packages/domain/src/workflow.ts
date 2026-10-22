@@ -84,7 +84,7 @@ export function resolveAssignees(
 }
 
 /**
- * 按提交内容固定有效分支，条件跳过时继承原前置。
+ * 按提交内容固定模板分支与来源标识，条件跳过时继承原前置。
  * @param config 提交时配置
  * @param payload 净化表单内容
  * @param applicant 申请人
@@ -130,6 +130,9 @@ export function instantiateWorkflow(
       : { ids: [], errors: [] };
     for (const error of people.errors) errors.push(`${def.label}：${error}`);
     nodes.push({
+      access: def.access ? structuredClone(def.access) : undefined,
+      downloadAccess: def.downloadAccess ? structuredClone(def.downloadAccess) : undefined,
+      origin: 'template',
       id: ids.get(def.id)!,
       key: def.id,
       label: def.label,

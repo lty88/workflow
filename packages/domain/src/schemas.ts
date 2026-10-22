@@ -12,6 +12,24 @@ const condition = z
   .strict();
 const assignee = z.object({ type: z.enum(['manager', 'role', 'user']), value: z.string().max(80) }).strict();
 const permission = z.enum(Object.keys(PERMISSIONS) as [Permission, ...Permission[]]);
+export const dataAccessRuleSchema = z
+  .object({
+    mode: z.enum(['shared', 'restricted']),
+    roleIds: z.array(id).max(100),
+    userIds: z.array(id).max(1000),
+    applicant: z.boolean().optional(),
+    executor: z.boolean().optional(),
+    departmentManager: z.boolean().optional(),
+    nodeAssignees: z.boolean().optional(),
+  })
+  .strict();
+export const fileAccessInputSchema = z
+  .object({
+    nodeId: id.optional(),
+    access: dataAccessRuleSchema.optional(),
+    downloadAccess: dataAccessRuleSchema.optional(),
+  })
+  .strict();
 export const configSchema = z
   .object({
     version: z.number().int().positive(),
@@ -76,6 +94,7 @@ export const configSchema = z
               'task_list',
               'archive_list',
               'config_overview',
+              'leadership_dashboard',
             ]),
             formId: z.string().max(80).optional(),
             active: z.boolean(),
@@ -101,6 +120,14 @@ export const configSchema = z
                 options: z.array(z.string().min(1).max(100)).max(100),
                 visible: condition.optional(),
                 system: z.boolean().optional(),
+                access: z
+                  .object({
+                    read: dataAccessRuleSchema,
+                    write: dataAccessRuleSchema.optional(),
+                    mask: z.enum(['hidden', 'partial']),
+                  })
+                  .strict()
+                  .optional(),
               })
               .strict(),
           )
@@ -122,6 +149,8 @@ export const configSchema = z
                 assignee,
                 condition: condition.optional(),
                 protected: z.boolean().optional(),
+                access: dataAccessRuleSchema.optional(),
+                downloadAccess: dataAccessRuleSchema.optional(),
               })
               .strict(),
           )
@@ -139,13 +168,26 @@ export const loginSchema = z
 export const versionSchema = z
   .object({ expectedVersion: z.number().int().positive(), idempotencyKey: z.string().min(16).max(100) })
   .strict();
-export const draftSchema = z
-  .object({ payload: payloadSchema, expectedVersion: z.number().int().positive().optional() })
+export const fileAccessWriteSchema = versionSchema
+  .extend({ access: dataAccessRuleSchema.optional(), downloadAccess: dataAccessRuleSchema.optional() })
   .strict();
+export const draftSchema = z
+  .object({
+    payload: payloadSchema,
+    expectedVersion: z.number().int().positive().optional(),
+    activityTypeId: id.optional(),
+    templateId: id.optional(),
+    expectedTemplateVersion: z.number().int().positive().optional(),
+  })
+  .strict();
+export const submitSchema = versionSchema.extend({
+  expectedTemplateVersion: z.number().int().positive().optional(),
+});
 export const decisionSchema = z
   .object({
     decision: z.enum(['approve', 'return', 'reject']),
     comment: z.string().max(500).default(''),
+    publicComment: z.string().max(500).optional(),
     expectedTaskVersion: z.number().int().positive(),
     idempotencyKey: z.string().min(16).max(100),
   })

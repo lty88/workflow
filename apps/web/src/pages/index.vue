@@ -2,7 +2,8 @@
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { NEmpty } from 'naive-ui';
-import { useAuthStore } from '../stores/auth';
+import { useAuthStore } from '@/stores/auth';
+import { menuDestination } from '@/components/layout/navigation';
 const auth = useAuthStore();
 const router = useRouter();
 /**
@@ -10,7 +11,7 @@ const router = useRouter();
  */
 function enterWorkspace(): void {
   const first = auth.profile?.menus[0];
-  if (first) void router.replace('/workspace/' + first.id);
+  if (first) void router.replace(menuDestination(first));
   else if (auth.can('config:manage')) void router.replace('/settings');
 }
 onMounted(enterWorkspace);

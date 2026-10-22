@@ -18,10 +18,11 @@ import {
 import type { CompanyConfig, FormField } from '@workflow/domain';
 import type { ConfigPanelProps } from './types';
 import { FIELD_TYPES } from './types';
-import { clone, newId } from '../../composables/format';
-import { useFeedback } from '../../composables/use-feedback';
+import { clone, newId } from '@/composables/format';
+import { useFeedback } from '@/composables/use-feedback';
 import ConditionEditor from './ConditionEditor.vue';
-import DynamicForm from '../activity/DynamicForm.vue';
+import FieldAccessEditor from '@/components/security/FieldAccessEditor.vue';
+import DynamicForm from '@/components/activity/DynamicForm.vue';
 import { defaultValues } from '@workflow/domain';
 const props = defineProps<ConfigPanelProps>();
 const emit = defineEmits<{ 'update:modelValue': [value: CompanyConfig] }>();
@@ -192,8 +193,9 @@ function showPreview(): void {
           v-model="editing.visible"
           :fields="fields"
           :excluded="editing.key"
-          label="满足条件时显示"
-        /><NAlert v-else type="info">此字段参与系统计算，始终可见。</NAlert></NForm
+          label="满足条件时显示" /><NAlert v-else type="info"
+          >此字段参与系统计算，条件显隐保持固定；数据权限可单独配置。</NAlert
+        ><FieldAccessEditor v-model="editing.access" :config="modelValue" /></NForm
       ><template #footer><NButton type="primary" @click="save">应用到草案</NButton></template></NDrawerContent
     ></NDrawer
   ><NDrawer v-model:show="previewOpen" :width="mobile ? '100%' : 820"

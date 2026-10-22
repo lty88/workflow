@@ -1,3 +1,4 @@
+import { supplementCommonOrganization } from './organization';
 import type { CompanyConfig, FormField, Member, Permission, Role } from './types';
 
 /**
@@ -52,7 +53,7 @@ function user(id: string, name: string, username: string, department: string, ro
 }
 
 /**
- * 生成首版业务配置，用于显式数据库初始化。
+ * 生成包含常用部门与示例人员的首版配置，用于显式数据库初始化。
  * @returns 组织、权限、菜单、表单与流程初始版本
  */
 export function seedConfig(): CompanyConfig {
@@ -111,7 +112,7 @@ export function seedConfig(): CompanyConfig {
     if (item.key === 'training')
       item.visible = { field: 'service_type', operator: 'eq', value: '收费课题培训' };
   }
-  return {
+  const config: CompanyConfig = {
     version: 1,
     departments: [
       { id: 'company', name: '树人教育', parent: '', manager: 'u-liu', active: true },
@@ -217,4 +218,5 @@ export function seedConfig(): CompanyConfig {
       ],
     },
   };
+  return supplementCommonOrganization(config, true).config;
 }

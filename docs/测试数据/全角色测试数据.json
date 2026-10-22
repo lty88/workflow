@@ -1,0 +1,237 @@
+{
+  "purpose": "手工UAT测试数据，不是可直接导入接口的请求；时间占位符必须替换，隐藏字段由服务端净化。",
+  "planDate": "2026-10-22",
+  "baselineCapturedAt": "2026-10-21T09:34:25.544Z",
+  "baselinePublishedVersion": 1,
+  "accountInitialPassword": "123456",
+  "passwordScope": "应用初始登录密码，非MySQL密码；执行前P00核对，计划不重置现有密码。",
+  "accounts": [
+    {
+      "id": "u-admin",
+      "username": "admin",
+      "name": "许言",
+      "department": "company",
+      "roles": [
+        "admin"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-lin",
+      "username": "linxiao",
+      "name": "林晓",
+      "department": "d1",
+      "roles": [
+        "applicant"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-chen",
+      "username": "chenning",
+      "name": "陈宁",
+      "department": "d1",
+      "roles": [
+        "department"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-zhou",
+      "username": "zhoulan",
+      "name": "周岚",
+      "department": "research",
+      "roles": [
+        "academic"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-zhao",
+      "username": "zhaoming",
+      "name": "赵明",
+      "department": "market",
+      "roles": [
+        "marketing"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-liu",
+      "username": "liuwen",
+      "name": "刘文",
+      "department": "company",
+      "roles": [
+        "director"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-wang",
+      "username": "wangzhou",
+      "name": "王舟",
+      "department": "research",
+      "roles": [
+        "coordinator"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-su",
+      "username": "suhe",
+      "name": "苏禾",
+      "department": "d1",
+      "roles": [
+        "executor"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-he",
+      "username": "heqing",
+      "name": "何青",
+      "department": "research",
+      "roles": [
+        "archivist"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-qiao",
+      "username": "qiaoan",
+      "name": "乔安",
+      "department": "d2",
+      "roles": [
+        "applicant"
+      ],
+      "active": true
+    },
+    {
+      "id": "u-du",
+      "username": "duyun",
+      "name": "杜云",
+      "department": "d2",
+      "roles": [
+        "department"
+      ],
+      "active": true
+    }
+  ],
+  "A01": {
+    "applicant": "linxiao",
+    "payload": {
+      "activity_name": "[UAT-20261022-R1-A01] 立体阅读教研交流活动",
+      "delivery_mode": "混合",
+      "start_at": "<本用例T0+20分钟，换成ISO时间>",
+      "end_at": "<本用例T0+80分钟，换成ISO时间>",
+      "location": "UAT测试学校一部报告厅",
+      "meeting_url": "https://example.com/uat/meeting/a01",
+      "nature": "校园立体阅读课程项目",
+      "service_type": "收费课题培训",
+      "background": "围绕整本书阅读教学开展联合教研，验证申请、并行审核、预算复核、执行与归档的完整闭环。",
+      "agenda": "教研目标说明10分钟；专家专题分享20分钟；课例研磨20分钟；交流与成果整理10分钟。",
+      "content_forms": "专题讲座、课例研磨",
+      "forum": "否",
+      "people": "80",
+      "composition": "教研员、一线教师",
+      "training": "阅读教学专题培训，线上线下混合开展，共60分钟，含讲座与课例讨论。",
+      "personnel": "1名阅读教学专家、2名现场协助人员；使用测试资料。",
+      "contact": "林晓",
+      "contact_info": "linxiao@example.com",
+      "arranger": "王舟",
+      "arranger_info": "wangzhou@example.com",
+      "receiver": "UAT测试校方联系人",
+      "receiver_info": "receiver@example.com",
+      "expert_fee": "8000.00",
+      "conference_fee": "2500.00",
+      "travel_fee": "1500.00",
+      "budget": "12000.00"
+    },
+    "selection": {
+      "activityTypeId": "teaching",
+      "templateId": "wf-standard",
+      "expectedTemplateVersion": 1
+    }
+  },
+  "B01": {
+    "applicant": "qiaoan",
+    "payload": {
+      "activity_name": "[UAT-20261022-R1-B01] 教研二部线上阅读研讨",
+      "delivery_mode": "线上",
+      "start_at": "<本用例T0+20分钟，换成ISO时间>",
+      "end_at": "<本用例T0+80分钟，换成ISO时间>",
+      "location": "",
+      "meeting_url": "https://example.com/uat/meeting/b01",
+      "nature": "校园立体阅读课程项目",
+      "service_type": "免费课题服务",
+      "background": "围绕整本书阅读教学开展联合教研，验证申请、并行审核、预算复核、执行与归档的完整闭环。",
+      "agenda": "教研目标说明10分钟；专家专题分享20分钟；课例研磨20分钟；交流与成果整理10分钟。",
+      "content_forms": "专题讲座、课例研磨",
+      "forum": "否",
+      "people": "30",
+      "composition": "教研员、一线教师",
+      "training": "",
+      "personnel": "1名阅读教学专家、2名现场协助人员；使用测试资料。",
+      "contact": "乔安",
+      "contact_info": "qiaoan@example.com",
+      "arranger": "王舟",
+      "arranger_info": "wangzhou@example.com",
+      "receiver": "UAT测试校方联系人",
+      "receiver_info": "receiver@example.com",
+      "expert_fee": "5000.00",
+      "conference_fee": "2000.00",
+      "travel_fee": "1000.00",
+      "budget": "8000.00"
+    },
+    "selection": {
+      "activityTypeId": "teaching",
+      "templateId": "wf-standard",
+      "expectedTemplateVersion": 1
+    }
+  },
+  "budgetBoundaries": [
+    {
+      "expert_fee": "8000",
+      "conference_fee": "1500",
+      "travel_fee": "499.99",
+      "expectedBudget": "9999.99",
+      "directorRequired": false
+    },
+    {
+      "expert_fee": "8000",
+      "conference_fee": "1500",
+      "travel_fee": "500",
+      "expectedBudget": "10000.00",
+      "directorRequired": true
+    },
+    {
+      "expert_fee": "8000",
+      "conference_fee": "1500",
+      "travel_fee": "500.01",
+      "expectedBudget": "10000.01",
+      "directorRequired": true
+    }
+  ],
+  "executionReports": {
+    "A01": {
+      "people": 76,
+      "spend": "11800.00",
+      "summary": "已完成阅读教学专题分享与课例研磨，参会人员完成交流并形成教研改进清单。",
+      "exception": "4名教师临时请假，实际支出低于预算200元。"
+    },
+    "B01": {
+      "people": 28,
+      "spend": "7800.00",
+      "summary": "已完成线上阅读研讨，整理形成课堂实践建议和后续教研计划。",
+      "exception": "2名教师临时请假，实际支出低于预算200元。"
+    }
+  },
+  "newTemplateCasesStatus": "M01-M10本轮已实现，数据库迁移后人工验证，当前未执行",
+  "attachments": {
+    "application": "附件/01-申请资料样例.pdf",
+    "execution": "附件/02-执行记录样例.pdf",
+    "archive": "附件/03-成果资料样例.pdf",
+    "negative": "附件/04-伪造格式负例.pdf（纯文本，预期拒绝）"
+  },
+  "selectionNote": "版本1仅为初始迁移参考；执行前读取当前发布版本，不要硬编码过期版本。"
+}

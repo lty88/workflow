@@ -16,11 +16,11 @@ import {
   NRadioGroup,
   NRadioButton,
 } from 'naive-ui';
-import { actionApi, decisionApi, directoryApi } from '../../api';
-import type { Directory } from '../../typings/api';
+import { actionApi, decisionApi, directoryApi } from '@/api';
+import type { Directory } from '@/typings/api';
 import type { ActionProps } from './types';
 import { ACTION_LABELS } from './types';
-import { useFeedback } from '../../composables/use-feedback';
+import { useFeedback } from '@/composables/use-feedback';
 const props = defineProps<ActionProps>();
 const emit = defineEmits<{ 'update:show': [value: boolean]; done: [] }>();
 const feedback = useFeedback();
@@ -29,6 +29,7 @@ const busy = ref(false);
 const directory = ref<Directory | null>(null);
 const decision = ref<'approve' | 'return' | 'reject'>('approve');
 const comment = ref('');
+const publicComment = ref('');
 const executor = ref<string | null>(null);
 const url = ref('');
 const disposal = ref('');
@@ -68,12 +69,13 @@ function memberOption(user: Directory['users'][number]): { label: string; value:
   return { label: user.name, value: user.id };
 }
 /**
- * 每次打开时清空意见，并按需加载执行人员。
+ * 每次打开时清空公开与内部意见，并按需加载执行人员。
  * @param open 是否打开
  */
 async function initialize(open: boolean): Promise<void> {
   if (!open) return;
   comment.value = '';
+  publicComment.value = '';
   decision.value = 'approve';
   executor.value = null;
   url.value = props.detail.activity.archive?.url || '';
@@ -120,7 +122,15 @@ async function submit(): Promise<void> {
   try {
     if (props.task) {
       if (nodeKind.value !== 'approval' && decision.value !== 'approve') throw new Error('任务节点只能完成');
-      await decisionApi(props.task.id, props.task.version, decision.value, comment.value);
+      if (decision.value !== 'approve' && publicComment.value.trim().length < 5)
+        throw new Error('请填写至少5字的公开补充要求或原因，供申请人处理');
+      await decisionApi(
+        props.task.id,
+        props.task.version,
+        decision.value,
+        comment.value,
+        publicComment.value,
+      );
     } else {
       await actionApi(props.detail.activity.id, {
         action: props.action as Parameters<typeof actionApi>[1]['action'],
@@ -202,16 +212,29 @@ async function submit(): Promise<void> {
           ><NCheckbox v-model:checked="checks[1]">成果资料完整且可访问</NCheckbox
           ><NCheckbox v-model:checked="checks[2]">费用与异常情况已说明</NCheckbox>
         </div>
+        <NFormItem v-if="task" label="公开结论 / 补充要求（活动内共享）" :required="decision !== 'approve'"
+          ><NInput
+            v-model:value="publicComment"
+            type="textarea"
+            :maxlength="500"
+            :autosize="{ minRows: 3 }"
+            placeholder="请填写可向活动相关人员公开的结论；退回时说明申请人需要补充什么"
+        /></NFormItem>
+        <NAlert v-if="task" type="info" :bordered="false" class="mb"
+          >内部说明按节点数据权限开放。财务明细、个人信息等敏感内容请填入内部说明或上传到本节点。</NAlert
+        >
         <NFormItem
           :label="
-            action === 'archive-submit'
-              ? '成果摘要（至少10字）'
-              : action === 'assign'
-                ? '执行安排（至少5字）'
-                : '意见 / 原因'
+            task
+              ? '节点内部说明（按节点授权可见）'
+              : action === 'archive-submit'
+                ? '成果摘要（至少10字）'
+                : action === 'assign'
+                  ? '执行安排（至少5字）'
+                  : '意见 / 原因'
           "
           :required="
-            decision !== 'approve' ||
+            (!task && decision !== 'approve') ||
             ['assign', 'archive-submit', 'archive-return', 'cancel-request', 'cancel-reject'].includes(action)
           "
           ><NInput
@@ -221,7 +244,7 @@ async function submit(): Promise<void> {
             show-count
             :autosize="{ minRows: 4 }"
             :placeholder="
-              task && decision !== 'approve' ? '至少填写5字原因' : '请填写具体意见或说明'
+              task ? '仅向节点授权人员开放，可填写详细判断依据' : '请填写活动内共享的具体意见或说明'
             " /></NFormItem></NForm
       ><template #footer
         ><div class="gap">

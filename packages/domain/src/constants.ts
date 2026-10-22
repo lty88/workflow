@@ -3,8 +3,13 @@ export const DEFAULT_PASSWORD = '123456';
 export const PASSWORD_MIN_LENGTH = 6;
 export const PERMISSIONS: Record<Permission, string> = {
   'activity:read': '查看活动',
+  'activity:delete': '删除本人非办理中活动',
+  'activity:delete:any': '删除授权范围内任意活动',
   'activity:create': '新建活动',
   'activity:submit': '提交申请',
+  'activity:sensitive:read': '查看授权活动内全部敏感内容',
+  'activity:sensitive:export': '敏感导出与跨节点下载',
+  'file:download': '下载活动附件',
   'activity:export': '导出活动',
   'approval:decide': '审核活动',
   'task:complete': '办理流程任务',
@@ -13,8 +18,12 @@ export const PERMISSIONS: Record<Permission, string> = {
   'execution:report': '执行与汇报',
   'archive:review': '审核档案',
   'config:manage': '维护系统配置',
+  'evaluation:read': '查看活动评价',
+  'evaluation:manage': '管理活动评价链接',
+  'dashboard:read': '查看领导数据看板',
 };
 export const PAGE_COMPONENTS: Record<PageComponent, { label: string; permission: Permission }> = {
+  leadership_dashboard: { label: '领导看板', permission: 'dashboard:read' },
   summary: { label: '工作台', permission: 'activity:read' },
   activity_list: { label: '活动列表', permission: 'activity:read' },
   activity_form: { label: '申请表单', permission: 'activity:create' },

@@ -10,10 +10,13 @@ import type {
 } from '@workflow/domain';
 
 export interface ActivityListItem {
+  canDelete: boolean;
+  restrictedFields?: string[];
   id: string;
   code: string;
   name: string;
   applicant: string;
+  applicantName: string;
   department: string;
   status: Activity['status'];
   version: number;
@@ -41,6 +44,8 @@ export interface Directory {
   departments: Department[];
 }
 export interface WorkflowPreview {
+  templateId?: string;
+  templateVersion?: number;
   nodes: WorkflowNode[];
   participants: Array<{ id: string; name: string }>;
   errors: string[];

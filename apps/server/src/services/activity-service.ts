@@ -1,6 +1,9 @@
 import type { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import type { Activity, ActivityDetail, CompanyConfig, WorkflowTask } from '@workflow/domain';
 import {
+  preserveFormAccess,
+  projectActivityDetail,
+  mergeWritablePayload,
   activeMember,
   activityActions,
   advanceWorkflow,
@@ -18,6 +21,7 @@ import {
   validateForm,
   adjustWorkflow,
   transferTask,
+  templateContext,
 } from '@workflow/domain';
 import type { z } from 'zod';
 import type {
@@ -39,8 +43,10 @@ import {
 } from '../db/repository';
 import { digest } from './auth';
 import { ensure, HttpError } from '../errors';
+import { selectTemplate } from './template-service';
+import { recordDataAccess } from './data-access-service';
 
-interface MutationContext {
+export interface MutationContext {
   connection: PoolConnection;
   config: CompanyConfig;
   activity: Activity | null;
@@ -138,7 +144,7 @@ export async function mutateActivity(
 }
 
 /**
- * 创建真实草稿，申请人与部门始终取当前会话。
+ * 创建真实草稿并冻结模板表单，记录当前会话发起者身份、姓名快照和部门。
  * @param pool 连接池
  * @param actor 当前成员
  * @param body 草稿输入
@@ -152,35 +158,39 @@ export async function createDraft(
   key: string,
 ): Promise<MutationResult> {
   /**
-   * 在已发布schema下保存草稿但不生成审批任务。
+   * 在所选模板的发布表单下保存草稿，不生成审批任务。
    * @param context 事务上下文
    * @returns 草稿
    */
   async function create(context: MutationContext): Promise<Activity> {
-    const { config } = context;
+    const { config, connection } = context;
     ensure(
       hasPermission(config, actor, 'activity:create') && hasPermission(config, actor, 'activity:read'),
       403,
       'FORBIDDEN',
       '无新建活动权限',
     );
+    const release = await selectTemplate(connection, config, actor, body);
     const payload: Record<string, string> = {};
-    for (const field of config.form.fields)
-      if (Object.hasOwn(body.payload, field.key)) payload[field.key] = body.payload[field.key]!;
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
     const activity: Activity = {
       id,
       code: `HD-${new Date().getFullYear()}-${id.slice(0, 8).toUpperCase()}`,
       applicant: actor,
+      applicantName: findById(config.users, actor)!.name,
       department: findById(config.users, actor)!.department,
-      name: payload.activity_name?.trim() || '未命名活动',
+      name: '未命名活动',
       status: 'draft',
       version: 1,
       structureRevision: 1,
       revision: 0,
       configVersion: config.version,
-      schema: structuredClone(config.form),
+      activityTypeId: release.activityTypeId,
+      templateId: release.templateId,
+      templateVersion: release.version,
+      templateName: release.definition.name,
+      schema: structuredClone(release.form),
       payload,
       snapshots: [],
       nodes: [],
@@ -196,6 +206,8 @@ export async function createDraft(
       createdAt: now,
       updatedAt: now,
     };
+    activity.payload = mergeWritablePayload(config, actor, activity, release.form, body.payload);
+    activity.name = activity.payload.activity_name?.trim() || '未命名活动';
     auditActivity(config, activity, actor, '创建活动草稿', '资料可继续补充');
     return activity;
   }
@@ -203,7 +215,7 @@ export async function createDraft(
 }
 
 /**
- * 更新本人可编辑草稿并使用最新表单配置。
+ * 更新本人可编辑草稿，按明确选择的模板版本更新表单并记录切换。
  * @param pool 连接池
  * @param actor 当前成员
  * @param id 活动标识
@@ -224,7 +236,7 @@ export async function updateDraft(
    * @returns 草稿
    */
   async function update(context: MutationContext): Promise<Activity> {
-    const { activity, config } = context;
+    const { activity, config, connection } = context;
     ensure(
       activity && activityActions(config, actor, activity).includes('edit'),
       403,
@@ -232,10 +244,26 @@ export async function updateDraft(
       '当前不可编辑',
     );
     ensure(activity.version === body.expectedVersion, 409, 'VERSION_CONFLICT', '工单已变化，请刷新');
-    const payload: Record<string, string> = {};
-    for (const field of config.form.fields)
-      if (Object.hasOwn(body.payload, field.key)) payload[field.key] = body.payload[field.key]!;
-    activity.schema = structuredClone(config.form);
+    const release = await selectTemplate(connection, config, actor, {
+      activityTypeId: body.activityTypeId ?? activity.activityTypeId,
+      templateId: body.templateId ?? activity.templateId,
+      expectedTemplateVersion: body.expectedTemplateVersion ?? activity.templateVersion,
+    });
+    const form = preserveFormAccess(activity.schema, release.form);
+    const payload = mergeWritablePayload(config, actor, activity, form, body.payload);
+    if (activity.templateId !== release.templateId || activity.templateVersion !== release.version)
+      auditActivity(
+        config,
+        activity,
+        actor,
+        '切换活动流程模板',
+        `${activity.templateName || '历史流程'} → ${release.definition.name} V${release.version}`,
+      );
+    activity.activityTypeId = release.activityTypeId;
+    activity.templateId = release.templateId;
+    activity.templateVersion = release.version;
+    activity.templateName = release.definition.name;
+    activity.schema = form;
     activity.payload = payload;
     activity.name = payload.activity_name?.trim() || '未命名活动';
     auditActivity(config, activity, actor, '保存申请内容', '尚未提交新一轮审批');
@@ -251,6 +279,7 @@ export async function updateDraft(
  * @param id 活动标识
  * @param version 主单版本
  * @param key 幂等键
+ * @param expectedTemplateVersion 预览并保存的模板版本，旧草稿可省略以使用已记录版本
  * @returns 提交结果
  */
 export async function submitActivity(
@@ -259,6 +288,7 @@ export async function submitActivity(
   id: string,
   version: number,
   key: string,
+  expectedTemplateVersion?: number,
 ): Promise<MutationResult> {
   /**
    * 生成新的申请轮次，首批满足前置的节点同步激活。
@@ -266,7 +296,7 @@ export async function submitActivity(
    * @returns 已提交实例
    */
   async function submit(context: MutationContext): Promise<Activity> {
-    const { activity, config } = context;
+    const { activity, config, connection } = context;
     ensure(
       activity && activityActions(config, actor, activity).includes('submit'),
       403,
@@ -274,9 +304,23 @@ export async function submitActivity(
       '无提交权限或状态不允许',
     );
     ensure(activity.version === version, 409, 'VERSION_CONFLICT', '工单已变化，请刷新');
-    const checked = validateForm(config.form, activity.payload);
-    const structuralErrors = validateConfig(config);
-    const workflow = instantiateWorkflow(config, checked.payload, actor);
+    if (expectedTemplateVersion && activity.templateVersion)
+      ensure(
+        expectedTemplateVersion === activity.templateVersion,
+        409,
+        'TEMPLATE_VERSION_CONFLICT',
+        '模板选择尚未保存，请重新预览并保存申请',
+      );
+    const release = await selectTemplate(connection, config, actor, {
+      activityTypeId: activity.activityTypeId,
+      templateId: activity.templateId,
+      expectedTemplateVersion: expectedTemplateVersion ?? activity.templateVersion,
+    });
+    const form = preserveFormAccess(activity.schema, release.form);
+    const engineConfig = templateContext(config, release.definition, form);
+    const checked = validateForm(form, activity.payload);
+    const structuralErrors = validateConfig(engineConfig);
+    const workflow = instantiateWorkflow(engineConfig, checked.payload, actor);
     const errors = [...structuralErrors, ...checked.errors, ...workflow.errors];
     if (checked.payload.start_at && Date.parse(checked.payload.start_at) < Date.now())
       errors.push('活动开始时间不能早于当前时间');
@@ -284,7 +328,11 @@ export async function submitActivity(
     invalidatePending(activity);
     activity.nodes.push(...workflow.nodes);
     activity.payload = checked.payload;
-    activity.schema = structuredClone(config.form);
+    activity.schema = structuredClone(form);
+    activity.activityTypeId = release.activityTypeId;
+    activity.templateId = release.templateId;
+    activity.templateVersion = release.version;
+    activity.templateName = release.definition.name;
     activity.name = checked.payload.activity_name!;
     activity.department = findById(config.users, actor)!.department;
     activity.revision += 1;
@@ -294,9 +342,14 @@ export async function submitActivity(
     activity.status = 'approving';
     activity.snapshots.push({
       revision: activity.revision,
-      schema: structuredClone(config.form),
+      schema: structuredClone(form),
       payload: structuredClone(checked.payload),
-      workflow: structuredClone(config.workflow.nodes),
+      workflow: structuredClone(release.definition.nodes),
+      activityTypeId: release.activityTypeId,
+      templateId: release.templateId,
+      templateVersion: release.version,
+      templateName: release.definition.name,
+      definitionHash: digest(JSON.stringify({ definition: release.definition, form: release.form })),
       configVersion: config.version,
       submittedAt: new Date().toISOString(),
     });
@@ -306,11 +359,18 @@ export async function submitActivity(
       activity,
       actor,
       `提交申请V${activity.revision}`,
-      `配置C${config.version}，流程结构R${activity.structureRevision}`,
+      `${release.definition.name} V${release.version}，配置C${config.version}，流程结构R${activity.structureRevision}`,
     );
     return activity;
   }
-  return mutateActivity(pool, actor, key, `submit:${id}:${version}`, id, submit);
+  return mutateActivity(
+    pool,
+    actor,
+    key,
+    `submit:${id}:${version}:${expectedTemplateVersion ?? ''}`,
+    id,
+    submit,
+  );
 }
 
 /**
@@ -472,13 +532,19 @@ export async function handleTransfer(
 }
 
 /**
- * 读取有权限的完整详情，附件下载使用相同数据范围。
+ * 读取活动后按实时内容权限投影，历史和附件一起过滤，并记录敏感访问。
  * @param pool 连接池
  * @param actor 当前成员
  * @param id 活动标识
- * @returns 详情与可执行动作
+ * @param exporting 是否用于服务端导出，额外校验敏感导出授权
+ * @returns 已过滤的详情与可执行动作
  */
-export async function getDetail(pool: Pool, actor: string, id: string): Promise<ActivityDetail> {
+export async function getDetail(
+  pool: Pool,
+  actor: string,
+  id: string,
+  exporting = false,
+): Promise<ActivityDetail> {
   /**
    * 使用同一事务快照读取主单、节点、任务与附件。
    * @param connection 事务连接
@@ -488,13 +554,22 @@ export async function getDetail(pool: Pool, actor: string, id: string): Promise<
     const config = (await loadConfig(connection)).published;
     const activity = await loadActivity(connection, id);
     ensure(activity && canReadActivity(config, actor, activity), 404, 'NOT_FOUND', '活动不存在或无访问权限');
+    if (exporting)
+      ensure(activityActions(config, actor, activity).includes('export'), 403, 'FORBIDDEN', '无导出权限');
     const involved = new Set<string>([activity.applicant, activity.executor]);
     for (const node of activity.nodes) for (const userId of node.assignees) involved.add(userId);
     if (activity.archive) involved.add(activity.archive.reviewer);
     if (activity.cancellation) involved.add(activity.cancellation.reviewer);
     const participants: Array<{ id: string; name: string }> = [];
     for (const userId of involved)
-      if (userId) participants.push({ id: userId, name: findById(config.users, userId)?.name || userId });
+      if (userId)
+        participants.push({
+          id: userId,
+          name:
+            (userId === activity.applicant ? activity.applicantName : '') ||
+            findById(config.users, userId)?.name ||
+            userId,
+        });
     const taskWarnings: ActivityDetail['taskWarnings'] = [];
     if (activity.status === 'approving')
       for (const task of activity.tasks) {
@@ -510,13 +585,27 @@ export async function getDetail(pool: Pool, actor: string, id: string): Promise<
             message: '受理人或所属部门已停用，或缺少当前节点权限，请流程负责人转交待办',
           });
       }
-    return {
-      activity,
-      files: await activityFiles(connection, id),
-      actions: activityActions(config, actor, activity),
-      participants,
-      taskWarnings,
-    };
+    const result = projectActivityDetail(
+      config,
+      actor,
+      {
+        activity,
+        files: await activityFiles(connection, id),
+        actions: activityActions(config, actor, activity),
+        participants,
+        taskWarnings,
+      },
+      exporting,
+    );
+    if (result.access?.containsSensitive)
+      await recordDataAccess(
+        connection,
+        config,
+        actor,
+        id,
+        exporting ? '导出授权敏感资料' : '查看授权敏感资料',
+      );
+    return result;
   }
   return transaction(pool, read);
 }

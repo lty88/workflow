@@ -3,13 +3,21 @@ export type Permission =
   | 'activity:create'
   | 'activity:submit'
   | 'activity:export'
+  | 'activity:sensitive:read'
+  | 'activity:sensitive:export'
+  | 'file:download'
   | 'approval:decide'
   | 'task:complete'
   | 'workflow:adjust'
   | 'activity:assign'
   | 'execution:report'
   | 'archive:review'
-  | 'config:manage';
+  | 'config:manage'
+  | 'evaluation:read'
+  | 'evaluation:manage'
+  | 'dashboard:read'
+  | 'activity:delete'
+  | 'activity:delete:any';
 export type Scope = 'self' | 'department' | 'department_tree' | 'tasks' | 'all';
 export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'datetime' | 'checkboxes';
 export interface Condition {
@@ -17,7 +25,36 @@ export interface Condition {
   operator: 'eq' | 'neq' | 'gte';
   value: string;
 }
+export interface DataAccessRule {
+  mode: 'shared' | 'restricted';
+  roleIds: string[];
+  userIds: string[];
+  applicant?: boolean;
+  executor?: boolean;
+  departmentManager?: boolean;
+  nodeAssignees?: boolean;
+}
+export interface FieldAccess {
+  read: DataAccessRule;
+  write?: DataAccessRule;
+  mask: 'hidden' | 'partial';
+}
+export interface ActivityAccess {
+  readableNodeIds: string[];
+  uploadNodeIds: string[];
+  hiddenFieldKeys: string[];
+  containsSensitive: boolean;
+}
+export interface FileAccessInput {
+  nodeId?: string;
+  access?: DataAccessRule;
+  downloadAccess?: DataAccessRule;
+}
 export interface FormField {
+  accessConstraints?: FieldAccess[];
+  access?: FieldAccess;
+  readOnly?: boolean;
+  redacted?: boolean;
   id: string;
   key: string;
   label: string;
@@ -27,6 +64,15 @@ export interface FormField {
   options: string[];
   visible?: Condition;
   system?: boolean;
+}
+export interface FormValidationIssue {
+  key: string;
+  message: string;
+}
+export interface FormValidationResult {
+  errors: string[];
+  issues: FormValidationIssue[];
+  payload: Record<string, string>;
 }
 export interface FormDefinition {
   id: string;
@@ -56,7 +102,13 @@ export interface Role {
   pages: string[];
 }
 export type PageComponent =
-  'summary' | 'activity_list' | 'activity_form' | 'task_list' | 'archive_list' | 'config_overview';
+  | 'summary'
+  | 'activity_list'
+  | 'activity_form'
+  | 'task_list'
+  | 'archive_list'
+  | 'config_overview'
+  | 'leadership_dashboard';
 export interface MenuGroup {
   id: string;
   name: string;
@@ -75,6 +127,8 @@ export interface AssigneeRule {
   value: string;
 }
 export interface NodeDefinition {
+  access?: DataAccessRule;
+  downloadAccess?: DataAccessRule;
   id: string;
   label: string;
   kind: 'approval' | 'task' | 'notice';
@@ -115,6 +169,9 @@ export type ActivityStatus =
   | 'cancelled';
 export type NodeStatus = 'waiting' | 'active' | 'completed' | 'invalidated' | 'skipped';
 export interface WorkflowNode {
+  access?: DataAccessRule;
+  downloadAccess?: DataAccessRule;
+  origin?: 'template' | 'instance';
   id: string;
   key: string;
   label: string;
@@ -127,6 +184,7 @@ export interface WorkflowNode {
   applicationRevision?: number;
 }
 export interface WorkflowTask {
+  publicComment?: string;
   id: string;
   activityId: string;
   nodeId: string;
@@ -164,6 +222,11 @@ export interface Cancellation {
   disposal: string;
 }
 export interface ApplicationRevision {
+  activityTypeId?: string;
+  templateId?: string;
+  templateVersion?: number;
+  templateName?: string;
+  definitionHash?: string;
   revision: number;
   schema: FormDefinition;
   payload: Record<string, string>;
@@ -172,6 +235,8 @@ export interface ApplicationRevision {
   submittedAt: string;
 }
 export interface AuditEvent {
+  nodeId?: string;
+  fileId?: string;
   id: string;
   actor: string;
   actorName: string;
@@ -180,6 +245,12 @@ export interface AuditEvent {
   createdAt: string;
 }
 export interface Activity {
+  applicantName?: string;
+  deleted?: { at: string; by: string; reason: string };
+  activityTypeId?: string;
+  templateId?: string;
+  templateVersion?: number;
+  templateName?: string;
   id: string;
   code: string;
   applicant: string;
@@ -206,16 +277,21 @@ export interface Activity {
   createdAt: string;
   updatedAt: string;
 }
-export interface FileRecord {
+export interface FileRecord extends FileAccessInput {
+  uploaderId?: string;
+  canManageAccess?: boolean;
+  canDownload?: boolean;
+  canPreview?: boolean;
   id: string;
   activityId: string;
   name: string;
   size: number;
   mime: string;
-  stage: 'application' | 'execution' | 'archive';
+  stage: 'application' | 'execution' | 'archive' | 'node';
   createdAt: string;
 }
 export interface ActivityDetail {
+  access?: ActivityAccess;
   activity: Activity;
   files: FileRecord[];
   actions: string[];

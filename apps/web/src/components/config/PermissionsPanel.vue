@@ -16,8 +16,8 @@ import {
 import { PERMISSIONS, SCOPES, PAGE_COMPONENTS } from '@workflow/domain';
 import type { CompanyConfig, Permission, Role } from '@workflow/domain';
 import type { ConfigPanelProps } from './types';
-import { clone, newId } from '../../composables/format';
-import { useFeedback } from '../../composables/use-feedback';
+import { clone, newId } from '@/composables/format';
+import { useFeedback } from '@/composables/use-feedback';
 const props = defineProps<ConfigPanelProps>();
 const emit = defineEmits<{ 'update:modelValue': [value: CompanyConfig] }>();
 const feedback = useFeedback();
@@ -126,7 +126,7 @@ function remove(): void {
             :options="scopeOptions"
             @update:value="update('scope', $event)" /></NFormItem
         ><NAlert type="info" :bordered="false" class="mb"
-          >多个角色的有效授权取并集。页面可见、动作权限、数据范围和节点受理资格共同决定可操作事项。</NAlert
+          >普通活动范围按有效角色合并。敏感查看、敏感导出和附件下载，分别受授予该权限的同一角色数据范围限制；配置管理员不会自动获得敏感阅读权限。</NAlert
         ><NFormItem label="操作权限"
           ><NCheckboxGroup :value="role.permissions" @update:value="setPermissions"
             ><div class="editor-grid" style="gap: 14px">

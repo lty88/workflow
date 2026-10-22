@@ -5,7 +5,7 @@ import { enqueue, loadActivity, loadConfig, query, transaction } from '../db/rep
 let after = '';
 
 /**
- * 扫描当前待办，24小时提醒受理人，48小时通知有管理范围的流程负责人；不代替人工决定。
+ * 跳过已删除活动并扫描当前待办，24小时提醒受理人，48小时通知有管理范围的流程负责人；不代替人工决定。
  * @param pool 数据库连接池
  */
 export async function scheduleReminders(pool: Pool): Promise<void> {
@@ -17,7 +17,7 @@ export async function scheduleReminders(pool: Pool): Promise<void> {
     const config = (await loadConfig(connection, 'share')).published;
     const rows = await query<{ id: string }>(
       connection,
-      "SELECT DISTINCT a.id FROM activities a JOIN workflow_tasks t ON t.activity_id=a.id WHERE a.status='approving' AND a.id>? AND t.status='pending' AND CAST(JSON_UNQUOTE(JSON_EXTRACT(t.data,'$.createdAt')) AS CHAR) < ? ORDER BY a.id LIMIT 100",
+      "SELECT DISTINCT a.id FROM activities a JOIN workflow_tasks t ON t.activity_id=a.id WHERE a.deleted_at IS NULL AND a.status='approving' AND a.id>? AND t.status='pending' AND CAST(JSON_UNQUOTE(JSON_EXTRACT(t.data,'$.createdAt')) AS CHAR) < ? ORDER BY a.id LIMIT 100",
       [after, new Date(Date.now() - 24 * 3600000).toISOString()],
     );
     after = rows.at(-1)?.id || '';

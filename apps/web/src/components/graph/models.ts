@@ -1,8 +1,8 @@
 import type { EdgeData, NodeData } from '@antv/g6';
 import { activeMember, findById, topological, STATUSES } from '@workflow/domain';
 import type { ActivityStatus, CompanyConfig } from '@workflow/domain';
-import type { WorkflowViewDetail } from '../activity/types';
-import { NODE_STATUSES } from '../activity/types';
+import type { WorkflowViewDetail } from '@/components/activity/types';
+import { NODE_STATUSES } from '@/components/activity/types';
 import type { BusinessGraphModel, GraphNodeMeta, GraphTone } from './types';
 
 const colors: Record<GraphTone, { fill: string; stroke: string }> = {

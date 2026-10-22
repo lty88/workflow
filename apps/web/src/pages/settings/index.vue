@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { RouterLink } from 'vue-router';
 import { NCard } from 'naive-ui';
-import ConfigLayout from '../../components/config/ConfigLayout.vue';
+import ConfigLayout from '@/components/config/ConfigLayout.vue';
 const modules = [
   {
     path: 'forms',
@@ -10,8 +10,8 @@ const modules = [
   },
   {
     path: 'workflow',
-    name: '动态流程',
-    description: '节点、条件分支、串行、并行与汇合',
+    name: '流程模板',
+    description: '多模板、活动类型、拖拽编排、版本发布与授权',
   },
   {
     path: 'organization',
@@ -36,7 +36,7 @@ const modules = [
       <div
         v-for="(value, index) in [
           config.form.fields.length,
-          config.workflow.nodes.length,
+          '独立发布',
           config.users.length,
           config.pages.length,
         ]"
@@ -44,10 +44,10 @@ const modules = [
         class="metric-card"
       >
         <div class="metric-label">
-          {{ ['表单字段', '流程节点', '公司成员', '动态页面'][index] }}
+          {{ ['表单字段', '流程模板', '公司成员', '动态页面'][index] }}
         </div>
         <div class="metric-value">{{ value }}</div>
-        <div class="metric-note">当前编辑草案</div>
+        <div class="metric-note">{{ index === 1 ? '进入流程模板管理' : '当前编辑草案' }}</div>
       </div>
     </div>
     <NCard title="配置业务能力"

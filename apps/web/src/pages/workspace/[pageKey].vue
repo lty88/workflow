@@ -3,11 +3,12 @@ import { onMounted, ref } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { NAlert, NButton, NCard, NSpin } from 'naive-ui';
 import type { PageDefinition } from '@workflow/domain';
-import { pageApi } from '../../api';
-import Dashboard from '../../components/workspace/Dashboard.vue';
-import ActivityList from '../../components/workspace/ActivityList.vue';
-import ActivityEditor from '../../components/activity/ActivityEditor.vue';
-const route = useRoute();
+import { pageApi } from '@/api';
+import Dashboard from '@/components/workspace/Dashboard.vue';
+import LeadershipDashboard from '@/components/leadership/LeadershipDashboard.vue';
+import ActivityList from '@/components/workspace/ActivityList.vue';
+import ActivityEditor from '@/components/activity/ActivityEditor.vue';
+const route = useRoute('/workspace/[pageKey]');
 const page = ref<PageDefinition | null>(null);
 const busy = ref(true);
 const errorText = ref('');
@@ -32,10 +33,9 @@ onMounted(load);
     ><NAlert v-if="errorText" type="error" :title="errorText"
       ><NButton text @click="load">重新加载</NButton></NAlert
     ><template v-else-if="page"
-      ><Dashboard v-if="page.component === 'summary'" /><ActivityList
-        v-else-if="page.component === 'activity_list'"
-        :title="page.name"
-      /><ActivityList
+      ><LeadershipDashboard v-if="page.component === 'leadership_dashboard'" /><Dashboard
+        v-else-if="page.component === 'summary'"
+      /><ActivityList v-else-if="page.component === 'activity_list'" :title="page.name" /><ActivityList
         v-else-if="page.component === 'task_list'"
         :title="page.name"
         scope="tasks"

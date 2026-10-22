@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Pool } from 'mysql2/promise';
-import { activeMember, findById, pagesFor, permissionsFor } from '@workflow/domain';
+import { applicantForm, activeMember, findById, pagesFor, permissionsFor } from '@workflow/domain';
 import type { SessionProfile } from '@workflow/domain';
 import { loadConfig, query } from '../db/repository';
 import { ensure } from '../errors';
@@ -56,7 +56,7 @@ export async function login(
       permissions: permissionsFor(config, rows[0].id),
       menus: pagesFor(config, rows[0].id),
       groups: config.groups,
-      form: config.form,
+      form: applicantForm(config, rows[0].id, config.form),
       configVersion: config.version,
       csrfToken,
     },
@@ -84,7 +84,7 @@ export async function sessionProfile(pool: Pool, token: string | undefined): Pro
     permissions: permissionsFor(config, rows[0].member_id),
     menus: pagesFor(config, rows[0].member_id),
     groups: config.groups,
-    form: config.form,
+    form: applicantForm(config, rows[0].member_id, config.form),
     configVersion: config.version,
     csrfToken: rows[0].csrf_token,
   };

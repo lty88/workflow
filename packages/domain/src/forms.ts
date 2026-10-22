@@ -1,4 +1,10 @@
-import type { Condition, FormDefinition, FormField } from './types';
+import type {
+  Condition,
+  FormDefinition,
+  FormField,
+  FormValidationIssue,
+  FormValidationResult,
+} from './types';
 
 /**
  * 将非负元金额转换为整数分，拒绝空值和精度超限。
@@ -76,16 +82,30 @@ export function visibleFields(form: FormDefinition, payload: Record<string, stri
 }
 
 /**
- * 校验动态表单并剔除隐藏和未知字段，服务端不替用户补必填默认值。
+ * 按完整显隐关系校验动态表单，可限定当前步骤字段，并剔除隐藏和未知输入。
  * @param form 表单定义
  * @param input 提交输入
- * @returns 校验错误与净化后的数据
+ * @param keys 可选的待校验字段键，省略时完整校验
+ * @returns 错误摘要、字段错误及净化后的完整可见数据
  */
 export function validateForm(
   form: FormDefinition,
   input: Record<string, string>,
-): { errors: string[]; payload: Record<string, string> } {
+  keys?: string[],
+): FormValidationResult {
   const errors: string[] = [];
+  const issues: FormValidationIssue[] = [];
+  const selected = keys ? new Set(keys) : null;
+  /**
+   * 仅为当前校验范围记录错误，同时保留字段键用于准确显示和定位。
+   * @param key 错误对应的字段键
+   * @param message 对用户展示的中文说明
+   */
+  function report(key: string, message: string): void {
+    if (selected && !selected.has(key)) return;
+    errors.push(message);
+    issues.push({ key, message });
+  }
   const payload: Record<string, string> = {};
   input = { ...input };
   let expenseFields = 0;
@@ -100,37 +120,38 @@ export function validateForm(
     const value = (input[field.key] ?? '').trim();
     payload[field.key] = value;
     if (field.required && !value) {
-      errors.push(`${field.label}为必填项`);
+      report(field.key, `${field.label}为必填项`);
       continue;
     }
     if (!value) continue;
-    if (value.length > 3000) errors.push(`${field.label}不能超过3000字`);
+    if (value.length > 3000) report(field.key, `${field.label}不能超过3000字`);
     if (field.type === 'number' && !Number.isFinite(amountFen(value)))
-      errors.push(`${field.label}需为非负数字，最多两位小数`);
+      report(field.key, `${field.label}需为非负数字，最多两位小数`);
     if (field.type === 'select' && !field.options.includes(value))
-      errors.push(`${field.label}请选择有效选项`);
+      report(field.key, `${field.label}请选择有效选项`);
     if (field.type === 'datetime' && !Number.isFinite(Date.parse(value)))
-      errors.push(`${field.label}时间无效`);
+      report(field.key, `${field.label}时间无效`);
     if (field.type === 'checkboxes') {
       const selected = value.split('、');
       for (const option of selected)
-        if (!field.options.includes(option)) errors.push(`${field.label}包含无效选项`);
+        if (!field.options.includes(option)) report(field.key, `${field.label}包含无效选项`);
     }
   }
   if (payload.start_at && payload.end_at && Date.parse(payload.end_at) <= Date.parse(payload.start_at))
-    errors.push('结束时间必须晚于开始时间');
+    report('end_at', '结束时间必须晚于开始时间');
   if (payload.service_type === '收费课题培训' && !payload.training?.trim())
-    errors.push('收费培训需要填写培训要求');
-  if (payload.meeting_url && !isHttps(payload.meeting_url)) errors.push('线上会议链接必须使用有效HTTPS地址');
+    report('training', '收费培训需要填写培训要求');
+  if (payload.meeting_url && !isHttps(payload.meeting_url))
+    report('meeting_url', '线上会议链接必须使用有效HTTPS地址');
   if (
     payload.people &&
     (!/^\d+$/.test(payload.people) || Number(payload.people) < 1 || Number(payload.people) > 100000)
   )
-    errors.push('参会人数需为1至100000的整数');
+    report('people', '参会人数需为1至100000的整数');
   for (const key of ['contact_info', 'arranger_info', 'receiver_info'])
     if (payload[key] && !/^1\d{10}$|^\+?[\d -]{7,20}$|^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload[key]!))
-      errors.push('联系方式需为手机、座机或邮箱');
-  return { errors: [...new Set(errors)], payload };
+      report(key, '联系方式需为手机、座机或邮箱');
+  return { errors: [...new Set(errors)], issues, payload };
 }
 
 /**

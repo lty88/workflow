@@ -15,7 +15,9 @@
     "db:reset-admin": "pnpm --filter @workflow/server db:reset-admin",
     "build": "pnpm -r build",
     "format": "prettier --write apps packages *.json *.yaml",
-    "format:check": "prettier --check apps packages *.json *.yaml"
+    "format:check": "prettier --check apps packages *.json *.yaml",
+    "db:migrate": "pnpm --filter @workflow/server db:migrate",
+    "db:seed-organization": "pnpm --filter @workflow/server db:seed-organization"
   },
   "devDependencies": {
     "prettier": "3.9.10"

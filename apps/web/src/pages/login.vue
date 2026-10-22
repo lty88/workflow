@@ -2,8 +2,8 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { NAlert, NButton, NForm, NFormItem, NInput } from 'naive-ui';
-import { useAuthStore } from '../stores/auth';
-import { useFeedback } from '../composables/use-feedback';
+import { useAuthStore } from '@/stores/auth';
+import { useFeedback } from '@/composables/use-feedback';
 const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();

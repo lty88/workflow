@@ -12,6 +12,7 @@ export function readEnv(input: NodeJS.ProcessEnv = process.env) {
       HOST: z.string().default('127.0.0.1'),
       PORT: z.coerce.number().int().default(3100),
       APP_ORIGIN: z.url().default('http://localhost:5173'),
+      PUBLIC_APP_URL: z.url().optional(),
       MYSQL_HOST: z.string().default('127.0.0.1'),
       MYSQL_PORT: z.coerce.number().int().default(3307),
       MYSQL_DATABASE: z
