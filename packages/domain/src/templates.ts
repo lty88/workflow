@@ -56,6 +56,8 @@ export interface TemplateSelection {
   expectedTemplateVersion: number;
 }
 
+export const TEMPLATE_BOUNDARY_IDS: readonly string[] = ['stage:apply', 'stage:approved'];
+
 const identifier = z.string().min(1).max(80);
 export const templateDefinitionSchema = z
   .object({
@@ -243,8 +245,11 @@ export function validateTemplate(
       if (field?.type === 'select' && !field.options.includes(node.condition.value))
         errors.push(`${node.label}条件值不在${field.label}选项中`);
     }
+  for (const node of definition.nodes)
+    if (TEMPLATE_BOUNDARY_IDS.includes(node.id)) errors.push('业务节点不能使用系统起止标记的保留标识');
   for (const id of Object.keys(definition.layout.positions))
-    if (!findById(definition.nodes, id)) errors.push('画布坐标引用已删除节点');
+    if (!TEMPLATE_BOUNDARY_IDS.includes(id) && !findById(definition.nodes, id))
+      errors.push('画布坐标引用已删除节点');
   const context = templateContext(config, definition, config.form);
   const forced = structuredClone(context);
   for (const node of forced.workflow.nodes) delete node.condition;

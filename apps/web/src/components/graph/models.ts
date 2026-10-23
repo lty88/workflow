@@ -1,3 +1,4 @@
+import { WORKFLOW_NODE_THEMES } from './workflow-node-theme'
 import type { EdgeData, NodeData } from '@antv/g6'
 import { activeMember, findById, topological, STATUSES } from '@workflow/domain'
 import type { ActivityStatus, CompanyConfig } from '@workflow/domain'
@@ -49,19 +50,21 @@ function fieldLabel(config: CompanyConfig, key: string): string {
 }
 
 /**
- * 生成统一的G6业务节点，将展示信息与真实业务标识分开。
+ * 生成G6业务节点，模板按审批、任务、知会配色，办理进度图继续按状态配色。
  * @param id 图节点唯一标识
  * @param meta 业务元数据
- * @returns 带状态样式的G6节点
+ * @returns 带节点类型或办理状态样式的G6节点
  */
 function visualNode(id: string, meta: GraphNodeMeta): NodeData {
+  const theme = meta.kind === 'workflow' && meta.workflowKind ? WORKFLOW_NODE_THEMES[meta.workflowKind] : undefined
   return {
     id,
     data: { ...meta },
     style: {
       ...colors[meta.tone],
+      ...(theme ? { fill: theme.fill, stroke: theme.stroke, labelFill: theme.text } : {}),
       labelText: `${meta.label}\n${meta.summary}`,
-      lineDash: meta.tone === 'muted' ? [5, 3] : undefined,
+      lineDash: meta.tone === 'muted' || (theme && meta.tone === 'warning') ? [5, 3] : undefined,
     },
   }
 }
@@ -256,6 +259,7 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
       visualNode('workflow:' + node.id, {
         businessId: node.id,
         kind: 'workflow',
+        workflowKind: node.kind,
         label: node.label,
         summary: `${node.kind === 'notice' ? '知会' : node.kind === 'task' ? '任务' : '审批'} · ${assignee}${condition}`,
         tone: node.condition ? 'warning' : 'normal',

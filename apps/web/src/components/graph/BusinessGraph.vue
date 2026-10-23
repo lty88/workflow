@@ -4,6 +4,8 @@
   import type { Graph, GraphOptions, IEvent, NodeData, EdgeData, IElementDragEvent } from '@antv/g6'
   import type { BusinessGraphProps, GraphConnection, GraphDirection, GraphLocateOption, GraphSelection, GraphToolbarControls, GraphToolbarSlot } from './types'
   import { clone } from '@/composables/format'
+  import { workflowSelectionStyle } from './workflow-node-theme'
+  import { templatePositionKey } from './positioning'
   import { graphEdgeOptions, refreshRoutedEdges } from './edge-routing'
   import GraphToolbar from './GraphToolbar.vue'
   import { useGraphExpansion } from './use-graph-expansion'
@@ -131,25 +133,35 @@
       void selectNode(event.target.id).catch(graphError)
   }
   /**
-   * 仅允许编辑模式拖动真实流程节点，展示阶段与审批办理图保持只读。
+   * 编辑模式允许拖动业务节点和系统起止标记；连线模式及只读图禁止移动。
    * @param event 图节点拖动事件
    * @returns 是否允许拖动
    */
   function canDrag(event: IElementDragEvent): boolean {
-    return !!props.editable && !props.connectMode && event.targetType === 'node' && String(event.target?.id || '').startsWith('workflow:')
+    if (!props.editable || props.connectMode || event.targetType !== 'node') return false
+    const node = props.model.data.nodes?.find(
+      /** 定位实际图节点，避免将其他业务阶段误作为模板边界拖动。
+       * @param item 当前图节点
+       * @returns 是否匹配拖动对象
+       */ function matches(item) {
+        return item.id === String(event.target?.id || '')
+      }
+    )
+    return !!node && !!templatePositionKey(node)
   }
   /**
-   * 拖动结束后重新计算避障连线并保存节点坐标，保持流程前置关系。
+   * 拖动结束后更新所有连线，保存业务节点及系统起止标记位置，保持流程前置关系。
    * @param _ids G6已移动的节点标识
    */
   function positionsChanged(_ids: string[]): void {
     if (!graph || !props.editable) return
     const result: Record<string, { x: number; y: number }> = {}
-    for (const node of props.model.data.nodes || [])
-      if (node.data?.kind === 'workflow') {
-        const point = graph.getElementPosition(node.id)
-        result[String(node.data.businessId)] = { x: point[0], y: point[1] }
-      }
+    for (const node of props.model.data.nodes || []) {
+      const key = templatePositionKey(node)
+      if (!key) continue
+      const point = graph.getElementPosition(node.id)
+      result[key] = { x: point[0], y: point[1] }
+    }
     void refreshRoutedEdges(graph).catch(graphError)
     emit('positions', result)
   }
@@ -196,13 +208,14 @@
   function syncBehaviors(): void {
     if (graph && !disposed) graph.setBehaviors(graphBehaviors() || [])
   }
-  /** 恢复保存的业务坐标后重新寻路，坐标相同时跳过重复绘制，保持布局及审批依赖。 */
+  /** 恢复业务节点与系统起止标记的布局坐标，重新寻路，坐标一致时跳过重复绘制。 */
   async function syncPositions(): Promise<void> {
     if (!graph || props.positions === undefined || disposed) return
     const positions: Record<string, [number, number]> = {}
     for (const node of props.model.data.nodes || []) {
-      const value = props.positions?.[String(node.data?.businessId)]
-      if (node.data?.kind !== 'workflow' || !value) continue
+      const key = templatePositionKey(node)
+      const value = key ? props.positions[key] : undefined
+      if (!value) continue
       const current = graph.getElementPosition(node.id)
       if (current[0] !== value.x || current[1] !== value.y) positions[node.id] = [value.x, value.y]
     }
@@ -288,7 +301,18 @@
   function withOrganizationLevel(node: NodeData): NodeData {
     return { ...node, data: { ...node.data, overview: organizationOverview } }
   }
-  /** 完整适配当前容器，限制自动放大到100%，避免少量节点被放成巨型卡片。 */
+  /** 根据节点渲染边界将整图顶部对齐到画布内50px，仅平移视口，不修改节点保存坐标。 */
+  async function alignContentTop(): Promise<void> {
+    if (!graph || disposed) return
+    let top = Number.POSITIVE_INFINITY
+    for (const node of graph.getNodeData()) {
+      const bounds = graph.getElementRenderBounds(node.id)
+      const point = graph.getViewportByCanvas([bounds.min[0], bounds.min[1]])
+      if (Number.isFinite(point[1])) top = Math.min(top, point[1])
+    }
+    if (Number.isFinite(top) && Math.abs(50 - top) > 0.5) await graph.translateBy([0, 50 - top], false)
+  }
+  /** 完整适配当前容器并在顶部留50px，限制自动放大到100%，保持少量节点尺寸清晰稳定。 */
   async function fitContent(): Promise<void> {
     if (!graph || disposed) return
     await graph.fitView({ when: 'always' }, false)
@@ -297,6 +321,7 @@
       await graph.zoomTo(1, false)
       await graph.fitCenter(false)
     }
+    await alignContentTop()
     syncZoom()
   }
   /**
@@ -318,18 +343,13 @@
     else await graph.fitCenter(false)
     syncZoom()
   }
-  /** 可读模式保持100%，完整路线放得下时居中，长流程聚焦选中节点。 */
+  /** 可读模式保持100%和横向居中，整条流程从画布顶部50px开始展示，长流程可向下拖动浏览。 */
   async function readableContent(): Promise<void> {
     if (!graph || disposed) return
-    await graph.fitView({ when: 'always' }, false)
-    if (!graph || disposed) return
-    const fits = graph.getZoom() >= 1
     await graph.zoomTo(1, false)
-    if (fits) await graph.fitCenter(false)
-    else {
-      const key = props.selectedKey || focusKey()
-      if (key) await graph.focusElement(key, false)
-    }
+    if (!graph || disposed) return
+    await graph.fitCenter(false)
+    await alignContentTop()
     syncZoom()
   }
   /** 按默认策略选择全图、单节点聚焦或100%可读布局。 */
@@ -365,7 +385,8 @@
             container: element,
             width: element.clientWidth,
             height: element.clientHeight,
-            padding: 32,
+            padding: [50, 32, 32, 32],
+            background: 'transparent',
             animation: false,
             zoomRange: [0.15, 2.5],
             data: { nodes: [], edges: [] },
@@ -388,7 +409,7 @@
                 ...(props.appearance === 'organization' ? { shadowBlur: 12, shadowColor: '#24456b12', shadowOffsetY: 3, lineWidth: 1 } : {}),
               },
               state: {
-                selected: { stroke: '#235de9', lineWidth: 3, shadowColor: '#235de933', shadowBlur: 12 },
+                selected: workflowSelectionStyle,
               },
             },
             edge: edgeOptions(),
@@ -581,14 +602,11 @@
   .graph-canvas {
     width: 100%;
     min-height: 240px;
-    background-image: radial-gradient(#cbd6e7 0.8px, transparent 0.8px);
-    background-size: 16px 16px;
+    background-color: #f8faff;
+    background-image: radial-gradient(circle, #bfcde3 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: 0 0;
     touch-action: none;
-  }
-  .business-graph--organization .graph-canvas {
-    background-color: #f5f8fc;
-    background-image: radial-gradient(#dae3f0 0.7px, transparent 0.7px);
-    background-size: 22px 22px;
   }
   .graph-empty {
     position: absolute;

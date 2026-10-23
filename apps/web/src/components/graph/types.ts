@@ -40,7 +40,7 @@ export interface BusinessGraphProps {
   height?: number
   direction?: GraphDirection
   label?: string
-  /** 初始视图：overview 适配全图，focus 聚焦单点，readable 在100%下优先完整居中、长图聚焦选中节点 */
+  /** 初始视图：overview 适配全图，focus 聚焦单点，readable 在100%下横向居中并从顶部50px展示；overview全图同样顶部对齐，focus保留指定节点定位 */
   fit?: 'overview' | 'focus' | 'readable'
   /** 节点基准宽度，窄容器可调大以保证文字可读 */
   nodeWidth?: number
@@ -59,7 +59,15 @@ export interface GraphConnection {
   source: string
   target: string
 }
+export interface WorkflowNodeTheme {
+  label: string
+  fill: string
+  stroke: string
+  accent: string
+  text: string
+}
 export interface GraphNodeMeta {
+  workflowKind?: import('@workflow/domain').NodeDefinition['kind']
   businessId: string
   kind: GraphNodeKind
   label: string

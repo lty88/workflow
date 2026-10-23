@@ -13,6 +13,7 @@ import {
 } from '@workflow/domain';
 import { initialTemplates, INITIAL_ACTIVITY_TYPES } from '../db/template-migration';
 import { insertNode, removeNode } from '../../../web/src/components/templates/editing';
+import { templatePositionKey } from '../../../web/src/components/graph/positioning';
 import { templateEditorGraph } from '../../../web/src/components/templates/editor-model';
 import { loadTemplate } from '../db/template-repository';
 import type { Database } from '../db/repository';
@@ -215,3 +216,33 @@ async function repositoryCase(): Promise<void> {
   expect(published.nodes[0]!.protected).toBe(true);
 }
 test('仓储读取旧模板时解锁草稿且保留发布快照', repositoryCase);
+
+/** 核对系统起止坐标可保存并通过发布校验，业务节点和未知展示阶段仍各自受约束。 */
+function boundaryPositionsCase(): void {
+  const config = seedConfig();
+  const value = definition('approval');
+  value.layout.positions = {
+    'stage:apply': { x: 100, y: -200 },
+    'stage:approved': { x: 100, y: 900 },
+    'n-first': { x: 100, y: 300 },
+  };
+  const restored = templateDefinitionSchema.parse(JSON.parse(JSON.stringify(value)));
+  expect(restored.layout.positions).toEqual(value.layout.positions);
+  expect(validateTemplate(config, restored, INITIAL_ACTIVITY_TYPES)).toEqual([]);
+  const graph = templateEditorGraph(templateContext(config, restored, config.form));
+  const keys = graph.data.nodes!.map(templatePositionKey);
+  expect(keys).toEqual(['stage:apply', 'n-first', 'stage:approved']);
+  expect(templatePositionKey({ id: 'stage:execute', data: { kind: 'stage', boundary: true } })).toBe('');
+  expect(templatePositionKey({ id: 'stage:apply', data: { kind: 'stage' } })).toBe('');
+  expect(
+    templatePositionKey({ id: 'dept:company', data: { kind: 'department', businessId: 'company' } }),
+  ).toBe('');
+  restored.layout.positions['stage:unknown'] = { x: 0, y: 0 };
+  expect(validateTemplate(config, restored, INITIAL_ACTIVITY_TYPES).join()).toContain(
+    '画布坐标引用已删除节点',
+  );
+  delete restored.layout.positions['stage:unknown'];
+  restored.nodes[0]!.id = 'stage:apply';
+  expect(validateTemplate(config, restored, INITIAL_ACTIVITY_TYPES).join()).toContain('保留标识');
+}
+test('系统起止节点坐标可序列化和发布，其他阶段仍禁止保存布局', boundaryPositionsCase);
