@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 .env.*.local
+..workbuddy/
 coverage/
 data/
 apps/web/src/typed-router.d.ts

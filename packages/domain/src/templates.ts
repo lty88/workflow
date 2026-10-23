@@ -64,7 +64,7 @@ export const templateDefinitionSchema = z
     defaultForTypeIds: z.array(identifier).max(30),
     departmentIds: z.array(identifier).max(200),
     roleIds: z.array(identifier).max(100),
-    nodes: configSchema.shape.workflow.shape.nodes,
+    nodes: z.array(configSchema.shape.workflow.shape.nodes.element).max(80),
     layout: z
       .object({
         direction: z.enum(['TB', 'LR']),
@@ -99,6 +99,7 @@ export const templateCreateSchema = z
   .object({
     code: z.string().regex(/^[a-z][a-z0-9_-]{2,59}$/),
     sourceId: identifier.optional(),
+    firstNodeKind: z.enum(['approval', 'task', 'notice']).optional(),
     idempotencyKey: z.string().min(16).max(100),
   })
   .strict();
@@ -109,6 +110,32 @@ export const templateVersionCommandSchema = z
   })
   .strict();
 export const templateActiveSchema = templateVersionCommandSchema.extend({ active: z.boolean() });
+
+/**
+ * 将旧模板定义转换为可自由编排的独立草稿，仅移除旧版默认必要审核标记。
+ * @param definition 来源模板定义，可能来自旧草稿或发布版本
+ * @returns 保留类型、依赖、受理与资料权限的可编辑副本，不修改来源快照
+ */
+export function editableTemplateDefinition(definition: TemplateDefinition): TemplateDefinition {
+  const next = structuredClone(definition);
+  for (const node of next.nodes) delete node.protected;
+  return next;
+}
+
+/**
+ * 按管理员选择生成可修改、可删除的首个业务节点。
+ * @param kind 首个节点类型
+ * @returns 使用对应默认受理规则的普通节点
+ */
+export function firstTemplateNode(kind: NodeDefinition['kind'] = 'approval'): NodeDefinition {
+  return {
+    id: 'n-first',
+    label: { approval: '活动事项审核', task: '活动准备任务', notice: '活动事项知会' }[kind],
+    kind,
+    deps: [],
+    assignee: kind === 'approval' ? { type: 'manager', value: '' } : { type: 'role', value: 'coordinator' },
+  };
+}
 
 /**
  * 判断申请人是否在模板授权范围内，不隐式授予业务权限。
@@ -172,7 +199,11 @@ export function templateContext(
   definition: TemplateDefinition,
   form: FormDefinition,
 ): CompanyConfig {
-  return { ...config, form, workflow: { name: definition.name, nodes: definition.nodes } };
+  return {
+    ...config,
+    form,
+    workflow: { name: definition.name, nodes: editableTemplateDefinition(definition).nodes },
+  };
 }
 
 /**
@@ -187,7 +218,10 @@ export function validateTemplate(
   definition: TemplateDefinition,
   types: ActivityType[],
 ): string[] {
-  const errors = validateConfig(templateContext(config, definition, config.form));
+  const errors = validateConfig(templateContext(config, definition, config.form), {
+    requireProtectedApproval: false,
+  });
+  if (!definition.nodes.length) errors.push('请至少添加一个审批、任务或知会节点后再发布');
   for (const [label, ids] of [
     ['活动类型', definition.activityTypeIds],
     ['默认类型', definition.defaultForTypeIds],
@@ -209,19 +243,6 @@ export function validateTemplate(
       if (field?.type === 'select' && !field.options.includes(node.condition.value))
         errors.push(`${node.label}条件值不在${field.label}选项中`);
     }
-  if (
-    !definition.nodes.some(
-      /** 确认不可跳过的部门负责人审批。
-       * @param node 模板节点
-       * @returns 是否为必要部门初审
-       */ function required(node) {
-        return (
-          node.protected && node.kind === 'approval' && node.assignee.type === 'manager' && !node.condition
-        );
-      },
-    )
-  )
-    errors.push('必须保留无条件的部门负责人初审');
   for (const id of Object.keys(definition.layout.positions))
     if (!findById(definition.nodes, id)) errors.push('画布坐标引用已删除节点');
   const context = templateContext(config, definition, config.form);
@@ -231,7 +252,7 @@ export function validateTemplate(
   for (const user of config.users) {
     if (!canSelectTemplate(config, user.id, definition)) continue;
     applicants++;
-    const result = instantiateWorkflow(forced, {}, user.id);
+    const result = instantiateWorkflow(forced, {}, user.id, { requireApproval: false });
     for (const error of result.errors) errors.push(`${user.name}：${error}`);
   }
   if (!applicants) errors.push('授权范围内没有可发起活动的有效成员');
@@ -261,4 +282,30 @@ export function defaultTemplateConflicts(
       if (overlap) errors.push(`活动类型${id}的默认模板与“${other.name}”覆盖范围冲突`);
     }
   return [...new Set(errors)];
+}
+
+export interface TemplateExecutionSummary {
+  approvals: number;
+  tasks: number;
+  notices: number;
+  message: string;
+}
+
+/**
+ * 说明模板实际包含的办理类型，无审批时明确进入执行的条件。
+ * @param nodes 模板业务节点
+ * @returns 审批、任务和知会数量，以及面向申请人与管理员的流转说明
+ */
+export function templateExecutionSummary(nodes: NodeDefinition[]): TemplateExecutionSummary {
+  const approvals = nodes.filter((node) => node.kind === 'approval').length;
+  const tasks = nodes.filter((node) => node.kind === 'task').length;
+  const notices = nodes.filter((node) => node.kind === 'notice').length;
+  const message = !nodes.length
+    ? '请从开始节点添加一个业务节点，再检查并发布流程。'
+    : approvals
+      ? '审批和任务按前置关系办理，全部生效必办节点完成后进入指派执行；知会不阻断。'
+      : tasks
+        ? '本模板没有审批节点；全部生效任务完成后进入指派执行，不产生同意或拒绝审批。'
+        : '本模板仅包含知会；提交后发送通知并进入待指派，不需要人工审批或完成任务。';
+  return { approvals, tasks, notices, message };
 }

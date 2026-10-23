@@ -20,7 +20,7 @@ import type { TreeOption } from 'naive-ui';
 import type { CompanyConfig, Department, Member } from '@workflow/domain';
 import { DEFAULT_PASSWORD, passwordSchema } from '@workflow/domain';
 import type { ConfigPanelProps } from './types';
-import { setMemberPasswordApi } from '@/api';
+import { setMemberPasswordApi } from '@/api/configuration';
 import { clone, newId } from '@/composables/format';
 import { useFeedback } from '@/composables/use-feedback';
 import BusinessGraph from '@/components/graph/BusinessGraph.vue';

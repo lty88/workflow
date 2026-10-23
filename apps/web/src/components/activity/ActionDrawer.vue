@@ -16,7 +16,9 @@ import {
   NRadioGroup,
   NRadioButton,
 } from 'naive-ui';
-import { actionApi, decisionApi, directoryApi } from '@/api';
+import { actionApi } from '@/api/activities';
+import { decisionApi } from '@/api/workflow';
+import { directoryApi } from '@/api/workspace';
 import type { Directory } from '@/typings/api';
 import type { ActionProps } from './types';
 import { ACTION_LABELS } from './types';

@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
+import { activityDestination, menuDestination } from '@/navigation';
 import {
   NAlert,
   NButton,
@@ -16,7 +17,7 @@ import {
 import type { DataTableColumns } from 'naive-ui';
 import { STATUSES } from '@workflow/domain';
 import type { ActivityListItem, ActivityPage, ListParams } from '@/typings/api';
-import { activitiesApi, exportActivitiesApi } from '@/api';
+import { activitiesApi, exportActivitiesApi } from '@/api/activities';
 import { useAuthStore } from '@/stores/auth';
 import { useFeedback } from '@/composables/use-feedback';
 import { formatTime, formatMoney } from '@/composables/format';
@@ -62,7 +63,7 @@ function statusOption(pair: [string, string]): { label: string; value: string } 
  */
 function renderName(row: ActivityListItem) {
   return (
-    <RouterLink to={'/activities/' + row.id}>
+    <RouterLink to={activityDestination(row.id)}>
       <strong>{row.name || '未命名草稿'}</strong>
       <div class="file-meta">{row.code}</div>
     </RouterLink>
@@ -108,7 +109,7 @@ function renderBudget(row: ActivityListItem): string {
 function renderAction(row: ActivityListItem) {
   return (
     <div class="gap">
-      <RouterLink to={'/activities/' + row.id}>{props.scope === 'tasks' ? '去办理 →' : '查看 →'}</RouterLink>
+      <RouterLink to={activityDestination(row.id)}>{props.scope === 'tasks' ? '去办理 →' : '查看 →'}</RouterLink>
       <ActivityDeleteButton activity={row} allowed={row.canDelete} onDeleted={afterDelete} onRefresh={load} />
     </div>
   );
@@ -230,7 +231,7 @@ function rowKey(row: ActivityListItem): string {
           }}
         </p>
       </div>
-      <RouterLink v-if="newPage && auth.can('activity:create')" :to="'/workspace/' + newPage.id"
+      <RouterLink v-if="newPage && auth.can('activity:create')" :to="menuDestination(newPage)"
         ><NButton type="primary">＋ 发起活动</NButton></RouterLink
       >
     </div>
@@ -279,7 +280,7 @@ function rowKey(row: ActivityListItem): string {
         :scroll-x="1030" /><NSpin :show="busy" class="mobile-activity"
         ><NEmpty v-if="!data.items.length && !busy" description="暂无活动" />
         <article v-for="row in data.items" :key="row.id" class="activity-card">
-          <RouterLink :to="'/activities/' + row.id">
+          <RouterLink :to="activityDestination(row.id)">
             <div class="spread">
               <small class="muted">{{ row.code }}</small
               ><NTag size="small" :bordered="false" type="info">{{ STATUSES[row.status] }}</NTag>
@@ -291,7 +292,7 @@ function rowKey(row: ActivityListItem): string {
             </div>
           </RouterLink>
           <div class="spread" style="margin-top: 12px">
-            <RouterLink :to="'/activities/' + row.id"
+            <RouterLink :to="activityDestination(row.id)"
               >{{ scope === 'tasks' ? '去办理' : '查看详情' }} →</RouterLink
             ><ActivityDeleteButton
               :activity="row"

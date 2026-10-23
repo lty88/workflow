@@ -1,9 +1,9 @@
 <script setup lang="tsx">
 import { computed, onMounted, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
-import { NAlert, NButton, NForm, NFormItem, NInput, NModal, NPopconfirm, NSpin } from 'naive-ui';
+import { NAlert, NButton, NForm, NFormItem, NInput, NModal, NPopconfirm, NSelect, NSpin } from 'naive-ui';
 import type { TemplateCatalogue } from '@/typings/api/templates';
-import type { TemplateDefinition, TemplateRelease, WorkflowTemplate } from '@workflow/domain';
+import type { NodeDefinition, TemplateDefinition, TemplateRelease, WorkflowTemplate } from '@workflow/domain';
 import {
   createTemplateApi,
   deleteTemplateApi,
@@ -14,6 +14,7 @@ import {
   templateVersionsApi,
   validateTemplateApi,
 } from '@/api/templates';
+import { editableTemplateDefinition } from '@workflow/domain';
 import { clone } from '@/composables/format';
 import { useFeedback } from '@/composables/use-feedback';
 import { useAuthStore } from '@/stores/auth';
@@ -25,6 +26,7 @@ const auth = useAuthStore();
 const feedback = useFeedback();
 const catalogue = ref<TemplateCatalogue | null>(null);
 const selected = ref<WorkflowTemplate | null>(null);
+const initialExpanded = ref(false);
 const definition = ref<TemplateDefinition | null>(null);
 const busy = ref(false);
 const pending = ref(false);
@@ -33,6 +35,7 @@ const errors = ref<string[]>([]);
 const createOpen = ref(false);
 const code = ref('');
 const sourceId = ref<string>();
+const firstNodeKind = ref<NodeDefinition['kind']>('approval');
 const versions = ref<TemplateRelease[]>([]);
 const historyOpen = ref(false);
 const dirty = computed(
@@ -53,17 +56,20 @@ async function load(): Promise<void> {
 /**
  * 用独立副本打开草稿，避免修改列表中的已发布内容。
  * @param template 选中模板
+ * @param expand 是否在首次打开设计器时进入全屏
  */
-function edit(template: WorkflowTemplate): void {
+function edit(template: WorkflowTemplate, expand = false): void {
+  initialExpanded.value = expand;
   selected.value = template;
-  definition.value = clone(template.draft);
+  definition.value = editableTemplateDefinition(clone(template.draft));
   errors.value = [];
 }
 /**
  * 应用服务器保存结果，并同步列表与草稿乐观锁版本。
  * @param template 最新模板
+ * @param expand 是否在新建设计器挂载时进入全屏
  */
-function apply(template: WorkflowTemplate): void {
+function apply(template: WorkflowTemplate, expand = false): void {
   if (catalogue.value) {
     let replaced = false;
     for (let i = 0; i < catalogue.value.items.length; i++)
@@ -73,7 +79,7 @@ function apply(template: WorkflowTemplate): void {
       }
     if (!replaced) catalogue.value.items.unshift(template);
   }
-  edit(template);
+  edit(template, expand);
 }
 /**
  * 准备新建或复制模板弹窗，并给出可修改的唯一编码建议。
@@ -81,10 +87,11 @@ function apply(template: WorkflowTemplate): void {
  */
 function openCreate(source?: WorkflowTemplate): void {
   sourceId.value = source?.id;
+  firstNodeKind.value = 'approval';
   code.value = 'flow-' + crypto.randomUUID().slice(0, 8);
   createOpen.value = true;
 }
-/** 请求服务器创建独立草稿并进入设计器，不复制任何业务实例。 */
+/** 请求服务器创建或复制草稿，成功后进入全屏设计器，不复制业务实例。 */
 async function create(): Promise<void> {
   if (!auth.can('config:manage') || busy.value) return;
   if (!/^[a-z][a-z0-9_-]{2,59}$/.test(code.value)) {
@@ -93,7 +100,7 @@ async function create(): Promise<void> {
   }
   busy.value = true;
   try {
-    apply(await createTemplateApi(code.value, sourceId.value));
+    apply(await createTemplateApi(code.value, sourceId.value, firstNodeKind.value), true);
     createOpen.value = false;
     feedback.success('模板草稿已创建');
   } catch (error) {
@@ -236,6 +243,7 @@ onMounted(load);
       ><TemplateDesigner
         v-if="selected && definition"
         :key="selected.id"
+        :initial-expanded="initialExpanded"
         v-model="definition"
         :template="selected"
         :config="catalogue.config"
@@ -272,6 +280,17 @@ onMounted(load);
     :mask-closable="!busy"
     ><NForm label-placement="top" :disabled="busy"
       ><NFormItem label="唯一模板编码" required><NInput v-model:value="code" :maxlength="60" /></NFormItem>
+      <NFormItem v-if="!sourceId" label="首个业务节点" required>
+        <NSelect
+          v-model:value="firstNodeKind"
+          :options="[
+            { label: '审批 · 审核同意、退回或拒绝', value: 'approval' },
+            { label: '任务 · 完成事项并提交结果', value: 'task' },
+            { label: '知会 · 自动通知，不阻断', value: 'notice' },
+          ]"
+        />
+      </NFormItem>
+      <p v-if="!sourceId" class="help-text">这里只是起步选择，进入设计器后仍可修改类型、受理人或删除重建。</p>
       <p class="help-text">发布后编码固定；名称、适用类型和受理规则在设计器中配置。</p>
       <NButton type="primary" :loading="busy" @click="create">创建草稿并设计</NButton></NForm
     ></NModal

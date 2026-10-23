@@ -112,8 +112,18 @@ export async function mutateActivity(
     changed.updatedAt = new Date().toISOString();
     await saveActivity(connection, changed, !activity);
     for (const task of changed.tasks)
-      if (!previousTaskIds.has(task.id) && task.status === 'pending')
-        await enqueue(connection, changed, task.assignee, `新的待办：${changed.name}`, `task:${task.id}`);
+      if (!previousTaskIds.has(task.id)) {
+        const node = findById(changed.nodes, task.nodeId);
+        const notice = node?.kind === 'notice' && task.status === 'completed';
+        if (task.status === 'pending' || notice)
+          await enqueue(
+            connection,
+            changed,
+            task.assignee,
+            `${notice ? '活动知会' : '新的待办'}：${changed.name}`,
+            `${notice ? 'notice' : 'task'}:${task.id}`,
+          );
+      }
     const recipients = new Set<string>([changed.applicant]);
     if (changed.status === 'ready_execute' && changed.executor) recipients.add(changed.executor);
     if (changed.status === 'archive_review' && changed.archive) recipients.add(changed.archive.reviewer);
@@ -319,8 +329,8 @@ export async function submitActivity(
     const form = preserveFormAccess(activity.schema, release.form);
     const engineConfig = templateContext(config, release.definition, form);
     const checked = validateForm(form, activity.payload);
-    const structuralErrors = validateConfig(engineConfig);
-    const workflow = instantiateWorkflow(engineConfig, checked.payload, actor);
+    const structuralErrors = validateConfig(engineConfig, { requireProtectedApproval: false });
+    const workflow = instantiateWorkflow(engineConfig, checked.payload, actor, { requireApproval: false });
     const errors = [...structuralErrors, ...checked.errors, ...workflow.errors];
     if (checked.payload.start_at && Date.parse(checked.payload.start_at) < Date.now())
       errors.push('活动开始时间不能早于当前时间');

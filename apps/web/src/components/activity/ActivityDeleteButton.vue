@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { computed, ref } from 'vue';
 import { NAlert, NButton, NInput, NModal, NSpace } from 'naive-ui';
-import { deleteActivityApi } from '@/api';
+import { deleteActivityApi } from '@/api/activities';
 import { ApiError } from '@/api/http';
 import { useAuthStore } from '@/stores/auth';
 import { useFeedback } from '@/composables/use-feedback';
@@ -30,8 +30,8 @@ function showConfirmation(): void {
 async function remove(): Promise<void> {
   if (!visible.value || busy.value) return;
   const note = reason.value.trim();
-  if (note.length < 5) {
-    feedback.failure(new Error('请填写至少5字的删除原因'));
+  if (note.length < 3) {
+    feedback.failure(new Error('请填写至少3字的删除原因'));
     return;
   }
   busy.value = true;
@@ -73,7 +73,7 @@ async function remove(): Promise<void> {
     <NAlert type="warning" :bordered="false"
       >删除后活动将从列表、待办和看板中移除，未完成任务停止，评价链接失效。审批、附件和评价历史会保留。</NAlert
     >
-    <label class="delete-reason-label">删除原因 <span>必填，至少5字</span></label>
+    <label class="delete-reason-label">删除原因 <span>必填，至少3字</span></label>
     <NInput
       v-model:value="reason"
       type="textarea"
@@ -90,7 +90,7 @@ async function remove(): Promise<void> {
         ><NButton
           type="error"
           :loading="busy"
-          :disabled="reason.trim().length < 5 || !visible"
+          :disabled="reason.trim().length < 3 || !visible"
           @click="remove"
           >确认删除</NButton
         ></NSpace

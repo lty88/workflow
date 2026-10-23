@@ -10,15 +10,20 @@ const emit = defineEmits<{
   insert: [kind: NodeDefinition['kind'], position: InsertPosition];
   arrange: [];
   disconnect: [];
+  remove: [];
   direction: [value: GraphDirection];
 }>();
 const unavailable = computed(() => props.disabled || props.controls.busy || props.controls.issue);
 const viewUnavailable = computed(() => props.controls.busy || props.controls.issue);
-const placements = [
-  { value: 'before', label: '前插' },
-  { value: 'after', label: '后插' },
-  { value: 'parallel', label: '并行' },
-] as const;
+const placements = computed(() =>
+  props.atStart
+    ? [{ value: 'after' as const, label: '开始后添加' }]
+    : ([
+        { value: 'before', label: '前插' },
+        { value: 'after', label: '后插' },
+        { value: 'parallel', label: '并行' },
+      ] as const),
+);
 const choices = [
   { label: '审批节点', key: 'approval' },
   { label: '办理任务', key: 'task' },
@@ -116,15 +121,30 @@ function insert(kind: string | number, position: InsertPosition): void {
         :key="item.value"
         trigger="click"
         :options="choices"
-        :disabled="unavailable || !selectedName"
+        :disabled="unavailable || !canInsert"
         @select="insert($event, item.value)"
         ><NButton
           size="small"
-          :disabled="unavailable || !selectedName"
+          :disabled="unavailable || !canInsert"
           :type="position === item.value ? 'primary' : 'default'"
           quaternary
           >＋ {{ item.label }}</NButton
         ></NDropdown
+      ><NButton
+        size="small"
+        type="error"
+        quaternary
+        :disabled="disabled || controls.busy || !canRemove"
+        :title="
+          canRemove
+            ? 'Delete / Backspace 删除，可撤销恢复'
+            : selectedName
+              ? '系统起止节点不可删除'
+              : '请先选中业务节点'
+        "
+        aria-keyshortcuts="Delete Backspace"
+        @click="emit('remove')"
+        >删除节点</NButton
       ><NPopconfirm v-if="hasEdge" @positive-click="emit('disconnect')"
         ><template #trigger
           ><NButton size="small" type="error" quaternary :disabled="unavailable"

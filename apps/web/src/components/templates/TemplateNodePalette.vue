@@ -50,8 +50,8 @@ function changePosition(value: string | number | boolean): void {
             type="button"
             class="node-kind"
             :class="kind.value"
-            :disabled="disabled || !selected"
-            :draggable="!disabled"
+            :disabled="disabled || !selected || selected === 'stage:approved'"
+            :draggable="!disabled && selected !== 'stage:approved'"
             @dragstart="dragStart($event, kind.value)"
             @click="emit('add', kind.value)"
           >
@@ -61,12 +61,13 @@ function changePosition(value: string | number | boolean): void {
               ><small v-if="!collapsed">{{ kind.subtitle }}</small></span
             ><span v-if="!collapsed" class="kind-plus">＋</span>
           </button></template
-        >{{ kind.subtitle }}，加入所选节点{{
-          { before: '之前', after: '之后', parallel: '并行分支' }[position]
+        >{{ kind.subtitle }}，加入{{ selected === 'stage:apply' ? '开始节点之后' : '所选节点'
+        }}{{
+          selected === 'stage:apply' ? '' : { before: '之前', after: '之后', parallel: '并行分支' }[position]
         }}</NTooltip
       >
     </div>
-    <div v-if="!collapsed" class="insert-position">
+    <div v-if="!collapsed && !selected.startsWith('stage:')" class="insert-position">
       <span>相对所选节点的位置</span
       ><NRadioGroup :value="position" size="small" :disabled="disabled" @update:value="changePosition"
         ><NRadioButton value="before">前插</NRadioButton><NRadioButton value="after">后插</NRadioButton

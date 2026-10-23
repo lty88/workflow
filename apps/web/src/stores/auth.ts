@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { Permission, SessionProfile } from '@workflow/domain';
-import { loginApi, logoutApi, meApi } from '@/api';
+import { loginApi, logoutApi, meApi } from '@/api/auth';
 import { ApiError, setCsrfToken } from '@/api/http';
 
 /**

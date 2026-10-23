@@ -6,7 +6,7 @@ import FileUploadAccess from '@/components/security/FileUploadAccess.vue';
 import FileAccessDialog from './FileAccessDialog.vue';
 import type { UploadCustomRequestOptions } from 'naive-ui';
 import type { AttachmentProps } from './types';
-import { uploadApi } from '@/api';
+import { uploadApi } from '@/api/files';
 import { useFeedback } from '@/composables/use-feedback';
 import { formatTime } from '@/composables/format';
 const props = defineProps<AttachmentProps>();

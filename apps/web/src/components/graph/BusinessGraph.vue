@@ -12,6 +12,7 @@ import type {
   GraphToolbarSlot,
 } from './types';
 import { clone } from '@/composables/format';
+import { graphEdgeOptions, refreshRoutedEdges } from './edge-routing';
 import GraphToolbar from './GraphToolbar.vue';
 import { useGraphExpansion } from './use-graph-expansion';
 const props = withDefaults(defineProps<BusinessGraphProps>(), {
@@ -60,6 +61,22 @@ const controls = computed<GraphToolbarControls>(() => ({
   reset: resetZoom,
   changeDirection,
 }));
+/**
+ * 系统起止锚点采用较矮的胶囊卡片，业务节点沿用现有尺寸。
+ * @param node 图节点
+ * @returns 节点宽高
+ */
+function nodeSize(node: NodeData): [number, number] {
+  return [props.nodeWidth, node.data?.boundary ? 64 : 88];
+}
+/**
+ * 区分系统边界与可编辑业务节点的圆角。
+ * @param node 图节点
+ * @returns 圆角半径
+ */
+function nodeRadius(node: NodeData): number {
+  return node.data?.boundary ? 32 : 10;
+}
 /**
  * 转换定位下拉项，键盘用户也能选择画布节点。
  * @param node 图节点
@@ -139,7 +156,7 @@ function canDrag(event: IElementDragEvent): boolean {
   );
 }
 /**
- * 拖动结束后保存全部业务节点坐标，坐标不改变流程前置关系。
+ * 拖动结束后重新计算避障连线并保存节点坐标，保持流程前置关系。
  * @param _ids G6已移动的节点标识
  */
 function positionsChanged(_ids: string[]): void {
@@ -150,6 +167,7 @@ function positionsChanged(_ids: string[]): void {
       const point = graph.getElementPosition(node.id);
       result[String(node.data.businessId)] = { x: point[0], y: point[1] };
     }
+  void refreshRoutedEdges(graph).catch(graphError);
   emit('positions', result);
 }
 /**
@@ -195,15 +213,20 @@ function graphBehaviors(): GraphOptions['behaviors'] {
 function syncBehaviors(): void {
   if (graph && !disposed) graph.setBehaviors(graphBehaviors() || []);
 }
-/** 将已保存的业务节点坐标还原到画布，不触发自动布局或改变连线依赖。 */
+/** 恢复保存的业务坐标后重新寻路，坐标相同时跳过重复绘制，保持布局及审批依赖。 */
 async function syncPositions(): Promise<void> {
-  if (!graph || !props.editable || disposed) return;
+  if (!graph || props.positions === undefined || disposed) return;
   const positions: Record<string, [number, number]> = {};
   for (const node of props.model.data.nodes || []) {
     const value = props.positions?.[String(node.data?.businessId)];
-    if (node.data?.kind === 'workflow' && value) positions[node.id] = [value.x, value.y];
+    if (node.data?.kind !== 'workflow' || !value) continue;
+    const current = graph.getElementPosition(node.id);
+    if (current[0] !== value.x || current[1] !== value.y) positions[node.id] = [value.x, value.y];
   }
-  if (Object.keys(positions).length) await graph.translateElementTo(positions, false);
+  if (!Object.keys(positions).length) return;
+  const instance = graph;
+  await instance.translateElementTo(positions, false);
+  if (!disposed && graph === instance) await refreshRoutedEdges(instance);
 }
 /** 以可见错误处理坐标恢复失败，避免异步监听抛出未处理异常。 */
 function restorePositions(): void {
@@ -339,8 +362,8 @@ async function refresh(): Promise<void> {
           node: {
             type: 'rect',
             style: {
-              size: [props.nodeWidth, 88],
-              radius: 10,
+              size: nodeSize,
+              radius: nodeRadius,
               lineWidth: 1.4,
               labelPlacement: 'center',
               labelFill: '#263854',
@@ -355,7 +378,7 @@ async function refresh(): Promise<void> {
               selected: { stroke: '#235de9', lineWidth: 3, shadowColor: '#235de933', shadowBlur: 12 },
             },
           },
-          edge: { type: 'polyline', style: { endArrow: true, endArrowSize: 7, lineWidth: 1.5, radius: 8 } },
+          edge: graphEdgeOptions(!!props.editable || props.positions !== undefined),
         });
         graph.on('node:click', nodeClick);
         graph.on('edge:click', selectEdge);
@@ -363,7 +386,10 @@ async function refresh(): Promise<void> {
         graph.on('aftertransform', syncZoom);
       }
       graph.resize(element.clientWidth, element.clientHeight);
-      graph.setOptions({ layout: layoutOptions() });
+      graph.setOptions({
+        layout: layoutOptions(),
+        edge: graphEdgeOptions(!!props.editable || props.positions !== undefined),
+      });
       graph.setData(clone(props.model.data));
       await graph.render();
       await syncPositions();

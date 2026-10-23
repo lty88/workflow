@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>流程边界与节点规则 · 交互评审</title>
+    <link rel="stylesheet" href="node-rules.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div>
+        <span class="eyebrow">WORKFLOW DESIGN REVIEW</span>
+        <h1>让流程从哪里开始，一眼就明白</h1>
+        <p>先分清系统边界、业务节点和必经规则，再设计审批顺序。</p>
+      </div>
+      <div class="header-actions">
+        <span class="prototype-tag">独立评审原型 · 不写入业务</span
+        ><a href="../docs/流程模板起止与必经节点交互设计.md">查看设计说明 ↗</a>
+      </div>
+    </header>
+    <main>
+      <section class="guide">
+        <span class="guide-symbol">↘</span>
+        <div>
+          <strong>默认从上往下读，切换横向后从左往右读。实际顺序看箭头。</strong>
+          <p>拖动只改变位置；修改前置、前插或后插才改变先后。“必经”表示必须办理，不代表必须位于第一步。</p>
+        </div>
+      </section>
+      <section class="workbench">
+        <aside class="library">
+          <h2>节点库</h2>
+          <p class="muted">先选择业务节点，再决定接入位置。</p>
+          <label for="placement">接入所选节点的</label
+          ><select id="placement">
+            <option value="after">之后 · 后插</option>
+            <option value="before">之前 · 前插</option>
+            <option value="parallel">旁边 · 并行</option>
+          </select>
+          <button data-add="approval" class="kind-card">
+            <span class="kind-icon blue">✓</span
+            ><span><strong>审批节点</strong><small>审核意见 · 全员通过</small></span
+            ><b>＋</b>
+          </button>
+          <button data-add="task" class="kind-card">
+            <span class="kind-icon green">▤</span
+            ><span><strong>办理任务</strong><small>资料、策划、印刷等办理</small></span
+            ><b>＋</b>
+          </button>
+          <button data-add="notice" class="kind-card">
+            <span class="kind-icon amber">i</span
+            ><span><strong>知会节点</strong><small>按时点通知 · 不阻断</small></span
+            ><b>＋</b>
+          </button>
+          <div class="legend">
+            <h3>先认清三个标记</h3>
+            <p><i class="dot system"></i>系统：自动触发、只读</p>
+            <p><i class="dot required"></i>必经：业务规则保护</p>
+            <p><i class="dot normal"></i>可配置：按活动需要编排</p>
+          </div>
+          <div class="library-note">“部门初审”是业务名称；“审批”是节点类型；“必经”是保护规则。</div>
+        </aside>
+        <section class="canvas-area">
+          <div class="canvas-toolbar">
+            <div class="toolbar-group">
+              <strong>审批模板</strong><span id="node-count" class="muted"></span>
+            </div>
+            <div class="toolbar-group">
+              <button id="minimal">最小流程</button><button id="example">完整示例</button
+              ><button id="undo">撤销</button><button id="check" class="primary">检查结构</button>
+            </div>
+          </div>
+          <div class="canvas-tools">
+            <div class="toolbar-group">
+              <button id="vertical" class="active">↓ 纵向</button><button id="horizontal">→ 横向</button
+              ><button id="arrange">自动排列 / 对齐</button>
+            </div>
+            <div class="toolbar-group">
+              <button id="zoom-out" aria-label="缩小">−</button><span id="zoom">100%</span
+              ><button id="zoom-in" aria-label="放大">＋</button><button id="fit">查看全图</button>
+            </div>
+          </div>
+          <div id="graph" tabindex="0" aria-label="流程设计画布，点击节点查看规则"></div>
+          <div class="canvas-hint">
+            <span>实线：办理依赖</span><span>虚线：知会，不阻断</span
+            ><span>选中普通节点后可删除；Ctrl / ⌘ Z 撤销</span>
+          </div>
+          <footer class="lifecycle">
+            <strong>审批结束后的活动闭环</strong>
+            <div>
+              <span>指派执行</span><i>→</i><span>活动执行</span><i>→</i><span>执行汇报</span><i>→</i
+              ><span>成果归档</span>
+            </div>
+            <small>审批通过还需要执行与归档，活动才形成完整闭环。</small>
+          </footer>
+        </section>
+        <aside id="inspector" class="inspector" aria-live="polite"></aside>
+      </section>
+      <section class="review-note">
+        <strong>本次设计先把当前规则说明白。</strong
+        ><span
+          >是否允许某类活动免部门初审、是否要求部门初审必须第一关，应作为公司级业务策略确认，再同步修改服务端规则。</span
+        >
+      </section>
+    </main>
+    <div id="feedback" class="feedback" role="status" hidden></div>
+    <script src="../apps/web/node_modules/@antv/g6/dist/g6.min.js"></script>
+    <script src="node-rules.js"></script>
+  </body>
+</html>

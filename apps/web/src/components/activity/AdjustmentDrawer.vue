@@ -5,7 +5,8 @@ import { NDrawer, NDrawerContent, NForm, NFormItem, NInput, NSelect, NButton, NA
 import type { Adjustment, WorkflowNode } from '@workflow/domain';
 import type { AdjustmentProps } from './types';
 import type { Directory } from '@/typings/api';
-import { adjustmentApi, directoryApi } from '@/api';
+import { adjustmentApi } from '@/api/activities';
+import { directoryApi } from '@/api/workspace';
 import { useFeedback } from '@/composables/use-feedback';
 const props = defineProps<AdjustmentProps>();
 const emit = defineEmits<{ 'update:show': [value: boolean]; done: [] }>();

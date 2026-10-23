@@ -141,7 +141,7 @@ export function organizationGraph(config: CompanyConfig, includeMembers = false)
 }
 
 /**
- * 将审批模板转换为有向依赖图，明确并行、条件和后续业务阶段。
+ * 将活动模板转换为有向依赖图，明确并行、条件、知会非阻断和后续阶段。
  * @param config 当前流程草案
  * @returns G6流程设计数据
  */
@@ -153,11 +153,25 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
       businessId: 'apply',
       kind: 'stage',
       label: '提交活动申请',
-      summary: '冻结表单和实际审批路线',
+      summary: '冻结表单和实际办理路线',
       tone: 'normal',
     }),
   ];
   const edges: EdgeData[] = [];
+  const parentCache = new Map<string, string[]>();
+  /**
+   * 透过知会节点找到阻断前置，用于识别真正需要汇合的叶子。
+   * @param id 模板节点标识
+   * @returns 必办前置节点标识
+   */
+  function blockingParents(id: string): string[] {
+    const cached = parentCache.get(id);
+    if (cached) return cached;
+    const node = findById(config.workflow.nodes, id)!;
+    const result = node.kind === 'notice' ? [...new Set(node.deps.flatMap(blockingParents))] : [id];
+    parentCache.set(id, result);
+    return result;
+  }
   for (const node of checked.order) {
     const assignee =
       node.assignee.type === 'manager'
@@ -192,7 +206,7 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
     visualNode('stage:approved', {
       businessId: 'approved',
       kind: 'stage',
-      label: '立项审批完成',
+      label: '流程办理完成',
       summary: '全部必办分支完成后汇合',
       tone: 'normal',
     }),
@@ -201,9 +215,12 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
     if (node.kind === 'notice') continue;
     let hasChild = false;
     for (const candidate of checked.order)
-      if (candidate.kind !== 'notice' && candidate.deps.includes(node.id)) hasChild = true;
+      if (candidate.kind !== 'notice' && candidate.deps.flatMap(blockingParents).includes(node.id))
+        hasChild = true;
     if (!hasChild) edges.push(edge('workflow:' + node.id, 'stage:approved'));
   }
+  if (!checked.order.some((node) => node.kind !== 'notice'))
+    edges.push(edge('stage:apply', 'stage:approved'));
   addStages(nodes, edges, 'stage:approved');
   return { data: { nodes, edges } };
 }
@@ -247,7 +264,7 @@ function addStages(nodes: NodeData[], edges: EdgeData[], from: string, status?: 
 /**
  * 将实际节点轮次、受理人和当前状态转换为G6审批进度图，默认显示本次申请。
  * @param detail 服务端流程详情
- * @param showHistory 是否叠加历史申请节点
+ * @param showHistory 是否叠加历史申请节点；纯知会通过虚线连接自动完成阶段
  * @returns 实际流程图
  */
 export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): BusinessGraphModel {
@@ -304,8 +321,8 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
       visualNode('stage:approved', {
         businessId: 'approved',
         kind: 'stage',
-        label: '立项审批完成',
-        summary: approved ? '审批已结束' : '等待全部必办分支',
+        label: '流程办理完成',
+        summary: approved ? '必办节点已结束' : '等待全部必办分支',
         tone: approved ? 'success' : 'normal',
       }),
     );
@@ -328,6 +345,8 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
           ),
         );
     }
+    if (current.length && current.every((node) => node.kind === 'notice'))
+      for (const node of current) edges.push(edge('runtime:' + node.id, 'stage:approved', true));
     addStages(nodes, edges, 'stage:approved', detail.activity.status);
     addException(nodes, edges, detail);
   }

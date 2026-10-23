@@ -13,6 +13,7 @@ const emit = defineEmits<{
   positions: [value: TemplateLayout['positions']];
   connect: [value: GraphConnection];
   disconnect: [value: GraphConnection];
+  remove: [];
   arrange: [];
   direction: [value: GraphDirection];
 }>();
@@ -27,14 +28,21 @@ const key = computed(() =>
     config: props.config.version,
   }),
 );
+const selectedKey = computed(() =>
+  props.selected.startsWith('stage:') ? props.selected : props.selected ? 'workflow:' + props.selected : '',
+);
 const selectedName = computed(() => {
+  if (props.selected === 'stage:apply') return '开始 · 提交申请';
+  if (props.selected === 'stage:approved') return '流程办理完成（系统）';
   for (const node of props.definition.nodes) if (node.id === props.selected) return node.label;
   return '';
 });
-const positionLabel = computed(
-  () => ({ before: '之前', after: '之后', parallel: '并行位置' })[props.position],
+const positionLabel = computed(() =>
+  props.selected === 'stage:apply'
+    ? '之后'
+    : { before: '之前', after: '之后', parallel: '并行位置' }[props.position],
 );
-/** 重建仅含可编辑节点的G6模型，纯布局移动不触发自动缩放。 */
+/** 重建含系统边界和业务节点的G6模型，纯布局移动不触发自动缩放。 */
 function rebuild(): void {
   model.value = templateEditorGraph({
     ...props.config,
@@ -47,9 +55,9 @@ function rebuild(): void {
  * @param value 图节点选择
  */
 function select(value: GraphSelection): void {
-  if (value.kind === 'workflow') {
+  if (value.kind === 'workflow' || value.kind === 'stage') {
     edge.value = null;
-    emit('select', value.id);
+    emit('select', value.kind === 'stage' ? value.graphId : value.id);
   }
 }
 /**
@@ -68,11 +76,16 @@ function selectEdge(value: GraphConnection): void {
   edge.value = value;
 }
 /**
- * 接受来自节点库的拖动，在整个画布显示明确插入提示。
+ * 接受节点库拖动，流程完成锚点禁止插入，其余位置显示插入提示。
  * @param event 原生拖过事件
  */
 function dragOver(event: DragEvent): void {
-  if (props.disabled || !props.selected || !event.dataTransfer?.types.includes('application/workflow-node'))
+  if (
+    props.disabled ||
+    props.selected === 'stage:approved' ||
+    !props.selected ||
+    !event.dataTransfer?.types.includes('application/workflow-node')
+  )
     return;
   event.preventDefault();
   event.dataTransfer.dropEffect = 'copy';
@@ -92,7 +105,7 @@ function dragLeave(event: DragEvent): void {
   dragging.value = false;
 }
 /**
- * 将节点放入选中节点的明确相对位置，不要求寻找画布外的狭小接入区。
+ * 将节点放入选中节点的明确相对位置，开始后新增首个业务节点，不要求寻找画布外的狭小接入区。
  * @param event 原生放置事件
  */
 function drop(event: DragEvent): void {
@@ -100,8 +113,13 @@ function drop(event: DragEvent): void {
   const kind = event.dataTransfer?.getData('application/workflow-node');
   if (!['approval', 'task', 'notice'].includes(kind || '')) return;
   event.preventDefault();
-  if (!props.disabled && props.selected && (kind === 'approval' || kind === 'task' || kind === 'notice'))
-    emit('insert', kind, props.position);
+  if (
+    !props.disabled &&
+    props.selected !== 'stage:approved' &&
+    props.selected &&
+    (kind === 'approval' || kind === 'task' || kind === 'notice')
+  )
+    emit('insert', kind, props.selected === 'stage:apply' ? 'after' : props.position);
 }
 /** 删除工具栏选中的业务依赖，父组件负责结构校验和撤销记录。 */
 function disconnect(): void {
@@ -126,7 +144,7 @@ watch(() => props.disabled, disabledChanged);
   <section
     class="template-canvas"
     :class="{ 'is-dragging': dragging }"
-    aria-label="审批流程编辑画布"
+    aria-label="活动流程编辑画布"
     @dragover="dragOver"
     @dragleave="dragLeave"
     @drop="drop"
@@ -134,14 +152,14 @@ watch(() => props.disabled, disabledChanged);
   >
     <BusinessGraph
       :model="model"
-      :selected-key="selected ? 'workflow:' + selected : ''"
+      :selected-key="selectedKey"
       fill
       hide-footer
       focus-on-select
       fit="readable"
       :node-width="280"
       :direction="definition.layout.direction"
-      label="审批流程设计画布"
+      label="活动流程设计画布"
       :editable="!disabled"
       :connect-mode="connectMode"
       :positions="definition.layout.positions"
@@ -158,10 +176,14 @@ watch(() => props.disabled, disabledChanged);
           :selected-name="selectedName"
           :position="position"
           :has-edge="!!edge"
+          :can-remove="canRemove"
+          :at-start="selected === 'stage:apply'"
+          :can-insert="selected !== 'stage:approved' && !!selected"
           @mode="connectMode = $event"
           @insert="insert"
           @arrange="emit('arrange')"
           @disconnect="disconnect"
+          @remove="emit('remove')"
           @direction="emit('direction', $event)"
       /></template>
     </BusinessGraph>
@@ -174,7 +196,7 @@ watch(() => props.disabled, disabledChanged);
     <footer class="canvas-status">
       <span v-if="connectMode">连线模式：依次点击前置节点、后续节点</span
       ><span v-else>100%清晰编辑 · 拖动空白平移 · 节点目录可快速定位</span
-      ><span>审批完成后 → 指派执行 → 执行汇报 → 成果归档</span>
+      ><span>流程完成后 → 指派执行 → 执行汇报 → 成果归档</span>
     </footer>
   </section>
 </template>

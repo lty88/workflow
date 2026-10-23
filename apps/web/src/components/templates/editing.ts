@@ -19,15 +19,22 @@ export function insertNode(
 ): { definition: TemplateDefinition; id: string } {
   const next = clone(definition);
   const anchor = findById(next.nodes, anchorId);
-  if (!anchor) throw new Error('请先选择参考节点');
+  const atStart = anchorId === 'stage:apply' || (!anchorId && !next.nodes.length);
+  if (!anchor && !atStart) throw new Error('请先选择业务节点或开始节点');
   if (next.nodes.length >= 80) throw new Error('每套模板最多80个节点');
   const added: NodeDefinition = {
     id: newId('n'),
     label: { approval: '新增专项审核', task: '新增协作任务', notice: '新增知会' }[kind],
     kind,
-    deps: position === 'after' ? [anchor.id] : [...anchor.deps],
+    deps: atStart ? [] : position === 'after' ? [anchor!.id] : [...anchor!.deps],
     assignee: kind === 'approval' ? { type: 'manager', value: '' } : { type: 'role', value: 'coordinator' },
   };
+  if (atStart) {
+    for (const node of next.nodes) if (!node.deps.length) node.deps = [added.id];
+    next.nodes.push(added);
+    return { definition: next, id: added.id };
+  }
+  if (!anchor) throw new Error('参考节点不存在');
   for (const child of next.nodes) {
     if (child.id === anchor.id || !child.deps.includes(anchor.id)) continue;
     const deps: string[] = [];
@@ -41,6 +48,17 @@ export function insertNode(
 }
 
 /**
+ * 判断模板中的节点是否允许删除，系统起止锚点不属于可删除的业务节点。
+ * @param definition 当前流程模板
+ * @param id 待删除节点标识
+ * @returns 业务节点存在时为真，旧版默认保护标记不再限制模板编辑
+ */
+export function canRemoveNode(definition: TemplateDefinition, id: string): boolean {
+  const node = findById(definition.nodes, id);
+  return !!node;
+}
+
+/**
  * 删除可选节点并让后继继承其前置，同时移除坐标引用。
  * @param definition 当前模板
  * @param id 删除节点标识
@@ -49,7 +67,7 @@ export function insertNode(
 export function removeNode(definition: TemplateDefinition, id: string): TemplateDefinition {
   const next = clone(definition);
   const removed = findById(next.nodes, id);
-  if (!removed || removed.protected) throw new Error('必要审核节点不能删除');
+  if (!removed) throw new Error('节点不存在，无法删除');
   const kept: NodeDefinition[] = [];
   for (const node of next.nodes) {
     if (node.id === id) continue;

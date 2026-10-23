@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useElementBounding, useEventListener, useMediaQuery, useWindowSize } from '@vueuse/core';
 import { NAlert, NDrawer, NDrawerContent } from 'naive-ui';
 import { findById, topological } from '@workflow/domain';
@@ -9,13 +9,16 @@ import type { GraphDirection } from '@/components/graph/types';
 import { clone } from '@/composables/format';
 import { useFeedback } from '@/composables/use-feedback';
 import { useGraphExpansion } from '@/components/graph/use-graph-expansion';
-import { changeConnection, insertNode, removeNode } from './editing';
+import { canRemoveNode, changeConnection, insertNode, removeNode } from './editing';
+import { isNodeDeleteShortcut } from './keyboard';
 import TemplateEditorHeader from './TemplateEditorHeader.vue';
 import TemplateNodePalette from './TemplateNodePalette.vue';
 import TemplateSettingsPanel from './TemplateSettingsPanel.vue';
 import TemplateCanvas from './TemplateCanvas.vue';
 import TemplateNodeInspector from './TemplateNodeInspector.vue';
 import TemplateSimulation from './TemplateSimulation.vue';
+import TemplateSystemInspector from './TemplateSystemInspector.vue';
+import TemplateFlowGuide from './TemplateFlowGuide.vue';
 const props = defineProps<TemplateDesignerProps>();
 const emit = defineEmits<{
   'update:modelValue': [value: TemplateDefinition];
@@ -40,10 +43,11 @@ const settingsOpen = ref(false);
 const simulationOpen = ref(false);
 const inspectorDirty = ref(false);
 const position = ref<InsertPosition>('after');
-const selected = ref(props.modelValue.nodes[0]?.id || '');
+const selected = ref(props.modelValue.nodes[0]?.id || 'stage:apply');
 const past = ref<TemplateDefinition[]>([]);
 const future = ref<TemplateDefinition[]>([]);
 const selectedNode = computed(() => findById(props.modelValue.nodes, selected.value) || null);
+const canRemove = computed(() => canRemoveNode(props.modelValue, selected.value));
 const paletteOpen = computed(() => paletteOverride.value ?? (expanded.value || !compact.value));
 const disabled = computed(() => props.busy || mobile.value);
 const frameHeight = computed(() =>
@@ -51,6 +55,11 @@ const frameHeight = computed(() =>
     ? '100dvh'
     : Math.max(560, Math.min(960, windowHeight.value - Math.max(100, top.value) - 20)) + 'px',
 );
+/** 首次挂载新建草稿的设计器时进入页内全屏，复用滚动锁、焦点和退出逻辑。 */
+async function expandOnEntry(): Promise<void> {
+  if (props.initialExpanded && !mobile.value && !expanded.value) await toggleExpanded();
+}
+onMounted(expandOnEntry);
 /**
  * 记录有限撤销历史并更新模板定义，不修改已有活动的流程快照。
  * @param value 新草稿定义
@@ -63,7 +72,7 @@ function apply(value: TemplateDefinition): void {
   emit('update:modelValue', value);
 }
 /**
- * 校验并应用属性表单，拒绝无效名称、环路及必要审核降级。
+ * 校验并应用属性表单，拒绝无效名称和环路，节点类型与受理规则按模板配置。
  * @param node 编辑后的节点
  * @returns 是否成功应用属性
  */
@@ -78,19 +87,7 @@ function applyNode(node: NodeDefinition): boolean {
     inspectorOpen.value = true;
     return false;
   }
-  const previous = next.nodes[index]!;
-  if (
-    previous.protected &&
-    (node.kind !== 'approval' ||
-      !node.protected ||
-      node.condition ||
-      node.assignee.type !== previous.assignee.type ||
-      node.assignee.value !== previous.assignee.value)
-  ) {
-    feedback.failure(new Error('必须保留必要审核及受理规则'));
-    inspectorOpen.value = true;
-    return false;
-  }
+  delete node.protected;
   next.nodes[index] = clone(node);
   const checked = topological(next.nodes);
   if (checked.error) {
@@ -112,17 +109,25 @@ async function flushNode(): Promise<boolean> {
   await nextTick();
   return true;
 }
+/** 将键盘焦点移回画布，使节点选择或新增后可以直接使用删除快捷键。 */
+function focusCanvas(): void {
+  root.value?.querySelector<HTMLElement>('.graph-canvas')?.focus({ preventScroll: true });
+}
+
 /**
  * 切换参考节点并展开属性，保留原节点尚未应用的有效输入。
  * @param id 目标节点标识
  */
 async function selectNode(id: string): Promise<void> {
   if (props.busy || !(await flushNode())) return;
+  inspectorDirty.value = false;
   selected.value = id;
   inspectorOpen.value = true;
+  await nextTick();
+  focusCanvas();
 }
 /**
- * 在选中节点周围新增审批、任务或知会，并将新节点定位到可编辑状态。
+ * 在选中业务节点周围或系统开始之后新增审批、任务或知会，并将新节点定位到可编辑状态。
  * @param kind 新节点类型
  * @param placement 接入方向，默认使用节点库当前选择
  */
@@ -132,11 +137,14 @@ async function insert(
 ): Promise<void> {
   if (disabled.value || !(await flushNode())) return;
   try {
+    placement = selected.value === 'stage:apply' ? 'after' : placement;
     position.value = placement;
     const result = insertNode(props.modelValue, selected.value, kind, placement);
     apply({ ...result.definition, layout: { ...result.definition.layout, positions: {} } });
     selected.value = result.id;
     inspectorOpen.value = true;
+    await nextTick();
+    focusCanvas();
   } catch (error) {
     feedback.failure(error);
   }
@@ -146,11 +154,13 @@ async function insert(
  * @param id 节点标识
  */
 function remove(id: string): void {
-  if (disabled.value) return;
+  if (disabled.value || !canRemoveNode(props.modelValue, id)) return;
   try {
     const next = removeNode(props.modelValue, id);
     apply(next);
-    selected.value = next.nodes[0]?.id || '';
+    inspectorDirty.value = false;
+    selected.value = next.nodes[0]?.id || 'stage:apply';
+    void nextTick(focusCanvas);
   } catch (error) {
     feedback.failure(error);
   }
@@ -225,19 +235,31 @@ function notifyPending(value: boolean): void {
   emit('pending', value);
 }
 /**
- * 输入框保持原生撤销，画布区域支持保存、撤销和重做快捷键。
+ * 画布支持删除、保存和撤销重做；输入控件保留原生删除，节点删除可撤销。
  * @param event 工作台键盘事件
  */
 function keyboard(event: KeyboardEvent): void {
-  if (event.defaultPrevented || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+  if (event.defaultPrevented || event.isComposing) return;
+  const editingText =
+    event.target instanceof Element &&
+    !!event.target.closest(
+      'input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="combobox"],[role="listbox"]',
+    );
+  if (isNodeDeleteShortcut(event, editingText)) {
+    if (disabled.value || settingsOpen.value || simulationOpen.value || !canRemove.value) return;
+    event.preventDefault();
+    event.stopPropagation();
+    remove(selected.value);
+    return;
+  }
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
   const key = event.key.toLowerCase();
   if (key === 's') {
     event.preventDefault();
     void requestCommand('save');
     return;
   }
-  if (event.target instanceof HTMLElement && event.target.closest('input,textarea,[contenteditable="true"]'))
-    return;
+  if (editingText) return;
   if (key === 'z') {
     event.preventDefault();
     if (event.shiftKey) redo();
@@ -246,7 +268,8 @@ function keyboard(event: KeyboardEvent): void {
 }
 /** 节点因撤销被移除时回到首个节点，保持画布与属性面板一致。 */
 function ensureSelection(): void {
-  if (!findById(props.modelValue.nodes, selected.value)) selected.value = props.modelValue.nodes[0]?.id || '';
+  if (!selected.value.startsWith('stage:') && !findById(props.modelValue.nodes, selected.value))
+    selected.value = props.modelValue.nodes[0]?.id || 'stage:apply';
 }
 watch(inspectorDirty, notifyPending);
 watch(() => props.modelValue.nodes, ensureSelection);
@@ -306,6 +329,7 @@ useEventListener(root, 'keydown', keyboard);
           class="designer-errors"
           ><div v-for="error in errors" :key="error">{{ error }}</div></NAlert
         >
+        <TemplateFlowGuide :nodes="modelValue.nodes" />
         <div class="designer-columns">
           <TemplateNodePalette
             :nodes="modelValue.nodes"
@@ -319,12 +343,14 @@ useEventListener(root, 'keydown', keyboard);
           />
           <TemplateCanvas
             :definition="modelValue"
+            :can-remove="canRemove"
             :config="config"
             :selected="selected"
             :position="position"
             :disabled="disabled"
             @select="selectNode"
             @insert="insert"
+            @remove="remove(selected)"
             @positions="positions"
             @connect="updateConnection"
             @disconnect="updateConnection($event, true)"
@@ -332,6 +358,7 @@ useEventListener(root, 'keydown', keyboard);
             @direction="direction"
           />
           <TemplateNodeInspector
+            v-if="selectedNode"
             v-show="inspectorOpen"
             ref="inspector"
             :node="selectedNode"
@@ -341,6 +368,13 @@ useEventListener(root, 'keydown', keyboard);
             @apply="applyNode"
             @remove="remove"
             @dirty="inspectorDirty = $event"
+          />
+          <TemplateSystemInspector
+            v-else
+            v-show="inspectorOpen"
+            :start="selected !== 'stage:approved'"
+            :disabled="disabled"
+            @add="insert($event, 'after')"
           />
         </div>
       </section>

@@ -3,10 +3,18 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useMediaQuery } from '@vueuse/core';
 import { NButton, NDrawer, NDrawerContent, NBadge, NEmpty, NTag, NSpin } from 'naive-ui';
-import { notificationsApi, readNotificationApi } from '@/api';
+import { notificationsApi, readNotificationApi } from '@/api/notifications';
 import type { Notification } from '@/typings/api';
 import type { PageDefinition } from '@workflow/domain';
-import { workspaceNavigation, menuDestination } from './navigation';
+import {
+  APP_PATHS,
+  activityDestination,
+  workspaceNavigation,
+  menuDestination,
+  isMenuActive,
+  isModulePath,
+  navigationTitle,
+} from '@/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useConfigStore } from '@/stores/config';
 import { useFeedback } from '@/composables/use-feedback';
@@ -26,16 +34,7 @@ const navigationMenus = computed(() => workspaceNavigation(auth.profile?.menus |
 const configurationFallback = computed(
   () => auth.can('config:manage') && !navigationMenus.value.some(isConfigurationPage),
 );
-const activePage = computed(() => navigationMenus.value.find(matchesPage));
-const title = computed(() =>
-  route.path.startsWith('/settings')
-    ? '配置中心'
-    : route.path.startsWith('/activities')
-      ? '活动详情'
-      : route.path === '/account'
-        ? '账号安全'
-        : activePage.value?.name || '工作台',
-);
+const title = computed(() => navigationTitle(route.path, navigationMenus.value));
 /**
  * 判断站内消息是否未读。
  * @param item 消息
@@ -50,10 +49,7 @@ function isUnread(item: Notification): boolean {
  * @returns 是否当前页
  */
 function matchesPage(item: PageDefinition): boolean {
-  return (
-    route.path === '/workspace/' + item.id ||
-    (item.component === 'config_overview' && route.path.startsWith('/settings'))
-  );
+  return isMenuActive(item, route.path);
 }
 /**
  * 识别已有的配置中心导航，防止再次追加固定入口。
@@ -109,7 +105,7 @@ async function openMessage(item: Notification): Promise<void> {
     await readNotificationApi(item.id);
     item.readAt = new Date().toISOString();
     messagesOpen.value = false;
-    await router.push('/activities/' + item.activityId);
+    await router.push(activityDestination(item.activityId));
   } catch (error) {
     feedback.failure(error);
   }
@@ -121,17 +117,17 @@ async function signOut(): Promise<void> {
   try {
     await auth.signOut();
     configuration.reset();
-    await router.replace('/login');
+    await router.replace(APP_PATHS.login);
   } catch (error) {
     feedback.failure(error);
   }
 }
 </script>
 <template>
-  <RouterView v-if="route.path === '/login'" />
+  <RouterView v-if="route.path === APP_PATHS.login" />
   <div v-else class="app-shell">
     <aside v-if="!mobile" class="sidebar">
-      <RouterLink to="/" class="brand"
+      <RouterLink :to="APP_PATHS.home" class="brand"
         ><span class="brand-symbol">流</span
         ><span>活动流程<span class="brand-sub">WORKFLOW · ERP</span></span></RouterLink
       >
@@ -152,9 +148,9 @@ async function signOut(): Promise<void> {
         ><template v-if="configurationFallback"
           ><div class="nav-group">系统管理</div>
           <RouterLink
-            to="/settings"
+            :to="APP_PATHS.settings"
             class="nav-item"
-            :class="{ selected: route.path.startsWith('/settings') }"
+            :class="{ selected: isModulePath(route.path, APP_PATHS.settings) }"
             ><span class="nav-dot" />配置中心</RouterLink
           ></template
         >
@@ -172,7 +168,7 @@ async function signOut(): Promise<void> {
         </div>
         <div class="topbar-actions">
           <NBadge :value="unread" :max="99"><NButton quaternary @click="openMessages">消息</NButton></NBadge
-          ><RouterLink to="/account" class="account"
+          ><RouterLink :to="APP_PATHS.account" class="account"
             ><span class="avatar">{{ auth.profile?.user.name.slice(0, 1) }}</span
             ><span class="desktop-only">{{ auth.profile?.user.name }}</span></RouterLink
           ><NButton quaternary size="small" @click="signOut">退出</NButton>
@@ -188,7 +184,7 @@ async function signOut(): Promise<void> {
         <RouterLink v-for="page in navigationMenus" :key="page.id" :to="menuDestination(page)">{{
           page.name
         }}</RouterLink
-        ><RouterLink v-if="configurationFallback" to="/settings">配置中心</RouterLink>
+        ><RouterLink v-if="configurationFallback" :to="APP_PATHS.settings">配置中心</RouterLink>
       </nav></NDrawerContent
     ></NDrawer
   >

@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { computed, ref, watch } from 'vue';
 import { NAlert, NFormItem, NSelect, NTag } from 'naive-ui';
+import { templateExecutionSummary } from '@workflow/domain';
 import type { TemplateSelectorProps } from './types';
 import type { TemplateSelection, TemplateSummary } from '@workflow/domain';
 const props = defineProps<TemplateSelectorProps>();
@@ -10,6 +11,9 @@ const typeOptions = computed(() => props.types.map(typeOption));
 const candidates = computed(() => props.templates.filter(matchesType));
 const options = computed(() => candidates.value.map(templateOption));
 const selected = computed(() => props.templates.find(matchesSelection));
+const execution = computed(() =>
+  selected.value ? templateExecutionSummary(selected.value.definition.nodes) : null,
+);
 /**
  * 将活动类型转成下拉选项。
  * @param item 活动类型
@@ -92,7 +96,7 @@ watch(() => props.templates, initialize, { immediate: true });
         placeholder="请选择活动类型"
         @update:value="changeType"
     /></NFormItem>
-    <NFormItem label="审批流程模板" required
+    <NFormItem label="活动流程模板" required
       ><NSelect
         :value="modelValue?.templateId || null"
         :options="options"
@@ -105,6 +109,13 @@ watch(() => props.templates, initialize, { immediate: true });
     >
     <div v-if="selected" class="template-summary">
       <NTag type="info" :bordered="false">{{ selected.definition.name }} · V{{ selected.version }}</NTag>
+      <NAlert
+        v-if="execution"
+        :type="execution.approvals ? 'info' : 'warning'"
+        :bordered="false"
+        class="execution-hint"
+        >{{ execution.message }}</NAlert
+      >
       <p>
         本模板共{{
           selected.definition.nodes.length
@@ -122,6 +133,9 @@ watch(() => props.templates, initialize, { immediate: true });
 .template-summary,
 .template-selection > .n-alert {
   grid-column: 1/-1;
+}
+.execution-hint {
+  margin-top: 12px;
 }
 .template-summary p {
   font-size: 13px;

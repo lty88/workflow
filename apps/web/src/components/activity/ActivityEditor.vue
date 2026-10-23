@@ -1,10 +1,11 @@
 <script setup lang="tsx">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { activityDestination } from '@/navigation';
 import { NAlert, NButton, NCard, NSteps, NStep, NSpin, NEmpty, NTag } from 'naive-ui';
 import { defaultValues } from '@workflow/domain';
 import type { ActivityDetail, WorkflowPreview } from '@/typings/api';
-import { activityApi, saveDraftApi, submitApi } from '@/api';
+import { activityApi, saveDraftApi, submitApi } from '@/api/activities';
 import { templatePreviewApi } from '@/api/templates';
 import { useAuthStore } from '@/stores/auth';
 import { useFeedback } from '@/composables/use-feedback';
@@ -232,7 +233,7 @@ async function submit(): Promise<void> {
     submission.value = null;
     feedback.success('申请已提交，审批任务已生成');
     emit('submitted');
-    await router.push('/activities/' + id);
+    await router.push(activityDestination(id));
   } catch (error) {
     if (error instanceof ApiError && error.status >= 400 && error.status < 500) submission.value = null;
     await recoverTemplate(error);

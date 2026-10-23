@@ -288,6 +288,7 @@ export function registerTemplateRoutes(app: FastifyInstance, pool: Pool): void {
       templateContext(config, body.definition, config.form),
       { ...defaultValues(config.form), ...body.payload },
       body.applicant,
+      { requireApproval: false },
     );
     if (!canSelectTemplate(config, body.applicant, body.definition))
       plan.errors.push('选中的申请人不在此模板授权范围内');

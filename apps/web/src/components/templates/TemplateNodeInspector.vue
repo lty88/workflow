@@ -22,6 +22,13 @@ const props = defineProps<NodeInspectorProps>();
 const emit = defineEmits<{ apply: [node: NodeDefinition]; remove: [id: string]; dirty: [value: boolean] }>();
 const editing = ref<NodeDefinition | null>(null);
 const options = computed(() => props.nodes.filter(other).map(option));
+const typeDescription = computed(() =>
+  editing.value?.kind === 'approval'
+    ? '审批：审核人决定通过、退回或拒绝。多人受理时全员通过；首节点也可改成任务或知会。'
+    : editing.value?.kind === 'task'
+      ? '任务：受理人提交办理结果，多人全部完成后继续。请为受理人配置任务办理权限。'
+      : '知会：到达时点后自动发送通知，不需要确认完成，不阻断后续节点。',
+);
 const dirty = computed(() => JSON.stringify(editing.value) !== JSON.stringify(props.node));
 /**
  * 排除当前节点作为自身前置。
@@ -83,7 +90,7 @@ defineExpose({ draft });
             ><NFormItem label="节点类型"
               ><NSelect
                 v-model:value="editing.kind"
-                :disabled="disabled || editing.protected"
+                :disabled="disabled"
                 :options="[
                   { label: '审批 · 全员通过', value: 'approval' },
                   { label: '办理任务 · 全员完成', value: 'task' },
@@ -97,12 +104,10 @@ defineExpose({ draft });
                 filterable
                 :options="options"
                 placeholder="不选表示提交后直接进入" /></NFormItem
-            ><NAlert v-if="editing.protected" type="info" class="mb"
-              >必要部门初审：保持部门负责人受理，始终进入。</NAlert
-            ><template v-else
-              ><AssigneeEditor v-model="editing.assignee" :config="config" /><ConditionEditor
-                v-model="editing.condition"
-                :fields="config.form.fields" /></template></NTabPane
+            ><NAlert type="info" :bordered="false" class="mb">{{ typeDescription }}</NAlert
+            ><AssigneeEditor v-model="editing.assignee" :config="config" /><ConditionEditor
+              v-model="editing.condition"
+              :fields="config.form.fields" /></NTabPane
           ><NTabPane name="security" tab="数据权限"
             ><NodeAccessEditor v-model="editing" :config="config" :disabled="disabled" /></NTabPane
         ></NTabs>
@@ -113,7 +118,7 @@ defineExpose({ draft });
       <p>保存或切换节点前会自动应用当前属性。</p>
       <div class="gap">
         <NButton type="primary" :disabled="disabled || !dirty" @click="apply">应用修改</NButton
-        ><NPopconfirm v-if="!editing.protected" @positive-click="emit('remove', editing.id)"
+        ><NPopconfirm @positive-click="emit('remove', editing.id)"
           ><template #trigger><NButton type="error" ghost :disabled="disabled">删除</NButton></template
           >删除后后继节点继承原前置。</NPopconfirm
         >

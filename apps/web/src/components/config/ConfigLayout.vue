@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { NAlert, NButton, NCard, NPopconfirm, NSpin, NTag } from 'naive-ui';
 import { validateConfig } from '@workflow/domain';
+import { SETTINGS_TABS } from '@/navigation';
 import type { ConfigSlot } from './types';
 import { useConfigStore } from '@/stores/config';
 import { useAuthStore } from '@/stores/auth';
@@ -15,14 +16,7 @@ const errorText = ref('');
 const props = defineProps<{ independent?: boolean }>();
 defineSlots<{ default(props: ConfigSlot): unknown }>();
 const validation = computed(() => (!props.independent && store.draft ? validateConfig(store.draft) : []));
-const tabs = [
-  { path: '/settings', name: '配置概览' },
-  { path: '/settings/forms', name: '动态表单' },
-  { path: '/settings/workflow', name: '流程模板' },
-  { path: '/settings/organization', name: '组织架构' },
-  { path: '/settings/permissions', name: '角色权限' },
-  { path: '/settings/menus', name: '菜单页面' },
-];
+
 /**
  * 读取配置；跨配置页切换时保留同一份未保存草案。
  */
@@ -90,7 +84,7 @@ onMounted(initialize);
     </div>
     <nav class="config-tabs">
       <RouterLink
-        v-for="tab in tabs"
+        v-for="tab in SETTINGS_TABS"
         :key="tab.path"
         :to="tab.path"
         :class="{ 'router-link-exact-active': route.path === tab.path }"

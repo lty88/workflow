@@ -83,17 +83,24 @@ export function resolveAssignees(
   return { ids: [...new Set(ids)], errors };
 }
 
+export interface WorkflowValidationOptions {
+  /** 旧版公司流程保留至少一个审核要求，独立模板允许任务或知会流程。 */
+  requireApproval?: boolean;
+}
+
 /**
  * 按提交内容固定模板分支与来源标识，条件跳过时继承原前置。
  * @param config 提交时配置
  * @param payload 净化表单内容
  * @param applicant 申请人
+ * @param options 当前流程是否要求至少一个审核节点
  * @returns 实例节点和错误
  */
 export function instantiateWorkflow(
   config: CompanyConfig,
   payload: Record<string, string>,
   applicant: string,
+  options: WorkflowValidationOptions = {},
 ): { nodes: WorkflowNode[]; errors: string[] } {
   const checked = topological(config.workflow.nodes);
   if (checked.error) return { nodes: [], errors: [checked.error] };
@@ -160,12 +167,14 @@ export function instantiateWorkflow(
           if (!canReadActivity(config, id, prospective))
             errors.push(`${node.label}：受理人数据范围不覆盖本活动`);
     }
-  if (!approvals) errors.push('至少需要一个生效审核节点');
+  if (options.requireApproval !== false && !approvals) errors.push('至少需要一个生效审核节点');
+  if (!nodes.some((node) => node.status !== 'skipped'))
+    errors.push('当前条件下没有生效流程节点，请调整模板或条件');
   return { nodes, errors: [...new Set(errors)] };
 }
 
 /**
- * 激活所有前置满足的节点并创建个人待办，已有有效任务不重复创建。
+ * 激活前置满足的节点；审批与任务创建待办，知会自动完成并保留通知投递记录。
  * @param activity 事务内活动实例
  * @returns 新创建的个人任务
  */
@@ -177,7 +186,7 @@ export function advanceWorkflow(activity: Activity): WorkflowTask[] {
     let ready = true;
     for (const id of node.deps) if (findById(activity.nodes, id)?.status !== 'completed') ready = false;
     if (!ready) continue;
-    node.status = 'active';
+    node.status = node.kind === 'notice' ? 'completed' : 'active';
     for (const assignee of node.assignees) {
       let exists = false;
       for (const task of activity.tasks)
@@ -195,7 +204,7 @@ export function advanceWorkflow(activity: Activity): WorkflowTask[] {
         nodeId: node.id,
         generation: node.generation,
         assignee,
-        status: 'pending',
+        status: node.kind === 'notice' ? 'completed' : 'pending',
         version: 1,
         comment: '',
         createdAt: new Date().toISOString(),

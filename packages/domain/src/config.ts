@@ -4,12 +4,18 @@ import { topological } from './workflow';
 import { amountFen } from './forms';
 import { validateDataAccessRule } from './data-access';
 
+export interface ConfigValidationOptions {
+  /** 旧版公司流程默认需要必要审核，独立模板按自定义节点校验。 */
+  requireProtectedApproval?: boolean;
+}
+
 /**
  * 检查配置引用、组织有效性与必要业务门槛。
  * @param config 待发布配置
+ * @param options 是否沿用旧版公司流程的必要审核要求
  * @returns 可展示的结构错误
  */
-export function validateConfig(config: CompanyConfig): string[] {
+export function validateConfig(config: CompanyConfig, options: ConfigValidationOptions = {}): string[] {
   const errors: string[] = [];
   for (const list of [
     config.departments,
@@ -125,7 +131,7 @@ export function validateConfig(config: CompanyConfig): string[] {
     if (node.assignee.type === 'user' && !activeMember(config, node.assignee.value))
       errors.push(`${node.label}受理员工无效`);
   }
-  if (!protectedCount) errors.push('至少保留一个必要审核节点');
+  if (options.requireProtectedApproval !== false && !protectedCount) errors.push('至少保留一个必要审核节点');
   const names = new Set<string>();
   let admins = 0;
   for (const user of config.users) {

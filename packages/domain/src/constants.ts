@@ -40,7 +40,7 @@ export const SCOPES: Record<Scope, string> = {
 };
 export const STATUSES: Record<ActivityStatus, string> = {
   draft: '草稿',
-  approving: '审批中',
+  approving: '流程办理中',
   needs_info: '待补充',
   withdrawn: '已撤回',
   rejected: '已拒绝',

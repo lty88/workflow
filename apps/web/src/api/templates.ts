@@ -7,7 +7,7 @@ import type {
   WorkflowTemplate,
 } from '@/typings/api/templates';
 import type { WorkflowPreview } from '@/typings/api';
-import type { ActivityType } from '@workflow/domain';
+import type { ActivityType, NodeDefinition } from '@workflow/domain';
 import { mutation, request } from './http';
 
 /** 读取当前申请人可选择的发布模板与冻结表单。
@@ -31,10 +31,15 @@ export function templateCatalogueApi(): Promise<TemplateCatalogue> {
 /** 创建独立模板草稿，网络重试复用幂等键。
  * @param code 新模板编码
  * @param sourceId 可选复制源
+ * @param firstNodeKind 无复制源时使用的首个业务节点类型
  * @returns 新模板
  */
-export function createTemplateApi(code: string, sourceId?: string): Promise<WorkflowTemplate> {
-  return mutation('/admin/workflow-templates', { code, ...(sourceId ? { sourceId } : {}) });
+export function createTemplateApi(
+  code: string,
+  sourceId?: string,
+  firstNodeKind: NodeDefinition['kind'] = 'approval',
+): Promise<WorkflowTemplate> {
+  return mutation('/admin/workflow-templates', { code, ...(sourceId ? { sourceId } : { firstNodeKind }) });
 }
 /** 保存模板草稿并检查草稿版本。
  * @param id 模板标识

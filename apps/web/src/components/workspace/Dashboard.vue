@@ -1,10 +1,11 @@
 <script setup lang="tsx">
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
+import { activityDestination, menuDestination } from '@/navigation';
 import { NAlert, NButton, NCard, NEmpty, NSpin, NTag } from 'naive-ui';
 import { STATUSES } from '@workflow/domain';
 import type { ActivityListItem } from '@/typings/api';
-import { activitiesApi } from '@/api';
+import { activitiesApi } from '@/api/activities';
 import { useAuthStore } from '@/stores/auth';
 import { useFeedback } from '@/composables/use-feedback';
 import { formatTime } from '@/composables/format';
@@ -77,7 +78,7 @@ onMounted(load);
             <RouterLink
               v-for="item in recent"
               :key="item.id"
-              :to="'/activities/' + item.id"
+              :to="activityDestination(item.id)"
               class="config-item"
               ><div>
                 <strong style="color: #35445e">{{ item.name || '未命名草稿' }}</strong
@@ -92,7 +93,7 @@ onMounted(load);
         /></NCard>
         <div class="stack">
           <NCard title="快捷入口"
-            ><RouterLink v-for="link in links" :key="link.id" :to="'/workspace/' + link.id" class="quick-link"
+            ><RouterLink v-for="link in links" :key="link.id" :to="menuDestination(link)" class="quick-link"
               ><span>{{
                 link.component === 'activity_form' ? '＋' : link.component === 'task_list' ? '✓' : '▤'
               }}</span>

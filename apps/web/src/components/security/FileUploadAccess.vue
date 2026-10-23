@@ -4,7 +4,7 @@ import { NAlert, NCollapse, NCollapseItem, NSpin } from 'naive-ui';
 import type { DataAccessRule } from '@workflow/domain';
 import type { FileUploadAccessProps } from './types';
 import type { Directory } from '@/typings/api';
-import { directoryApi } from '@/api';
+import { directoryApi } from '@/api/workspace';
 import AccessRuleEditor from './AccessRuleEditor.vue';
 const props = defineProps<FileUploadAccessProps>();
 const emit = defineEmits<{ 'update:modelValue': [value: FileUploadAccessProps['modelValue']] }>();

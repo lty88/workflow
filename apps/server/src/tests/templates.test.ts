@@ -103,7 +103,7 @@ function defaultsCase(): void {
 }
 test('默认推荐冲突能识别上级部门范围重叠', defaultsCase);
 
-/** 核对不合法条件、自环与必要审核缺失均无法通过发布校验。 */
+/** 核对无效条件与环路无法发布，普通首节点无需强制部门初审。 */
 function invalidCase(): void {
   const config = seedConfig();
   const original = initialTemplates(config)[0]!.definition;
@@ -112,7 +112,7 @@ function invalidCase(): void {
   expect(validateTemplate(config, cycle, INITIAL_ACTIVITY_TYPES).join('')).toContain('循环');
   const missing = structuredClone(original);
   missing.nodes[0]!.protected = false;
-  expect(validateTemplate(config, missing, INITIAL_ACTIVITY_TYPES).join('')).toContain('部门');
+  expect(validateTemplate(config, missing, INITIAL_ACTIVITY_TYPES)).toEqual([]);
   const condition = structuredClone(original);
   condition.nodes[1]!.condition = { field: 'delivery_mode', operator: 'eq', value: '不存在的举办方式' };
   expect(validateTemplate(config, condition, INITIAL_ACTIVITY_TYPES).join('')).toContain('选项');
@@ -120,7 +120,7 @@ function invalidCase(): void {
   owner.nodes[1]!.assignee = { type: 'user', value: 'u-su' };
   expect(validateTemplate(config, owner, INITIAL_ACTIVITY_TYPES).join('')).toContain('权限');
 }
-test('模板发布拒绝循环、缺失必要审核、无效条件和无审批资格受理人', invalidCase);
+test('模板发布允许普通首节点，拒绝循环、无效条件和无资格受理人', invalidCase);
 
 /** 核对前后插与并行新增正确重接依赖，删除继承前置，且不改变源模板。 */
 function editingCase(): void {

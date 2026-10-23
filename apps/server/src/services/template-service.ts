@@ -2,6 +2,8 @@ import type { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import type { z } from 'zod';
 import {
   activityActions,
+  editableTemplateDefinition,
+  firstTemplateNode,
   preserveFormAccess,
   mergeWritablePayload,
   applicantForm,
@@ -170,6 +172,7 @@ export async function previewTemplate(
       templateContext(config, release.definition, form),
       checked.payload,
       actor,
+      { requireApproval: false },
     );
     const participants = [];
     const seen = new Set<string>();
@@ -293,7 +296,7 @@ async function auditTemplate(
 }
 
 /**
- * 从必要部门初审或现有模板创建独立草稿，限制模板目录规模。
+ * 按可选首节点类型或已有模板创建独立可编辑草稿，限制模板目录规模。
  * @param pool 数据库连接池
  * @param actor 管理员
  * @param body 新编码与可选复制源
@@ -322,22 +325,13 @@ export async function createTemplate(
       defaultForTypeIds: [],
       departmentIds: [],
       roleIds: [],
-      nodes: [
-        {
-          id: 'n-department',
-          label: '部门初审',
-          kind: 'approval',
-          deps: [],
-          assignee: { type: 'manager', value: '' },
-          protected: true,
-        },
-      ],
+      nodes: [firstTemplateNode(body.firstNodeKind || 'approval')],
       layout: { direction: 'TB', positions: {} },
     };
     if (body.sourceId) {
       const source = await loadTemplate(db, body.sourceId);
       ensure(source, 404, 'NOT_FOUND', '复制源模板不存在');
-      Object.assign(definition, structuredClone(source.published || source.draft));
+      Object.assign(definition, editableTemplateDefinition(source.published || source.draft));
       definition.name = definition.name.slice(0, 74) + '（副本）';
       definition.defaultForTypeIds = [];
     }
@@ -375,7 +369,7 @@ export async function saveTemplate(
     await editableTemplate(db, id, body.expectedDraftRevision);
     await db.execute(
       'UPDATE workflow_templates SET draft=?,draft_revision=draft_revision+1,updated_at=UTC_TIMESTAMP(3) WHERE id=?',
-      [JSON.stringify(body.definition), id],
+      [JSON.stringify(editableTemplateDefinition(body.definition)), id],
     );
     await auditTemplate(db, actor, id, '保存流程模板草稿', { revision: body.expectedDraftRevision + 1 });
     return (await loadTemplate(db, id))!;
@@ -390,7 +384,7 @@ export async function saveTemplate(
 }
 
 /**
- * 发布不可变模板新版本，保护必要审核并冻结当前发布表单。
+ * 发布自由编排的模板新版本，冻结定义与表单，保留旧版本及在途实例。
  * @param pool 数据库连接池
  * @param actor 管理员
  * @param id 模板标识
@@ -412,18 +406,6 @@ export async function publishTemplate(
   async function publish(db: PoolConnection, config: CompanyConfig): Promise<WorkflowTemplate> {
     const template = await editableTemplate(db, id, body.expectedDraftRevision);
     const errors = validateTemplate(config, template.draft, await loadActivityTypes(db));
-    for (const node of template.published?.nodes || [])
-      if (node.protected) {
-        const next = findById(template.draft.nodes, node.id);
-        if (
-          !next?.protected ||
-          next.kind !== 'approval' ||
-          next.condition ||
-          next.assignee.type !== node.assignee.type ||
-          next.assignee.value !== node.assignee.value
-        )
-          errors.push(`必须保留必要审核“${node.label}”及受理规则`);
-      }
     const others: TemplateDefinition[] = [];
     for (const other of await loadTemplates(db))
       if (other.id !== id && other.active && other.published) others.push(other.published);

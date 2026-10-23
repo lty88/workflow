@@ -1,4 +1,5 @@
 import type { ActivityType, TemplateRelease, WorkflowTemplate } from '@workflow/domain';
+import { editableTemplateDefinition } from '@workflow/domain';
 import { jsonValue, query } from './repository';
 import type { Database } from './repository';
 
@@ -14,7 +15,7 @@ interface TemplateRow {
 }
 
 /**
- * 将数据库模板记录转换成接口模型，草稿和发布内容分离。
+ * 将模板记录转换成接口模型，旧草稿解除默认节点锁定，发布历史保持原样。
  * @param row 数据库记录
  * @returns 模板模型
  */
@@ -25,7 +26,7 @@ function templateValue(row: TemplateRow): WorkflowTemplate {
     active: Boolean(row.active),
     currentVersion: row.current_version,
     draftRevision: row.draft_revision,
-    draft: jsonValue(row.draft),
+    draft: editableTemplateDefinition(jsonValue(row.draft)),
     published: row.published ? jsonValue(row.published) : null,
     updatedAt: row.updated_at,
   };

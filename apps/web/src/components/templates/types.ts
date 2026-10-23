@@ -36,12 +36,15 @@ export interface EditorPaletteProps {
   disabled: boolean;
 }
 export interface EditorCanvasToolbarProps {
+  atStart: boolean;
+  canInsert: boolean;
   controls: GraphToolbarControls;
   connectMode: boolean;
   disabled: boolean;
   selectedName: string;
   position: InsertPosition;
   hasEdge: boolean;
+  canRemove: boolean;
 }
 export interface TemplateSettingsProps {
   modelValue: TemplateDefinition;
@@ -62,6 +65,7 @@ export interface TemplateLibraryProps {
   busy: boolean;
 }
 export interface TemplateDesignerProps {
+  initialExpanded?: boolean;
   errors?: string[];
   modelValue: TemplateDefinition;
   template: WorkflowTemplate;
@@ -77,6 +81,7 @@ export interface NodeInspectorProps {
   disabled: boolean;
 }
 export interface TemplateCanvasProps {
+  canRemove: boolean;
   position: InsertPosition;
   definition: TemplateDefinition;
   config: CompanyConfig;
@@ -97,3 +102,11 @@ export type {
   WorkflowTemplate,
   GraphConnection,
 };
+
+export interface TemplateSystemInspectorProps {
+  start: boolean;
+  disabled: boolean;
+}
+export interface TemplateFlowGuideProps {
+  nodes: NodeDefinition[];
+}
