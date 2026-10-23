@@ -1,0 +1,63 @@
+{
+  "databaseExecuted": true,
+  "verified": true,
+  "counts": [
+    {
+      "departments": 30,
+      "test_accounts": 120,
+      "admin_accounts": 1,
+      "migration": 6
+    }
+  ],
+  "branches": [
+    {
+      "name": "教学质量部",
+      "parent_id": "org-zhihuiyunxiao",
+      "username": "jiaoxuezhiliang",
+      "manager": "代健"
+    },
+    {
+      "name": "技术研发部",
+      "parent_id": "org-zhihuiyunxiao",
+      "username": "jishuyanfa",
+      "manager": "王波"
+    },
+    {
+      "name": "智慧云校",
+      "parent_id": "company",
+      "username": "zhihuiyunxiao",
+      "manager": "智慧云校测试负责人"
+    }
+  ],
+  "managers": [
+    {
+      "applicant": "jishuyanfa1",
+      "manager": "jishuyanfa"
+    },
+    {
+      "applicant": "jiaoxuezhiliang1",
+      "manager": "jiaoxuezhiliang"
+    }
+  ],
+  "passwordChecks": [
+    {
+      "username": "admin",
+      "verified": true
+    },
+    {
+      "username": "jiaoxuezhiliang",
+      "verified": true
+    },
+    {
+      "username": "jishuyanfa",
+      "verified": true
+    },
+    {
+      "username": "zhihuiyunxiao",
+      "verified": true
+    }
+  ],
+  "storage": "master-data-v6",
+  "backup": "real-org-cloud-20261023-v2",
+  "configurationBackup": "master_data_migration_backups/v6"
+}

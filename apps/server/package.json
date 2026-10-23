@@ -13,7 +13,9 @@
     "db:reset-admin": "tsx src/db/reset-admin.ts",
     "test": "vitest run",
     "db:migrate": "tsx --env-file=../../.env src/db/migrate.ts",
-    "db:seed-organization": "tsx --env-file=../../.env src/db/seed-organization.ts"
+    "db:seed-organization": "tsx --env-file=../../.env src/db/seed-organization.ts",
+    "db:recover-members": "tsx --env-file=../../.env src/db/recover-members.ts",
+    "db:seed-test-templates": "tsx --env-file=../../.env src/db/seed-test-templates.ts"
   },
   "dependencies": {
     "@workflow/domain": "workspace:*",

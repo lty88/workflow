@@ -19,6 +19,7 @@ import {
   invalidatePending,
   validateConfig,
   validateForm,
+  validateAttachmentReferences,
   adjustWorkflow,
   transferTask,
   templateContext,
@@ -217,6 +218,8 @@ export async function createDraft(
       updatedAt: now,
     };
     activity.payload = mergeWritablePayload(config, actor, activity, release.form, body.payload);
+    const fileErrors = validateAttachmentReferences(release.form, activity.payload, [], activity.id);
+    if (fileErrors.length) throw new HttpError(422, 'FILE_FIELD', '附件引用需要修正', fileErrors);
     activity.name = activity.payload.activity_name?.trim() || '未命名活动';
     auditActivity(config, activity, actor, '创建活动草稿', '资料可继续补充');
     return activity;
@@ -261,6 +264,8 @@ export async function updateDraft(
     });
     const form = preserveFormAccess(activity.schema, release.form);
     const payload = mergeWritablePayload(config, actor, activity, form, body.payload);
+    const fileErrors = validateAttachmentReferences(form, payload, await activityFiles(connection, id), id);
+    if (fileErrors.length) throw new HttpError(422, 'FILE_FIELD', '附件引用需要修正', fileErrors);
     if (activity.templateId !== release.templateId || activity.templateVersion !== release.version)
       auditActivity(
         config,
@@ -331,7 +336,12 @@ export async function submitActivity(
     const checked = validateForm(form, activity.payload);
     const structuralErrors = validateConfig(engineConfig, { requireProtectedApproval: false });
     const workflow = instantiateWorkflow(engineConfig, checked.payload, actor, { requireApproval: false });
-    const errors = [...structuralErrors, ...checked.errors, ...workflow.errors];
+    const errors = [
+      ...structuralErrors,
+      ...checked.errors,
+      ...workflow.errors,
+      ...validateAttachmentReferences(form, checked.payload, await activityFiles(connection, id), id),
+    ];
     if (checked.payload.start_at && Date.parse(checked.payload.start_at) < Date.now())
       errors.push('活动开始时间不能早于当前时间');
     if (errors.length) throw new HttpError(422, 'VALIDATION', '申请或审核配置需要修正', errors);

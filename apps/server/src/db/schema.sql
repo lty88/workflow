@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS members (
   password_hash VARCHAR(300) NULL, INDEX idx_member_department (department_id, active)
 );
 CREATE TABLE IF NOT EXISTS roles (id VARCHAR(80) PRIMARY KEY, name VARCHAR(80) NOT NULL, data JSON NOT NULL);
-CREATE TABLE IF NOT EXISTS menu_pages (id VARCHAR(80) PRIMARY KEY, name VARCHAR(80) NOT NULL, active BOOLEAN NOT NULL, data JSON NOT NULL);
+CREATE TABLE IF NOT EXISTS menu_pages (id VARCHAR(80) PRIMARY KEY, name VARCHAR(80) NOT NULL, active BOOLEAN NOT NULL, data JSON NOT NULL, sort_order INT NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash CHAR(64) PRIMARY KEY, member_id VARCHAR(80) NOT NULL, csrf_token CHAR(64) NOT NULL,
   expires_at DATETIME(3) NOT NULL, INDEX idx_session_member (member_id), INDEX idx_session_expiry (expires_at)
@@ -60,8 +60,8 @@ CREATE TABLE IF NOT EXISTS files (
   id VARCHAR(80) PRIMARY KEY, activity_id VARCHAR(80) NOT NULL, uploader_id VARCHAR(80) NOT NULL,
   name VARCHAR(255) NOT NULL, storage_key VARCHAR(80) NOT NULL UNIQUE, mime VARCHAR(120) NOT NULL,
   size BIGINT UNSIGNED NOT NULL, stage VARCHAR(20) NOT NULL,
-  node_id VARCHAR(80) NULL, access_rule JSON NULL, download_rule JSON NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  INDEX idx_file_activity (activity_id, stage), FOREIGN KEY (activity_id) REFERENCES activities(id)
+  node_id VARCHAR(80) NULL, field_key VARCHAR(40) NULL, access_rule JSON NULL, download_rule JSON NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  INDEX idx_file_field (activity_id, stage, field_key), INDEX idx_file_activity (activity_id, stage), FOREIGN KEY (activity_id) REFERENCES activities(id)
 );
 CREATE TABLE IF NOT EXISTS outbox_events (
   id VARCHAR(80) PRIMARY KEY, event_key VARCHAR(180) NOT NULL UNIQUE, activity_id VARCHAR(80) NOT NULL,
@@ -94,4 +94,20 @@ CREATE TABLE IF NOT EXISTS activity_type_templates (
   activity_type_id VARCHAR(80) NOT NULL, template_id VARCHAR(80) NOT NULL, is_default BOOLEAN NOT NULL,
   PRIMARY KEY(activity_type_id,template_id), FOREIGN KEY(activity_type_id) REFERENCES activity_types(id),
   FOREIGN KEY(template_id) REFERENCES workflow_templates(id)
+);
+
+CREATE TABLE IF NOT EXISTS menu_groups (
+  id VARCHAR(80) PRIMARY KEY, name VARCHAR(80) NOT NULL, active BOOLEAN NOT NULL, sort_order INT NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS form_definitions (
+  id VARCHAR(80) PRIMARY KEY, version INT NOT NULL, definition JSON NOT NULL, updated_by VARCHAR(80) NOT NULL,
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+);
+CREATE TABLE IF NOT EXISTS form_definition_versions (
+  form_id VARCHAR(80) NOT NULL, version INT NOT NULL, definition JSON NOT NULL, actor_id VARCHAR(80) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY(form_id,version),
+  FOREIGN KEY(form_id) REFERENCES form_definitions(id)
+);
+CREATE TABLE IF NOT EXISTS master_data_migration_backups (
+  id VARCHAR(40) PRIMARY KEY, data JSON NOT NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 );

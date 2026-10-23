@@ -46,14 +46,32 @@ export function initialTemplates(
     label: '教研方案审核',
     kind: 'approval',
     deps: [base.id],
-    assignee: { type: 'role', value: 'academic' },
+    assignee: config.roles.some(
+      /** 兼容旧配置的教研岗位，新配置直接选择教研部门负责人。
+       * @param role 当前角色
+       * @returns 是否仍是旧教研岗位
+       */ function legacy(role) {
+        return role.id === 'academic';
+      },
+    )
+      ? { type: 'role', value: 'academic' }
+      : { type: 'department_manager', value: 'research' },
   };
   const marketing: NodeDefinition = {
     id: 'n-marketing',
     label: '营销与校方确认',
     kind: 'approval',
     deps: [base.id],
-    assignee: { type: 'role', value: 'marketing' },
+    assignee: config.roles.some(
+      /** 兼容旧营销岗位，新配置直接选择营销部门负责人。
+       * @param role 当前角色
+       * @returns 是否仍为旧营销岗位
+       */ function legacy(role) {
+        return role.id === 'marketing';
+      },
+    )
+      ? { type: 'role', value: 'marketing' }
+      : { type: 'department_manager', value: 'market' },
   };
   const director: NodeDefinition = {
     id: 'n-director',

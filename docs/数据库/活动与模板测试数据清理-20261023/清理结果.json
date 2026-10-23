@@ -1,0 +1,133 @@
+{
+  "executed": true,
+  "committed": true,
+  "date": "2026-10-23",
+  "backup": "/Users/codesun/qh_workspace/work-flow/data/backups/business-reset-20261023-c9371e92.sql.gz",
+  "backupSha256": "3fd1bafa0e3f60bc445c23db4554b83c95b5ba289ab58934bd570086d3eb1564",
+  "before": {
+    "activities": 4,
+    "workflow_templates": 7,
+    "workflow_template_releases": 6,
+    "activity_type_templates": 12,
+    "workflow_nodes": 8,
+    "workflow_edges": 7,
+    "workflow_tasks": 4,
+    "files": 0,
+    "activity_surveys": 0,
+    "activity_evaluations": 0,
+    "outbox_events": 6,
+    "notifications": 6,
+    "idempotency_records": 79,
+    "audit_events": 85
+  },
+  "removed": {
+    "activity_evaluations": 0,
+    "activity_surveys": 0,
+    "files": 0,
+    "workflow_tasks": 4,
+    "workflow_edges": 7,
+    "workflow_nodes": 8,
+    "notifications": 6,
+    "outbox_events": 6,
+    "activities": 4,
+    "activity_type_templates": 12,
+    "workflow_template_releases": 6,
+    "workflow_templates": 7,
+    "idempotency_records": 79,
+    "audit_events": 85
+  },
+  "after": {
+    "activities": 0,
+    "workflow_templates": 0,
+    "workflow_template_releases": 0,
+    "activity_type_templates": 0,
+    "workflow_nodes": 0,
+    "workflow_edges": 0,
+    "workflow_tasks": 0,
+    "files": 0,
+    "activity_surveys": 0,
+    "activity_evaluations": 0,
+    "outbox_events": 0,
+    "notifications": 0,
+    "idempotency_records": 0
+  },
+  "preserved": {
+    "members": {
+      "count": 134,
+      "sha256": "66439c3c830aa0b847f9171a509d070cc57eade1b1483dda7122e95d4224d230"
+    },
+    "departments": {
+      "count": 30,
+      "sha256": "014d62ee32019a7176c1ca12460c097e01c94fb4edbafd1112de790837fbeb04"
+    },
+    "roles": {
+      "count": 56,
+      "sha256": "643829af41055ce840734b6dd5352c9fc4c1a76c2b235c6548f514d2580817bd"
+    },
+    "form_definitions": {
+      "count": 1,
+      "sha256": "ac9ba3ffd9a76d7cff4b61b9f1a0633c5a3460050c15f3433190adc23c9aede1"
+    },
+    "form_definition_versions": {
+      "count": 1,
+      "sha256": "00d2746ff76e58216d929c5c96aa7c842013fe393198aebc0e992afb52bbaefa"
+    },
+    "menu_pages": {
+      "count": 7,
+      "sha256": "a9ea63e954bca4fe1dd290d15aacf62ea3071201dc933c444d0b647f9a78d90a"
+    },
+    "menu_groups": {
+      "count": 2,
+      "sha256": "af19836bf04a5a709716dd7e2b28c34b836b945f4f84caaf92175f20d2bbefa1"
+    },
+    "configuration": {
+      "count": 1,
+      "sha256": "f6ef65b92cc82d8280ac76704e8d1e8780ad2c812ea2557b898e7f8c0540df0a"
+    },
+    "configuration_releases": {
+      "count": 17,
+      "sha256": "a247feb5c7eaf4772f0e4e78651f37e4e78c071b66c56dcb6673478ea4baa68c"
+    },
+    "schema_migrations": {
+      "count": 6,
+      "sha256": "7facc3a98d76091f94da2e453c8817c9d90c6e7ca0ecceba29fdc6fba625fced"
+    },
+    "activity_types": {
+      "count": 5,
+      "sha256": "036f2b1e98384412cecb36a768e506ba0abaebc2224a5bda72e684e8d31922d9"
+    },
+    "template_catalog_lock": {
+      "count": 1,
+      "sha256": "74a9a5d921e65d0fd263a04931bca9879be0634400574efa91874d5644bcf2f3"
+    },
+    "sessions": {
+      "count": 1,
+      "sha256": "623e9273106208bfe7ba6aa2449d8922a1601204d948b5c43897d5d562261e1f"
+    },
+    "master_data_migration_backups": {
+      "count": 1,
+      "sha256": "6b9f864bacd4c5f89d3833712ffb001e457e683d4026fb0eb773185f4697c6a3"
+    },
+    "orgsql_rebuild_backups": {
+      "count": 1,
+      "sha256": "afdb97c30924603ac13a918057bfcf1ec2ae90184b68bb0b0430fb3bb736264b"
+    }
+  },
+  "baseDataUnchanged": true,
+  "postCommitVerified": true,
+  "postCommitCounts": {
+    "activities": 0,
+    "workflow_templates": 0,
+    "workflow_template_releases": 0,
+    "activity_type_templates": 0,
+    "workflow_nodes": 0,
+    "workflow_edges": 0,
+    "workflow_tasks": 0,
+    "files": 0,
+    "activity_surveys": 0,
+    "activity_evaluations": 0,
+    "outbox_events": 0,
+    "notifications": 0,
+    "idempotency_records": 0
+  }
+}

@@ -24,7 +24,21 @@ async function readyDatabaseCase(): Promise<void> {
    * @returns 配置查询结果
    */
   async function execute(sql: string): Promise<[unknown[], unknown[]]> {
-    if (sql.includes('schema_migrations')) return [[{ version: 2 }, { version: 4 }, { version: 5 }], []];
+    if (sql.includes('schema_migrations'))
+      return [
+        [{ version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }],
+        [],
+      ];
+    if (sql.includes('information_schema.COLUMNS'))
+      return [
+        [
+          { COLUMN_NAME: 'field_key' },
+          { COLUMN_NAME: 'node_id' },
+          { COLUMN_NAME: 'access_rule' },
+          { COLUMN_NAME: 'download_rule' },
+        ],
+        [],
+      ];
     const config = seedConfig();
     return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
   }
@@ -56,7 +70,12 @@ async function pendingInsightsCase(): Promise<void> {
    * @returns 旧版迁移记录与公司配置
    */
   async function execute(sql: string): Promise<[unknown[], unknown[]]> {
-    if (sql.includes('schema_migrations')) return [[{ version: 2 }], []];
+    if (sql.includes('schema_migrations')) return [[{ version: 2 }, { version: 3 }], []];
+    if (sql.includes('information_schema.COLUMNS'))
+      return [
+        [{ COLUMN_NAME: 'node_id' }, { COLUMN_NAME: 'access_rule' }, { COLUMN_NAME: 'download_rule' }],
+        [],
+      ];
     const config = seedConfig();
     return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
   }
@@ -72,10 +91,73 @@ async function pendingDeletionCase(): Promise<void> {
    * @returns 模拟配置和迁移记录
    */
   async function execute(sql: string): Promise<[unknown[], unknown[]]> {
-    if (sql.includes('schema_migrations')) return [[{ version: 2 }, { version: 4 }], []];
+    if (sql.includes('schema_migrations')) return [[{ version: 2 }, { version: 3 }, { version: 4 }], []];
+    if (sql.includes('information_schema.COLUMNS'))
+      return [
+        [{ COLUMN_NAME: 'node_id' }, { COLUMN_NAME: 'access_rule' }, { COLUMN_NAME: 'download_rule' }],
+        [],
+      ];
     const config = seedConfig();
     return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
   }
   await expect(requireDatabaseReady({ execute } as unknown as Pool)).rejects.toThrow('活动删除功能');
 }
 test('旧库缺少逻辑删除字段时给出明确迁移提示', pendingDeletionCase);
+
+/** 核对真实故障对应的2、4、5版本齐全但缺第3版时明确阻止启动。 */
+async function missingSecurityCase(): Promise<void> {
+  /**
+   * 模拟跳过资料权限迁移的旧库。
+   * @param sql 查询语句
+   * @returns 配置与缺少第三版的迁移记录
+   */
+  async function execute(sql: string): Promise<[unknown[], unknown[]]> {
+    if (sql.includes('schema_migrations'))
+      return [[{ version: 2 }, { version: 4 }, { version: 5 }, { version: 6 }], []];
+    const config = seedConfig();
+    return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
+  }
+  await expect(requireDatabaseReady({ execute } as unknown as Pool)).rejects.toThrow('活动资料权限');
+}
+test('缺少第3版迁移时提示升级资料权限，防止创建后详情缺列', missingSecurityCase);
+
+/** 核对迁移已登记但实际字段被删除时仍能发现结构不完整。 */
+async function brokenSecurityColumnsCase(): Promise<void> {
+  /**
+   * 模拟第3版已登记但附件权限字段不完整的数据库。
+   * @param sql 查询语句
+   * @returns 配置、迁移记录及不完整字段
+   */
+  async function execute(sql: string): Promise<[unknown[], unknown[]]> {
+    if (sql.includes('schema_migrations'))
+      return [[{ version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }], []];
+    if (sql.includes('information_schema.COLUMNS')) return [[{ COLUMN_NAME: 'node_id' }], []];
+    const config = seedConfig();
+    return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
+  }
+  await expect(requireDatabaseReady({ execute } as unknown as Pool)).rejects.toThrow('附件权限字段不完整');
+}
+test('迁移记录完整但真实附件列缺失时仍拒绝启动', brokenSecurityColumnsCase);
+
+/** 检查仅完成第六版的数据库会得到明确的附件字段迁移提示。
+ */
+async function pendingAttachmentFieldsCase(): Promise<void> {
+  /** 模拟旧库配置和附件权限列已就绪但尚未增加字段归属。
+   * @param sql 就绪检查查询
+   * @returns 旧版结构的查询结果
+   */
+  async function execute(sql: string): Promise<[unknown[], unknown[]]> {
+    if (sql.includes('schema_migrations'))
+      return [[{ version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }], []];
+    if (sql.includes("COLUMN_NAME='field_key'")) return [[], []];
+    if (sql.includes('information_schema.COLUMNS'))
+      return [
+        [{ COLUMN_NAME: 'node_id' }, { COLUMN_NAME: 'access_rule' }, { COLUMN_NAME: 'download_rule' }],
+        [],
+      ];
+    const config = seedConfig();
+    return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
+  }
+  await expect(requireDatabaseReady({ execute } as unknown as Pool)).rejects.toThrow('动态表单附件字段');
+}
+test('第六版旧库缺少动态附件归属时明确提示增量升级', pendingAttachmentFieldsCase);

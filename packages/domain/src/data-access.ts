@@ -1,3 +1,4 @@
+import { attachmentFieldsForFile } from './attachments';
 import type {
   Activity,
   CompanyConfig,
@@ -240,6 +241,11 @@ export function canReadFile(
   file: FileRecord,
 ): boolean {
   if (file.activityId !== activity.id || !canReadActivity(config, actor, activity)) return false;
+  if (file.fieldKey) {
+    const fields = attachmentFieldsForFile(activity, file);
+    if (!fields.length) return false;
+    for (const field of fields) if (!canAccessField(config, actor, activity, field)) return false;
+  }
   const node = file.nodeId ? findById(activity.nodes, file.nodeId) : undefined;
   if ((file.stage === 'node' || file.nodeId) && (!node || !canReadNodeContent(config, actor, activity, node)))
     return false;

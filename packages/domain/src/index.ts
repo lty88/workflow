@@ -14,3 +14,7 @@ export * from './organization';
 export * from './insights';
 export * from './insights-config';
 export * from './activity-deletion';
+
+export * from './role-catalog';
+
+export * from './attachments';

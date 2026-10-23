@@ -2,9 +2,8 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useMediaQuery } from '@vueuse/core';
-import { NButton, NDrawer, NDrawerContent, NBadge, NEmpty, NTag, NSpin } from 'naive-ui';
-import { notificationsApi, readNotificationApi } from '@/api/notifications';
-import type { Notification } from '@/typings/api';
+import { NButton, NDrawer, NDrawerContent, NTag } from 'naive-ui';
+import NotificationCenter from '@/components/notifications/NotificationCenter.vue';
 import type { PageDefinition } from '@workflow/domain';
 import {
   APP_PATHS,
@@ -18,7 +17,6 @@ import {
 import { useAuthStore } from '@/stores/auth';
 import { useConfigStore } from '@/stores/config';
 import { useFeedback } from '@/composables/use-feedback';
-import { formatTime } from '@/composables/format';
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
@@ -26,23 +24,11 @@ const configuration = useConfigStore();
 const feedback = useFeedback();
 const mobile = useMediaQuery('(max-width: 850px)');
 const menuOpen = ref(false);
-const messagesOpen = ref(false);
-const messages = ref<Notification[]>([]);
-const loading = ref(false);
-const unread = computed(() => messages.value.filter(isUnread).length);
 const navigationMenus = computed(() => workspaceNavigation(auth.profile?.menus || []));
 const configurationFallback = computed(
   () => auth.can('config:manage') && !navigationMenus.value.some(isConfigurationPage),
 );
 const title = computed(() => navigationTitle(route.path, navigationMenus.value));
-/**
- * 判断站内消息是否未读。
- * @param item 消息
- * @returns 是否未读
- */
-function isUnread(item: Notification): boolean {
-  return !item.readAt;
-}
 /**
  * 匹配当前动态菜单。
  * @param item 页面
@@ -82,34 +68,6 @@ function closeMenu(): void {
   menuOpen.value = false;
 }
 watch(() => route.fullPath, closeMenu);
-/**
- * 查询本人站内消息并打开消息抽屉。
- */
-async function openMessages(): Promise<void> {
-  messagesOpen.value = true;
-  loading.value = true;
-  try {
-    messages.value = await notificationsApi();
-  } catch (error) {
-    feedback.failure(error);
-  } finally {
-    loading.value = false;
-  }
-}
-/**
- * 标记消息并前往对应工单。
- * @param item 消息
- */
-async function openMessage(item: Notification): Promise<void> {
-  try {
-    await readNotificationApi(item.id);
-    item.readAt = new Date().toISOString();
-    messagesOpen.value = false;
-    await router.push(activityDestination(item.activityId));
-  } catch (error) {
-    feedback.failure(error);
-  }
-}
 /**
  * 撤销服务端会话并清理配置资料。
  */
@@ -167,8 +125,7 @@ async function signOut(): Promise<void> {
           ><span class="muted desktop-only">活动流程 /</span> {{ title }}
         </div>
         <div class="topbar-actions">
-          <NBadge :value="unread" :max="99"><NButton quaternary @click="openMessages">消息</NButton></NBadge
-          ><RouterLink :to="APP_PATHS.account" class="account"
+          <NotificationCenter /><RouterLink :to="APP_PATHS.account" class="account"
             ><span class="avatar">{{ auth.profile?.user.name.slice(0, 1) }}</span
             ><span class="desktop-only">{{ auth.profile?.user.name }}</span></RouterLink
           ><NButton quaternary size="small" @click="signOut">退出</NButton>
@@ -186,21 +143,6 @@ async function signOut(): Promise<void> {
         }}</RouterLink
         ><RouterLink v-if="configurationFallback" :to="APP_PATHS.settings">配置中心</RouterLink>
       </nav></NDrawerContent
-    ></NDrawer
-  >
-  <NDrawer v-model:show="messagesOpen" :width="mobile ? '100%' : 420"
-    ><NDrawerContent title="站内消息" closable
-      ><NSpin :show="loading"
-        ><NEmpty v-if="!messages.length && !loading" description="暂无消息" /><button
-          v-for="item in messages"
-          :key="item.id"
-          class="notification"
-          @click="openMessage(item)"
-        >
-          <NBadge :dot="!item.readAt" /><strong>{{ item.title }}</strong
-          ><small>{{ formatTime(item.createdAt) }}</small>
-        </button></NSpin
-      ></NDrawerContent
     ></NDrawer
   >
 </template>

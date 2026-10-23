@@ -31,6 +31,9 @@ import {
 import type { SessionProfile, FileAccessInput, Notification } from '@workflow/domain';
 import type { Environment } from './env';
 import { ensure, HttpError } from './errors';
+import { batchMembers } from './services/member-batch-service';
+import { deleteMember, memberDeleteSchema } from './services/member-deletion';
+import { saveSettings, settingsModuleSchema } from './services/settings-service';
 import { activityFiles, loadActivity, loadConfig, query, transaction } from './db/repository';
 import { digest, hashPassword, login, sessionProfile, verifyPassword } from './services/auth';
 import {
@@ -43,13 +46,14 @@ import {
   submitActivity,
   updateDraft,
 } from './services/activity-service';
-import { publishConfig, saveConfigDraft } from './services/config-service';
+
 import { deleteActivity } from './services/activity-deletion-service';
 import { listActivities } from './services/list-service';
 import type { ActivityListItem } from './services/list-service';
 import { uploadFile, authorizeFileRead, updateFileAccess } from './services/file-service';
 import { isAllowedOrigin } from './services/origin';
 import { registerInsightsRoutes } from './routes/insights';
+import { notificationFeed } from './services/notification-service';
 import { registerTemplateRoutes } from './routes/templates';
 import { previewTemplate } from './services/template-service';
 
@@ -535,7 +539,7 @@ export async function buildApp(pool: Pool, env: Environment) {
   app.get('/api/directory', directory);
 
   /**
-   * 读取完整配置草案，仅配置管理员可访问。
+   * 读取各业务主表装配的实时设置，仅管理员可访问。
    * @param request 请求
    * @returns 配置状态
    */
@@ -546,37 +550,38 @@ export async function buildApp(pool: Pool, env: Environment) {
   app.get('/api/config', getConfig);
 
   /**
-   * 保存完整配置草案并检查草案版本。
-   * @param request 请求
-   * @returns 新草案状态
+   * 兼容旧客户端路径，明确返回接口退役错误。
    */
-  async function saveConfig(request: FastifyRequest) {
-    requireAdmin(request);
-    const body = z
-      .object({ draft: z.unknown(), expectedDraftRevision: z.number().int().positive() })
-      .strict()
-      .parse(request.body);
-    return saveConfigDraft(pool, actorId(request), body.draft, body.expectedDraftRevision);
-  }
-  app.put('/api/config/draft', saveConfig);
+  // 旧整包接口退役，防止旧客户端把人员配置重新写回主表。
+  app.put('/api/config/draft', retiredConfig);
 
   /**
-   * 发布配置并物化组织、成员和菜单。
-   * @param request 请求
-   * @returns 新发布版本
+   * 旧配置发布接口退役，主数据使用模块保存。
    */
-  async function publish(request: FastifyRequest) {
+  app.post('/api/config/publish', retiredConfig);
+  /** 拒绝旧整包配置提交，提示客户端刷新。
+   * @returns 不再提供的接口响应
+   */
+  function retiredConfig() {
+    throw new HttpError(410, 'CONFIG_API_RETIRED', '整包配置保存/发布已停用，请刷新页面使用模块保存');
+  }
+  /** 按模块保存设置，直接提交业务主表。
+   * @param request 当前管理员请求
+   * @returns 最新设置上下文
+   */
+  async function updateSettings(request: FastifyRequest) {
     requireAdmin(request);
+    const params = z.object({ module: settingsModuleSchema }).parse(request.params);
     const body = z
-      .object({ expectedDraftRevision: z.number().int().positive() })
+      .object({ changes: z.unknown(), expectedRevision: z.number().int().positive() })
       .strict()
       .parse(request.body);
-    return publishConfig(pool, actorId(request), body.expectedDraftRevision);
+    return saveSettings(pool, actorId(request), params.module, body.changes, body.expectedRevision);
   }
-  app.post('/api/config/publish', publish);
+  app.put('/api/settings/:module', updateSettings);
 
   /**
-   * 为已发布成员设置登录密码，撤销其旧会话。
+   * 为已保存成员设置登录密码，撤销其旧会话。
    * @param request 请求
    * @returns 更新结果
    */
@@ -585,7 +590,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     const id = resourceId(request);
     const body = passwordSchema.parse(request.body);
     const config = (await loadConfig(pool)).published;
-    ensure(findById(config.users, id), 404, 'NOT_FOUND', '请先发布成员配置');
+    ensure(findById(config.users, id), 404, 'NOT_FOUND', '成员不存在，请先保存人员');
     await pool.execute('UPDATE members SET password_hash=? WHERE id=?', [
       await hashPassword(body.password),
       id,
@@ -600,6 +605,25 @@ export async function buildApp(pool: Pool, env: Environment) {
     return { ok: true };
   }
   app.post('/api/members/:id/password', setPassword);
+  /** 删除未被业务引用的成员，权限和关联由事务内再次校验。
+   * @param request 管理员删除请求
+   * @returns 删除后的实时主数据
+   */
+  async function removeMember(request: FastifyRequest) {
+    requireAdmin(request);
+    const body = memberDeleteSchema.parse(request.body);
+    return deleteMember(pool, actorId(request), resourceId(request), body.expectedRevision);
+  }
+  app.delete('/api/members/:id', removeMember);
+  /** 原子批量删除、启用或停用成员。
+   * @param request 管理员批量请求
+   * @returns 操作后的主数据
+   */
+  async function updateMembersBatch(request: FastifyRequest) {
+    requireAdmin(request);
+    return batchMembers(pool, actorId(request), request.body);
+  }
+  app.post('/api/members/batch', updateMembersBatch);
 
   /**
    * 上传阶段附件，文件内容和阶段都由服务端验证。
@@ -743,6 +767,17 @@ export async function buildApp(pool: Pool, env: Environment) {
     return visible;
   }
   app.get('/api/notifications', notifications);
+
+  /**
+   * 轮询本人新通知，游标分页避免一次新增超过100条时丢失提醒。
+   * @param request 已认证请求及上次游标
+   * @returns 新消息页和下一游标
+   */
+  async function pollNotifications(request: FastifyRequest) {
+    const input = z.object({ cursor: z.string().max(500).optional() }).parse(request.query);
+    return notificationFeed(pool, actorId(request), input.cursor);
+  }
+  app.get('/api/notifications/feed', pollNotifications);
 
   /**
    * 将本人消息标记为已读，不允许操作其他人的消息。

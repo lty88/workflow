@@ -1,69 +1,75 @@
-import type {
-  ActivityDetail,
-  FileRecord,
-  FormDefinition,
-  FormValidationIssue,
-  WorkflowTask,
-} from '@workflow/domain';
-import type { ComputedRef, Ref } from 'vue';
+import type { ActivityDetail, FileRecord, FormDefinition, FormValidationIssue, WorkflowTask } from '@workflow/domain'
+import type { ComputedRef, Ref } from 'vue'
 export interface DeleteActivityProps {
-  activity: Pick<ActivityDetail['activity'], 'id' | 'code' | 'name' | 'version'>;
-  allowed: boolean;
+  activity: Pick<ActivityDetail['activity'], 'id' | 'code' | 'name' | 'version'>
+  allowed: boolean
 }
 export interface ActivityTemplateOptions {
-  existingDetail?: ComputedRef<ActivityDetail | null>;
-  payload: Ref<Record<string, string>>;
-  fallbackForm: ComputedRef<FormDefinition>;
-  invalidatePreview: () => void;
+  existingDetail?: ComputedRef<ActivityDetail | null>
+  payload: Ref<Record<string, string>>
+  fallbackForm: ComputedRef<FormDefinition>
+  invalidatePreview: () => void
 }
 export interface DynamicFormProps {
-  schema: ActivityDetail['activity']['schema'];
-  modelValue: Record<string, string>;
-  disabled?: boolean;
-  keys?: string[];
-  errors?: string[];
-  issues?: FormValidationIssue[];
+  schema: ActivityDetail['activity']['schema']
+  modelValue: Record<string, string>
+  disabled?: boolean
+  keys?: string[]
+  errors?: string[]
+  issues?: FormValidationIssue[]
+  activityId?: string
+  files?: FileRecord[]
+  prepareUpload?: () => Promise<string>
+  refreshFiles?: () => Promise<void>
+}
+export interface FormAttachmentProps {
+  field: import('@workflow/domain').FormField
+  modelValue: string
+  files?: FileRecord[]
+  activityId?: string
+  disabled?: boolean
+  prepareUpload?: () => Promise<string>
+  refreshFiles?: () => Promise<void>
 }
 export interface ActivityStepOptions {
-  schema: ComputedRef<FormDefinition>;
-  payload: Ref<Record<string, string>>;
-  hasTemplate: ComputedRef<boolean>;
-  disabled: ComputedRef<boolean>;
+  schema: ComputedRef<FormDefinition>
+  payload: Ref<Record<string, string>>
+  hasTemplate: ComputedRef<boolean>
+  disabled: ComputedRef<boolean>
 }
 export interface ActivityStepValidation {
-  step: number;
-  errors: string[];
-  issues: FormValidationIssue[];
+  step: number
+  errors: string[]
+  issues: FormValidationIssue[]
 }
 export interface SubmissionAttempt {
-  templateVersion?: number;
-  id: string;
-  version: number;
+  templateVersion?: number
+  id: string
+  version: number
 }
 export interface AttachmentProps {
-  nodeId?: string;
-  activityVersion?: number;
-  activityId: string;
-  files: FileRecord[];
-  stage: FileRecord['stage'];
-  canUpload: boolean;
+  nodeId?: string
+  activityVersion?: number
+  activityId: string
+  files: FileRecord[]
+  stage: FileRecord['stage']
+  canUpload: boolean
 }
 export interface ActionProps {
-  show: boolean;
-  detail: ActivityDetail;
-  action: string;
-  task?: WorkflowTask;
+  show: boolean
+  detail: ActivityDetail
+  action: string
+  task?: WorkflowTask
 }
 export interface AdjustmentProps {
-  show: boolean;
-  detail: ActivityDetail;
+  show: boolean
+  detail: ActivityDetail
 }
 export interface WorkflowViewDetail {
-  activity: Pick<ActivityDetail['activity'], 'nodes' | 'tasks'> &
-    Partial<Pick<ActivityDetail['activity'], 'status' | 'revision' | 'cancellation'>>;
-  participants: ActivityDetail['participants'];
-  actions?: string[];
-  taskWarnings?: ActivityDetail['taskWarnings'];
+  activity: Pick<ActivityDetail['activity'], 'nodes' | 'tasks'> & Partial<Pick<ActivityDetail['activity'], 'status' | 'revision' | 'cancellation'>>
+  participants: ActivityDetail['participants']
+  actions?: string[]
+  taskWarnings?: ActivityDetail['taskWarnings']
 }
 export const ACTION_LABELS: Record<string, string> = {
   edit: '编辑申请',
@@ -82,14 +88,14 @@ export const ACTION_LABELS: Record<string, string> = {
   'cancel-withdraw': '撤销取消申请',
   export: '导出',
   copy: '复制为新申请',
-};
+}
 export const NODE_STATUSES: Record<string, string> = {
   waiting: '等待前置节点',
   active: '办理中',
   completed: '已完成',
   invalidated: '已失效',
   skipped: '未命中条件',
-};
+}
 export const TASK_STATUSES: Record<string, string> = {
   pending: '待办理',
   approved: '已通过',
@@ -97,10 +103,10 @@ export const TASK_STATUSES: Record<string, string> = {
   returned: '已退回',
   rejected: '已拒绝',
   cancelled: '已取消',
-};
+}
 
 export interface FileAccessDialogProps {
-  show: boolean;
-  file: FileRecord | null;
-  activityVersion: number;
+  show: boolean
+  file: FileRecord | null
+  activityVersion: number
 }

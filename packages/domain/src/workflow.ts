@@ -65,6 +65,13 @@ export function resolveAssignees(
     const id = findById(config.departments, user.department)?.manager;
     if (id) ids.push(id);
   }
+  if (rule.type === 'department_manager') {
+    const department = findById(config.departments, rule.value);
+    const manager = department?.manager ? findById(config.users, department.manager) : undefined;
+    if (!department?.active || !manager || manager.department !== department.id)
+      errors.push('指定部门未启用或未设置有效的本部门负责人');
+    else ids.push(manager.id);
+  }
   if (rule.type === 'user') ids.push(rule.value);
   if (rule.type === 'role')
     for (const member of config.users)

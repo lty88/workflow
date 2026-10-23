@@ -1,5 +1,13 @@
+import { migrateAttachmentFields } from './attachment-field-migration';
 import { readFile } from 'node:fs/promises';
-import { DEFAULT_PASSWORD, configSchema, seedConfig, validateConfig } from '@workflow/domain';
+import {
+  DEFAULT_PASSWORD,
+  configSchema,
+  seedConfig,
+  validateConfig,
+  withStandardBusinessRoles,
+} from '@workflow/domain';
+import { migrateMasterData } from './master-data-migration';
 import { readEnv } from '../env';
 import { createPool, materializeConfig, query, transaction } from './repository';
 import { hashPassword } from '../services/auth';
@@ -26,10 +34,12 @@ async function initialize(): Promise<void> {
       await migrateDataSecurity(pool);
       await migrateInsights(pool);
       await migrateActivityDeletion(pool);
+      await migrateMasterData(pool);
+      await migrateAttachmentFields(pool);
       console.info('数据库结构已检查，现有配置和密码均保留。');
       return;
     }
-    const config = configSchema.parse(seedConfig());
+    const config = configSchema.parse(withStandardBusinessRoles(seedConfig()));
     const errors = validateConfig(config);
     if (errors.length) throw new Error(errors.join('；'));
     /**
@@ -63,6 +73,8 @@ async function initialize(): Promise<void> {
     await migrateDataSecurity(pool);
     await migrateInsights(pool);
     await migrateActivityDeletion(pool);
+    await migrateMasterData(pool);
+    await migrateAttachmentFields(pool);
     console.info('初始化完成。管理员账号：admin；管理员和示例员工默认密码123456，可由.env配置初始值。');
   } finally {
     await pool.end();

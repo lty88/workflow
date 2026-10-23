@@ -17,7 +17,9 @@
     "format": "prettier --write apps packages *.json *.yaml",
     "format:check": "prettier --check apps packages *.json *.yaml",
     "db:migrate": "pnpm --filter @workflow/server db:migrate",
-    "db:seed-organization": "pnpm --filter @workflow/server db:seed-organization"
+    "db:seed-organization": "pnpm --filter @workflow/server db:seed-organization",
+    "db:recover-members": "pnpm --filter @workflow/server db:recover-members",
+    "db:seed-test-templates": "pnpm --filter @workflow/server db:seed-test-templates"
   },
   "devDependencies": {
     "prettier": "3.9.10"

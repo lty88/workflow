@@ -270,24 +270,36 @@ export function supplementCommonOrganization(
       if (!root || department.id === 'company') root = department;
     }
   if (!root) throw new Error('请先建立并启用公司顶级部门，再补齐常用部门');
+  const compact = config.roles.some(
+    /** 检查是否已采用通用业务审核角色。
+     * @param role 当前角色
+     * @returns 是否启用精简角色体系
+     */ function isCompact(role) {
+      return role.id === 'reviewer';
+    },
+  );
   const pages = businessPages(config);
   let managerRole = '';
   let executorRole = '';
   if (includeMembers) {
-    managerRole = ensureRole(result, {
-      id: 'department',
-      name: '部门审核人',
-      permissions: ['activity:read', 'approval:decide'],
-      scope: 'department',
-      pages,
-    });
-    executorRole = ensureRole(result, {
-      id: 'org-executor',
-      name: '部门执行协作人',
-      permissions: ['activity:read', 'execution:report', 'task:complete', 'file:download'],
-      scope: 'tasks',
-      pages,
-    });
+    managerRole = compact
+      ? 'department'
+      : ensureRole(result, {
+          id: 'department',
+          name: '部门审核人',
+          permissions: ['activity:read', 'approval:decide'],
+          scope: 'department',
+          pages,
+        });
+    executorRole = compact
+      ? 'executor'
+      : ensureRole(result, {
+          id: 'org-executor',
+          name: '部门执行协作人',
+          permissions: ['activity:read', 'execution:report', 'task:complete', 'file:download'],
+          scope: 'tasks',
+          pages,
+        });
   }
   for (const preset of COMMON_DEPARTMENTS) {
     let department = existingDepartment(config, preset);
@@ -310,13 +322,15 @@ export function supplementCommonOrganization(
       preset.id === 'market'
         ? ['activity:read', 'approval:decide']
         : ['activity:read', 'approval:decide', 'task:complete', 'file:download'];
-    const role = ensureRole(result, {
-      id: preset.roleId,
-      name: preset.roleName,
-      permissions,
-      scope: 'tasks',
-      pages,
-    });
+    const role = compact
+      ? 'reviewer'
+      : ensureRole(result, {
+          id: preset.roleId,
+          name: preset.roleName,
+          permissions,
+          scope: 'tasks',
+          pages,
+        });
     if (!includeMembers) continue;
     if (!department.manager)
       department.manager = addExampleMember(result, department, preset, true, [managerRole, role]).id;

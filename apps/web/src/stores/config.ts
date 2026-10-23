@@ -1,85 +1,98 @@
-import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
-import type { CompanyConfig, ConfigState } from '@workflow/domain';
-import { configApi, publishConfigApi, saveConfigApi } from '@/api/configuration';
-
-/**
- * 管理五项配置的同一份草案、版本冲突与发布状态。
- * @returns 加载、更新草案、保存和发布能力
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
+import type { CompanyConfig, ConfigState } from '@workflow/domain'
+import type { SettingsModule, SettingsChanges, MemberBatchAction } from '@/typings/api/settings'
+import { configApi, saveSettingsApi, deleteMemberApi, batchMembersApi } from '@/api/configuration'
+/** 管理主数据编辑副本与直接保存接口。
+ * @returns 当前设置、编辑状态及读取、保存和清理能力
  */
 export const useConfigStore = defineStore(
   'configuration',
-  /**
-   * 管理配置草案与发布版本。
-   * @returns 版本状态和保存发布操作
+  /** 创建设置状态，编辑副本仅存在当前页面，不是服务端草稿。
+   * @returns 设置状态及读写方法
    */ function configStore() {
-    const state = ref<ConfigState | null>(null);
-    const draft = ref<CompanyConfig | null>(null);
-    const busy = ref(false);
-    const dirty = computed(
-      () => !!state.value && JSON.stringify(draft.value) !== JSON.stringify(state.value.draft),
-    );
-    const unpublished = computed(
-      () => !!state.value && JSON.stringify(draft.value) !== JSON.stringify(state.value.published),
-    );
-    /**
-     * 应用服务端配置状态。
-     * @param value 最新配置
+    const state = ref<ConfigState | null>(null)
+    const draft = ref<CompanyConfig | null>(null)
+    const busy = ref(false)
+    const dirty = computed(() => !!state.value && JSON.stringify(draft.value) !== JSON.stringify(state.value.published))
+    /** 应用接口真实结果并重置本地编辑副本。
+     * @param value 服务端上下文
      */
     function apply(value: ConfigState): void {
-      state.value = value;
-      draft.value = structuredClone(value.draft);
+      state.value = value
+      draft.value = structuredClone(value.published)
     }
-    /**
-     * 加载配置并替换草案。
-     */
+    /** 重新请求所有模块的实时主数据。 */
     async function load(): Promise<void> {
-      busy.value = true;
+      busy.value = true
       try {
-        apply(await configApi());
+        apply(await configApi())
       } finally {
-        busy.value = false;
+        busy.value = false
       }
     }
-    /**
-     * 替换编辑中的草案，不改服务端发布配置。
-     * @param value 新草案
+    /** 更新页面编辑副本，尚不发送网络请求。
+     * @param value 编辑值
      */
     function update(value: CompanyConfig): void {
-      draft.value = value;
+      draft.value = value
     }
-    /**
-     * 按草案版本保存，冲突时由服务端拒绝。
+    /** 仅提交当前模块字段，保存即生效并更新技术修订号。
+     * @param module 当前设置模块
      */
-    async function save(): Promise<void> {
-      if (!state.value || !draft.value) return;
-      busy.value = true;
+    async function save(module: SettingsModule): Promise<void> {
+      if (!state.value || !draft.value) throw new Error('请先读取设置')
+      if (busy.value) throw new Error('正在保存，请稍后再试')
+      const value = draft.value
+      const changes: SettingsChanges =
+        module === 'organization'
+          ? { departments: value.departments, users: value.users, roles: value.roles }
+          : module === 'permissions'
+            ? { roles: value.roles }
+            : module === 'menus'
+              ? { groups: value.groups, pages: value.pages, roles: value.roles }
+              : { form: value.form }
+      busy.value = true
       try {
-        apply(await saveConfigApi(draft.value, state.value.draftRevision));
+        apply(await saveSettingsApi(module, changes, state.value.revision))
       } finally {
-        busy.value = false;
+        busy.value = false
       }
     }
-    /**
-     * 先保存本地草案，再发布服务端校验通过的配置。
+    /** 删除未引用成员并应用服务端结果，阻止覆盖当前未保存的编辑。
+     * @param id 成员ID
      */
-    async function publish(): Promise<void> {
-      await save();
-      if (!state.value) return;
-      busy.value = true;
+    async function removeMember(id: string): Promise<void> {
+      if (!state.value) throw new Error('请先读取人员数据')
+      if (busy.value) throw new Error('正在提交，请稍后再试')
+      if (dirty.value) throw new Error('请先保存或重新读取当前修改，再删除成员')
+      busy.value = true
       try {
-        apply(await publishConfigApi(state.value.draftRevision));
+        apply(await deleteMemberApi(id, state.value.revision))
       } finally {
-        busy.value = false;
+        busy.value = false
       }
     }
-    /**
-     * 退出登录时丢弃上个账号配置资料。
+    /** 提交批量操作，使用服务端修订号防止覆盖未保存或并发修改。
+     * @param action 删除、启用或停用
+     * @param ids 所选成员ID
      */
+    async function batchMembers(action: MemberBatchAction, ids: string[]): Promise<void> {
+      if (!state.value) throw new Error('请先读取人员数据')
+      if (busy.value) throw new Error('正在提交，请稍后再试')
+      if (dirty.value) throw new Error('请先保存或重新读取当前修改，再批量操作')
+      busy.value = true
+      try {
+        apply(await batchMembersApi(action, ids, state.value.revision))
+      } finally {
+        busy.value = false
+      }
+    }
+    /** 退出登录时清理设置，避免跨账号泄露。 */
     function reset(): void {
-      state.value = null;
-      draft.value = null;
+      state.value = null
+      draft.value = null
     }
-    return { state, draft, busy, dirty, unpublished, load, update, save, publish, reset };
-  },
-);
+    return { state, draft, busy, dirty, load, update, save, removeMember, batchMembers, reset }
+  }
+)

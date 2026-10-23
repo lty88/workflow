@@ -1,7 +1,7 @@
 import type { Pool } from 'mysql2/promise';
 import { loadConfig, query } from './repository';
 
-/** 启动监听端口前读取项目配置、模板与活动评价迁移版本，缺少结构时给出显式迁移步骤。
+/** 启动监听端口前读取项目配置及模板、资料权限、活动评价和删除迁移版本与必要附件字段，缺少结构时给出显式迁移步骤。
  * @param pool 项目数据库连接池
  */
 export async function requireDatabaseReady(pool: Pool): Promise<void> {
@@ -14,7 +14,7 @@ export async function requireDatabaseReady(pool: Pool): Promise<void> {
   }
   const versions = await query<{ version: number }>(
     pool,
-    'SELECT version FROM schema_migrations WHERE version IN (2,4,5)',
+    'SELECT version FROM schema_migrations WHERE version IN (2,3,4,5,6,7)',
   );
   if (
     !versions.some(
@@ -29,6 +29,39 @@ export async function requireDatabaseReady(pool: Pool): Promise<void> {
     throw new Error(
       '数据库需升级多流程模板结构，请先运行 pnpm db:migrate，再启动服务。已有账号密码和活动历史会保留。',
     );
+  /**
+   * 检查资料权限迁移，避免保存草稿后因详情附件查询缺列而报错。
+   * @param row 已执行的迁移记录
+   * @returns 是否已安装第三版结构
+   */
+  function securityApplied(row: { version: number }): boolean {
+    return row.version === 3;
+  }
+  if (!versions.some(securityApplied))
+    throw new Error('数据库需升级活动资料权限，请先运行 pnpm db:migrate，再启动服务。已有草稿和附件会保留。');
+  const columns = await query<{ COLUMN_NAME: string }>(
+    pool,
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='files' AND COLUMN_NAME IN ('node_id','access_rule','download_rule')",
+  );
+  const names = new Set(columns.map(columnName));
+  /**
+   * 提取数据库实际列名，检查迁移记录和真实表结构是否一致。
+   * @param column 字段元数据
+   * @returns 字段名称
+   */
+  function columnName(column: { COLUMN_NAME: string }): string {
+    return column.COLUMN_NAME;
+  }
+  if (!['node_id', 'access_rule', 'download_rule'].every(hasColumn))
+    throw new Error('附件权限字段不完整，请运行 pnpm db:migrate 修复后再启动服务。');
+  /**
+   * 判断必要附件权限列是否真实存在。
+   * @param name 必要列名
+   * @returns 是否存在
+   */
+  function hasColumn(name: string): boolean {
+    return names.has(name);
+  }
   /**
    * 检查活动评价及领导看板迁移，避免服务启动后才发现缺少数据表。
    * @param row 已执行迁移记录
@@ -49,4 +82,31 @@ export async function requireDatabaseReady(pool: Pool): Promise<void> {
   }
   if (!versions.some(deletionApplied))
     throw new Error('数据库需升级活动删除功能，请先运行 pnpm db:migrate，再启动服务。');
+  if (
+    !versions.some(
+      /** 核对主数据独立保存迁移。
+       * @param row 迁移记录
+       * @returns 是否已安装第六版
+       */ function masterApplied(row) {
+        return row.version === 6;
+      },
+    )
+  )
+    throw new Error('数据库需升级主数据独立保存结构，请先运行 pnpm db:migrate，再启动服务。');
+  const attachmentColumns = await query(
+    pool,
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='files' AND COLUMN_NAME='field_key'",
+  );
+  if (
+    !versions.some(
+      /** 核对附件字段迁移登记。
+       * @param row 迁移记录
+       * @returns 是否安装第七版
+       */ function attachmentsApplied(row) {
+        return row.version === 7;
+      },
+    ) ||
+    !attachmentColumns.length
+  )
+    throw new Error('数据库需升级动态表单附件字段，请先运行 pnpm db:migrate，再启动服务。');
 }

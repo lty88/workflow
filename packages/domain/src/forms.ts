@@ -1,3 +1,4 @@
+import { attachmentIds, attachmentOptions } from './attachments';
 import type {
   Condition,
   FormDefinition,
@@ -42,7 +43,11 @@ export function matches(condition: Condition | undefined, payload: Record<string
  * @returns 输入或默认值
  */
 export function fieldValue(field: FormField, payload: Record<string, string>): string {
-  return Object.hasOwn(payload, field.key) ? payload[field.key]! : field.default;
+  return Object.hasOwn(payload, field.key)
+    ? payload[field.key]!
+    : field.type === 'attachment'
+      ? ''
+      : field.default;
 }
 
 /**
@@ -52,7 +57,7 @@ export function fieldValue(field: FormField, payload: Record<string, string>): s
  */
 export function defaultValues(form: FormDefinition): Record<string, string> {
   const payload: Record<string, string> = {};
-  for (const field of form.fields) payload[field.key] = field.default;
+  for (const field of form.fields) payload[field.key] = field.type === 'attachment' ? '' : field.default;
   return payload;
 }
 
@@ -119,6 +124,15 @@ export function validateForm(
   for (const field of visibleFields(form, input)) {
     const value = (input[field.key] ?? '').trim();
     payload[field.key] = value;
+    if (field.type === 'attachment') {
+      const ids = attachmentIds(value);
+      if (ids === null) report(field.key, `${field.label}附件数据格式无效`);
+      else if (field.required && !ids.length) report(field.key, `${field.label}为必填项，请上传附件`);
+      else if (ids.length > attachmentOptions(field).maxCount)
+        report(field.key, `${field.label}最多上传${attachmentOptions(field).maxCount}个文件`);
+      payload[field.key] = ids?.length ? JSON.stringify(ids) : '';
+      continue;
+    }
     if (field.required && !value) {
       report(field.key, `${field.label}为必填项`);
       continue;

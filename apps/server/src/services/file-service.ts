@@ -3,6 +3,11 @@ import { basename, resolve } from 'node:path';
 import type { Pool } from 'mysql2/promise';
 import {
   activityActions,
+  attachmentIds,
+  attachmentOptions,
+  attachmentFileErrors,
+  canAccessField,
+  visibleFields,
   hasPermission,
   canHandleTask,
   canReadNodeContent,
@@ -57,7 +62,7 @@ function acceptedMime(name: string, buffer: Buffer): string {
  * @param originalName 原始文件名
  * @param buffer 内容
  * @param key 幂等键
- * @param access 附件收紧规则及所属节点，始终与父节点规则取交集
+ * @param access 附件收紧规则、所属节点或表单字段，始终继承父级内容授权
  * @returns 文件元数据
  */
 export async function uploadFile(
@@ -99,6 +104,34 @@ export async function uploadFile(
       async function store(context) {
         const activity = context.activity!;
         const node = access.nodeId ? findById(activity.nodes, access.nodeId) : undefined;
+        let field;
+        if (access.fieldKey) {
+          ensure(stage === 'application' && !access.nodeId, 422, 'FILE_FIELD', '表单字段附件仅允许申请阶段');
+          field = visibleFields(activity.schema, activity.payload).find(
+            /** 仅接受本活动当前实际可见的附件控件。
+             * @param candidate 活动冻结表单字段
+             * @returns 是否匹配目标字段
+             */ function matches(candidate) {
+              return candidate.key === access.fieldKey && candidate.type === 'attachment';
+            },
+          );
+          ensure(
+            field && canAccessField(context.config, actor, activity, field, true),
+            403,
+            'FILE_FIELD_FORBIDDEN',
+            '附件字段不存在、不可见或无填写权限',
+          );
+          const fileErrors = attachmentFileErrors(field, { name, size: buffer.length });
+          ensure(!fileErrors.length, 422, 'FILE_FIELD', fileErrors.join('；'));
+          const ids = attachmentIds(activity.payload[field.key]);
+          ensure(ids !== null, 422, 'FILE_FIELD', '附件字段数据无效，请重新读取');
+          ensure(
+            ids.length < attachmentOptions(field).maxCount,
+            422,
+            'FILE_LIMIT',
+            `${field.label}最多上传${attachmentOptions(field).maxCount}个文件`,
+          );
+        }
         ensure(
           stage === 'node' ? !!node : !access.nodeId,
           422,
@@ -131,17 +164,19 @@ export async function uploadFile(
         if (stage === 'archive')
           allowed = activityActions(context.config, actor, activity).includes('archive-submit');
         ensure(allowed, 403, 'FORBIDDEN', '当前身份或阶段不允许上传该类附件');
-        const existing = await query<{ total: number }>(
-          context.connection,
-          'SELECT COUNT(*) AS total FROM files WHERE activity_id=? AND stage=? AND node_id <=> ?',
-          [activityId, stage, access.nodeId || null],
-        );
-        ensure(Number(existing[0]?.total || 0) < 10, 422, 'FILE_LIMIT', '该阶段最多上传10个文件');
+        if (!field) {
+          const existing = await query<{ total: number }>(
+            context.connection,
+            'SELECT COUNT(*) AS total FROM files WHERE activity_id=? AND stage=? AND node_id <=> ? AND field_key IS NULL',
+            [activityId, stage, access.nodeId || null],
+          );
+          ensure(Number(existing[0]?.total || 0) < 10, 422, 'FILE_LIMIT', '该阶段最多上传10个文件');
+        }
         await mkdir(root, { recursive: true });
         await writeFile(storagePath, buffer, { flag: 'wx', mode: 0o600 });
         created = true;
         await context.connection.execute(
-          'INSERT INTO files(id,activity_id,uploader_id,name,storage_key,mime,size,stage,node_id,access_rule,download_rule) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+          'INSERT INTO files(id,activity_id,uploader_id,name,storage_key,mime,size,stage,node_id,field_key,access_rule,download_rule) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
           [
             id,
             activityId,
@@ -152,10 +187,15 @@ export async function uploadFile(
             buffer.length,
             stage,
             access.nodeId || null,
+            access.fieldKey || null,
             access.access ? JSON.stringify(access.access) : null,
             access.downloadAccess ? JSON.stringify(access.downloadAccess) : null,
           ],
         );
+        if (field) {
+          const ids = attachmentIds(activity.payload[field.key])!;
+          activity.payload[field.key] = JSON.stringify([...ids, id]);
+        }
         activity.audit.push({
           id: crypto.randomUUID(),
           actor,
@@ -163,7 +203,7 @@ export async function uploadFile(
           action: '上传附件',
           nodeId: access.nodeId,
           fileId: id,
-          note: `${stage}：${name}`,
+          note: `${field?.label || stage}：${name}`,
           createdAt: new Date().toISOString(),
         });
         return activity;
@@ -181,6 +221,7 @@ export async function uploadFile(
     size: buffer.length,
     stage,
     nodeId: access.nodeId,
+    fieldKey: access.fieldKey,
     createdAt: new Date().toISOString(),
   };
 }

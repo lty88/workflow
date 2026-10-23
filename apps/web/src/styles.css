@@ -556,6 +556,38 @@ h3 {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  position: relative;
+}
+.drag-handle {
+  width: 15px;
+  height: 22px;
+  flex: none;
+  cursor: grab;
+  background-image: radial-gradient(#b9c5d8 1.1px, transparent 1.1px);
+  background-size: 6px 5px;
+  background-position: 1px 3px;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.form-row.dragging {
+  opacity: 0.45;
+}
+.form-row.drop-before::before,
+.form-row.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  border-radius: 2px;
+  background: #2a64e9;
+}
+.form-row.drop-before::before {
+  top: -6px;
+}
+.form-row.drop-after::after {
+  bottom: -6px;
 }
 .config-item.selected {
   background: #eef3ff;
@@ -565,6 +597,72 @@ h3 {
   display: block;
   color: #95a0b2;
   margin-top: 5px;
+}
+.config-main {
+  flex: 1;
+  min-width: 0;
+}
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.page-title strong {
+  font-size: 14px;
+  color: #2f3c52;
+}
+.page-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+.page-meta .role-missing {
+  color: #c26a5f;
+}
+.config-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.role-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 380px;
+}
+.group-chip {
+  border: 1px solid #e2e7f0;
+  background: #fff;
+  border-radius: 9px;
+  padding: 10px 14px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color 150ms ease;
+}
+.group-chip:hover {
+  border-color: #9cb8f3;
+}
+.group-chip strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2f3c52;
+}
+.group-chip span {
+  font-size: 12px;
+  color: #95a0b2;
+}
+.group-chip.stopped {
+  background: #f4f6fa;
+}
+.group-chip.stopped strong {
+  color: #98a2b2;
 }
 .config-select {
   width: 100%;

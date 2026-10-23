@@ -1,0 +1,367 @@
+{
+  "executed": true,
+  "before": 56,
+  "after": 9,
+  "users": 121,
+  "passwordsDepartmentsAndStatusesUnchanged": true,
+  "formRevisionChanged": true,
+  "backup": "/Users/codesun/qh_workspace/work-flow/data/backups/roles-consolidation-20261023-e5ba4582.json.gz",
+  "mappings": [
+    {
+      "oldId": "academic",
+      "oldName": "教研审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "activity-deletion-admin",
+      "oldName": "活动删除管理员",
+      "newId": "activity-admin"
+    },
+    {
+      "oldId": "admin",
+      "oldName": "配置管理员",
+      "newId": "admin"
+    },
+    {
+      "oldId": "applicant",
+      "oldName": "申请人",
+      "newId": "applicant"
+    },
+    {
+      "oldId": "archivist",
+      "oldName": "归档审核人",
+      "newId": "archivist"
+    },
+    {
+      "oldId": "coordinator",
+      "oldName": "流程负责人",
+      "newId": "coordinator"
+    },
+    {
+      "oldId": "department",
+      "oldName": "部门审核人",
+      "newId": "department"
+    },
+    {
+      "oldId": "director",
+      "oldName": "院负责人",
+      "newId": "director"
+    },
+    {
+      "oldId": "executor",
+      "oldName": "执行人",
+      "newId": "executor"
+    },
+    {
+      "oldId": "leadership-insights",
+      "oldName": "公司领导看板",
+      "newId": "director"
+    },
+    {
+      "oldId": "marketing",
+      "oldName": "营销审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "org-administration",
+      "oldName": "行政人事审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "org-customer-service",
+      "oldName": "客户服务审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "org-design",
+      "oldName": "设计审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "org-finance",
+      "oldName": "财务审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "org-logistics",
+      "oldName": "仓储物流审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "org-planning",
+      "oldName": "策划审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "org-printing",
+      "oldName": "印刷制作审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "org-procurement",
+      "oldName": "采购审核人",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-admin",
+      "oldName": "组织重置后的系统管理员",
+      "newId": "admin"
+    },
+    {
+      "oldId": "orgsql-applicant",
+      "oldName": "测试活动发起人",
+      "newId": "applicant"
+    },
+    {
+      "oldId": "orgsql-archivist",
+      "oldName": "全公司档案审核员",
+      "newId": "archivist"
+    },
+    {
+      "oldId": "orgsql-caiwu-review",
+      "oldName": "财务部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-caiwuzhongxin-review",
+      "oldName": "财务中心负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-chongqing-review",
+      "oldName": "重庆事业部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-chuyun-review",
+      "oldName": "储运部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-coordinator",
+      "oldName": "全公司流程协调员",
+      "newId": "coordinator"
+    },
+    {
+      "oldId": "orgsql-gansu-review",
+      "oldName": "甘肃事业部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-guizhou-review",
+      "oldName": "贵州事业部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-hubei-review",
+      "oldName": "湖北事业部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-jiaokeyan-review",
+      "oldName": "教科研中心负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-jiaoxuezhiliang-review",
+      "oldName": "教学质量部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-jiaoyan-review",
+      "oldName": "教研组负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-jiaqi-review",
+      "oldName": "假期项目组负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-jishuyanfa-review",
+      "oldName": "技术研发部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-keyan-review",
+      "oldName": "科研组负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-leader",
+      "oldName": "院领导普通业务查看",
+      "newId": "director"
+    },
+    {
+      "oldId": "orgsql-manager",
+      "oldName": "部门及下级审核负责人",
+      "newId": "department"
+    },
+    {
+      "oldId": "orgsql-meiti-review",
+      "oldName": "媒体组负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-renshi-review",
+      "oldName": "人事部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-sheji-review",
+      "oldName": "设计部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-shejiyinzhi-review",
+      "oldName": "设计印制中心负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-sichuan-review",
+      "oldName": "四川事业部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-worker",
+      "oldName": "测试任务与执行人员",
+      "newId": "executor"
+    },
+    {
+      "oldId": "orgsql-xiaoxueyanfa-review",
+      "oldName": "小学研发部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-xingzheng-review",
+      "oldName": "行政部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-xingzhengrenshi-review",
+      "oldName": "行政人事中心负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-xinxihua-review",
+      "oldName": "信息化事业部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-yanfa-review",
+      "oldName": "研发中心负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-yingxiao-review",
+      "oldName": "营销中心负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-yinzhi-review",
+      "oldName": "印制部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-yuanlingdao-review",
+      "oldName": "树人教育（院领导）负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-yuwenqikan-review",
+      "oldName": "语文期刊部负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-zhengbenshu-review",
+      "oldName": "整本书项目组负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-zhihuiyunxiao-review",
+      "oldName": "智慧云校负责人节点受理",
+      "newId": "reviewer"
+    },
+    {
+      "oldId": "orgsql-zhongxueyanfa-review",
+      "oldName": "中学研发部负责人节点受理",
+      "newId": "reviewer"
+    }
+  ],
+  "reviewers": [
+    {
+      "department": "org-caiwu",
+      "assignees": [
+        "u-org-caiwu"
+      ]
+    },
+    {
+      "department": "org-jishuyanfa",
+      "assignees": [
+        "u-org-jishuyanfa"
+      ]
+    },
+    {
+      "department": "org-jiaoxuezhiliang",
+      "assignees": [
+        "u-org-jiaoxuezhiliang"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "id": "admin",
+      "name": "系统管理员",
+      "purpose": "维护用户、组织、表单、菜单与权限",
+      "activeMembers": 1
+    },
+    {
+      "id": "activity-admin",
+      "name": "活动管理员",
+      "purpose": "管理全公司活动及删除操作，不管理系统配置",
+      "activeMembers": 0
+    },
+    {
+      "id": "applicant",
+      "name": "活动发起人",
+      "purpose": "创建活动、提交申请、维护本人申请",
+      "activeMembers": 90
+    },
+    {
+      "id": "department",
+      "name": "部门负责人",
+      "purpose": "审核本部门及下级活动、查看部门数据",
+      "activeMembers": 30
+    },
+    {
+      "id": "reviewer",
+      "name": "业务审核人",
+      "purpose": "办理指派给自己的跨部门审核与任务",
+      "activeMembers": 30
+    },
+    {
+      "id": "coordinator",
+      "name": "流程协调人",
+      "purpose": "协调流程、调整节点、指派执行人员",
+      "activeMembers": 1
+    },
+    {
+      "id": "executor",
+      "name": "活动执行人",
+      "purpose": "完成办理任务、执行活动并提交成果",
+      "activeMembers": 90
+    },
+    {
+      "id": "archivist",
+      "name": "归档管理员",
+      "purpose": "审核活动成果并归档",
+      "activeMembers": 1
+    },
+    {
+      "id": "director",
+      "name": "公司领导",
+      "purpose": "领导审核、查看公司活动与经营看板",
+      "activeMembers": 1
+    }
+  ]
+}

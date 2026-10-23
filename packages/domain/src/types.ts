@@ -19,7 +19,7 @@ export type Permission =
   | 'activity:delete'
   | 'activity:delete:any';
 export type Scope = 'self' | 'department' | 'department_tree' | 'tasks' | 'all';
-export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'datetime' | 'checkboxes';
+export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'datetime' | 'checkboxes' | 'attachment';
 export interface Condition {
   field: string;
   operator: 'eq' | 'neq' | 'gte';
@@ -45,12 +45,19 @@ export interface ActivityAccess {
   hiddenFieldKeys: string[];
   containsSensitive: boolean;
 }
+export interface AttachmentOptions {
+  maxCount: number;
+  maxSizeMB: number;
+  extensions: string[];
+}
 export interface FileAccessInput {
+  fieldKey?: string;
   nodeId?: string;
   access?: DataAccessRule;
   downloadAccess?: DataAccessRule;
 }
 export interface FormField {
+  upload?: AttachmentOptions;
   accessConstraints?: FieldAccess[];
   access?: FieldAccess;
   readOnly?: boolean;
@@ -123,7 +130,7 @@ export interface PageDefinition {
   active: boolean;
 }
 export interface AssigneeRule {
-  type: 'manager' | 'role' | 'user';
+  type: 'manager' | 'department_manager' | 'role' | 'user';
   value: string;
 }
 export interface NodeDefinition {

@@ -1,5 +1,6 @@
 import type { Activity, ActivityDetail, CompanyConfig, FileRecord, FormDefinition, FormField } from './types';
 import { canHandleTask, canReadActivity, findById, hasPermission } from './permissions';
+import { attachmentFieldsForFile } from './attachments';
 import { visibleFields } from './forms';
 import {
   canAccessField,
@@ -194,7 +195,17 @@ export function projectActivityDetail(
     if (!canReadFile(config, actor, source, file)) continue;
     if (
       exporting &&
-      (((file.nodeId || file.access?.mode === 'restricted') && !sensitiveExport) ||
+      (((file.nodeId ||
+        file.access?.mode === 'restricted' ||
+        attachmentFieldsForFile(source, file).some(
+          /** 检查字段附件是否包含敏感原文，导出需额外授权。
+           * @param field 实际引用文件的字段
+           * @returns 是否受限
+           */ function sensitive(field) {
+            return isSensitiveField(config, field);
+          },
+        )) &&
+        !sensitiveExport) ||
         !canDownloadFile(config, actor, source, file))
     )
       continue;
@@ -210,7 +221,19 @@ export function projectActivityDetail(
     }
     delete projected.uploaderId;
     safe.files.push(projected);
-    if (file.nodeId || file.access?.mode === 'restricted') containsSensitive = true;
+    if (
+      file.nodeId ||
+      file.access?.mode === 'restricted' ||
+      attachmentFieldsForFile(source, file).some(
+        /** 汇总附件字段的数据敏感标识。
+         * @param field 字段定义
+         * @returns 是否受限
+         */ function sensitive(field) {
+          return isSensitiveField(config, field);
+        },
+      )
+    )
+      containsSensitive = true;
   }
   for (const snapshot of safe.activity.snapshots) {
     const projected = projectFormData(config, actor, source, snapshot.schema, snapshot.payload, exporting);

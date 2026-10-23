@@ -1,67 +1,85 @@
-import type { GraphData } from '@antv/g6';
-import type { SelectOption } from 'naive-ui';
-export type GraphNodeKind = 'department' | 'member' | 'workflow' | 'runtime' | 'stage';
-export type GraphTone = 'normal' | 'active' | 'success' | 'warning' | 'muted';
-export type GraphDirection = 'TB' | 'LR';
+import type { GraphData } from '@antv/g6'
+import type { SelectOption } from 'naive-ui'
+export type GraphNodeKind = 'department' | 'member' | 'workflow' | 'runtime' | 'stage'
+export type GraphTone = 'normal' | 'active' | 'success' | 'warning' | 'muted'
+export type GraphDirection = 'TB' | 'LR'
 export interface GraphLocateOption extends SelectOption {
-  label: string;
-  value: string;
+  label: string
+  value: string
 }
 export interface GraphToolbarProps {
-  label: string;
-  nodeCount: number;
-  options: GraphLocateOption[];
-  selected: string;
-  busy: boolean;
-  issue: boolean;
-  zoom: number;
-  expanded: boolean;
-  direction: GraphDirection;
+  label: string
+  nodeCount: number
+  options: GraphLocateOption[]
+  selected: string
+  busy: boolean
+  issue: boolean
+  zoom: number
+  expanded: boolean
+  direction: GraphDirection
 }
 export interface BusinessGraphModel {
-  data: GraphData;
-  issue?: string;
+  data: GraphData
+  issue?: string
 }
 export interface GraphSelection {
-  id: string;
-  graphId: string;
-  kind: GraphNodeKind;
+  id: string
+  graphId: string
+  kind: GraphNodeKind
 }
 export interface BusinessGraphProps {
-  fill?: boolean;
-  hideFooter?: boolean;
-  focusOnSelect?: boolean;
-  editable?: boolean;
-  connectMode?: boolean;
-  positions?: Record<string, { x: number; y: number }>;
-  model: BusinessGraphModel;
-  selectedKey?: string;
-  height?: number;
-  direction?: GraphDirection;
-  label?: string;
+  appearance?: 'business' | 'organization'
+  fill?: boolean
+  hideFooter?: boolean
+  focusOnSelect?: boolean
+  editable?: boolean
+  connectMode?: boolean
+  positions?: Record<string, { x: number; y: number }>
+  model: BusinessGraphModel
+  selectedKey?: string
+  height?: number
+  direction?: GraphDirection
+  label?: string
   /** 初始视图：overview 适配全图，focus 聚焦单点，readable 在100%下优先完整居中、长图聚焦选中节点 */
-  fit?: 'overview' | 'focus' | 'readable';
+  fit?: 'overview' | 'focus' | 'readable'
   /** 节点基准宽度，窄容器可调大以保证文字可读 */
-  nodeWidth?: number;
+  nodeWidth?: number
 }
 export interface GraphToolbarControls extends GraphToolbarProps {
-  locate: (value: string | null) => void;
-  zoomBy: (ratio: number) => Promise<void>;
-  fit: () => Promise<void>;
-  reset: () => Promise<void>;
-  changeDirection: (value: GraphDirection) => void;
+  locate: (value: string | null) => void
+  zoomBy: (ratio: number) => Promise<void>
+  fit: () => Promise<void>
+  reset: () => Promise<void>
+  changeDirection: (value: GraphDirection) => void
 }
 export interface GraphToolbarSlot {
-  controls: GraphToolbarControls;
+  controls: GraphToolbarControls
 }
 export interface GraphConnection {
-  source: string;
-  target: string;
+  source: string
+  target: string
 }
 export interface GraphNodeMeta {
-  businessId: string;
-  kind: GraphNodeKind;
-  label: string;
-  summary: string;
-  tone: GraphTone;
+  businessId: string
+  kind: GraphNodeKind
+  label: string
+  summary: string
+  tone: GraphTone
+}
+
+export interface OrganizationCardMeta extends GraphNodeMeta {
+  overview?: boolean
+  accent: string
+  root: boolean
+  caption: string
+  metrics: string
+  levelLabel: string
+  statusLabel: string
+  statusColor: string
+  statusBackground: string
+}
+
+export interface OrganizationChartProps {
+  config: import('@workflow/domain').CompanyConfig
+  selected: string
 }

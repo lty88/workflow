@@ -53,6 +53,31 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
       (!field.options.length || new Set(field.options).size !== field.options.length)
     )
       errors.push(`${field.label}选项为空或重复`);
+    if (field.type === 'attachment') {
+      if (field.default) errors.push(`${field.label}附件字段不能配置默认文件`);
+      if (field.upload) {
+        const rules = field.upload;
+        if (
+          !Number.isInteger(rules.maxCount) ||
+          rules.maxCount < 1 ||
+          rules.maxCount > 10 ||
+          !Number.isInteger(rules.maxSizeMB) ||
+          rules.maxSizeMB < 1 ||
+          rules.maxSizeMB > 20 ||
+          !rules.extensions.length ||
+          new Set(rules.extensions).size !== rules.extensions.length ||
+          rules.extensions.some(
+            /** 检查是否选用了服务端支持的文件格式。
+             * @param extension 配置的扩展名
+             * @returns 是否不受支持
+             */ function unsupported(extension) {
+              return !['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx'].includes(extension);
+            },
+          )
+        )
+          errors.push(`${field.label}附件规则无效，数量1至10、大小1至20MB且格式不可重复`);
+      }
+    } else if (field.upload) errors.push(`${field.label}只有附件字段可配置上传规则`);
     if (field.type === 'select' && field.default && !field.options.includes(field.default))
       errors.push(`${field.label}默认值不在选项中`);
     if (field.type === 'number' && field.default && !Number.isFinite(amountFen(field.default)))
@@ -92,6 +117,7 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
       let source;
       for (const candidate of config.form.fields)
         if (candidate.key === field.visible.field) source = candidate;
+      if (source?.type === 'attachment') errors.push(`${field.label}不能用附件字段作为显示条件`);
       if (source?.type === 'select' && !source.options.includes(field.visible.value))
         errors.push(`${field.label}显示条件值无效`);
       if (
@@ -120,6 +146,7 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
       let field;
       for (const item of config.form.fields) if (item.key === node.condition.field) field = item;
       if (!field) errors.push(`${node.label}引用字段不存在`);
+      else if (field.type === 'attachment') errors.push(`${node.label}不能用附件字段作为流程条件`);
       else if (
         node.condition.operator === 'gte' &&
         (field.type !== 'number' || !Number.isFinite(amountFen(node.condition.value)))
@@ -128,6 +155,11 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
     }
     if (node.assignee.type === 'role' && !findById(config.roles, node.assignee.value))
       errors.push(`${node.label}受理角色不存在`);
+    if (
+      node.assignee.type === 'department_manager' &&
+      !findById(config.departments, node.assignee.value)?.active
+    )
+      errors.push(`${node.label}指定部门不存在或已停用`);
     if (node.assignee.type === 'user' && !activeMember(config, node.assignee.value))
       errors.push(`${node.label}受理员工无效`);
   }

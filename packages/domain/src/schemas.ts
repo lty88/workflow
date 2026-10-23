@@ -10,7 +10,9 @@ const condition = z
     value: z.string().max(300),
   })
   .strict();
-const assignee = z.object({ type: z.enum(['manager', 'role', 'user']), value: z.string().max(80) }).strict();
+const assignee = z
+  .object({ type: z.enum(['manager', 'department_manager', 'role', 'user']), value: z.string().max(80) })
+  .strict();
 const permission = z.enum(Object.keys(PERMISSIONS) as [Permission, ...Permission[]]);
 export const dataAccessRuleSchema = z
   .object({
@@ -25,6 +27,10 @@ export const dataAccessRuleSchema = z
   .strict();
 export const fileAccessInputSchema = z
   .object({
+    fieldKey: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{1,39}$/)
+      .optional(),
     nodeId: id.optional(),
     access: dataAccessRuleSchema.optional(),
     downloadAccess: dataAccessRuleSchema.optional(),
@@ -114,7 +120,26 @@ export const configSchema = z
                 id,
                 key: z.string().regex(/^[a-z][a-z0-9_]{1,39}$/),
                 label: z.string().min(1).max(80),
-                type: z.enum(['text', 'textarea', 'number', 'select', 'datetime', 'checkboxes']),
+                type: z.enum([
+                  'text',
+                  'textarea',
+                  'number',
+                  'select',
+                  'datetime',
+                  'checkboxes',
+                  'attachment',
+                ]),
+                upload: z
+                  .object({
+                    maxCount: z.number().int().min(1).max(10),
+                    maxSizeMB: z.number().int().min(1).max(20),
+                    extensions: z
+                      .array(z.enum(['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx']))
+                      .min(1)
+                      .max(6),
+                  })
+                  .strict()
+                  .optional(),
                 required: z.boolean(),
                 default: z.string().max(3000),
                 options: z.array(z.string().min(1).max(100)).max(100),

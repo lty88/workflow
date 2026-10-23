@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-10-23T07:55:53.292Z",
+  "results": [
+    {
+      "code": "test-01-simple",
+      "id": "c6247e36-015c-4437-b80e-36ef16ac92f7",
+      "name": "测试01｜极简单级审批",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 1
+    },
+    {
+      "code": "test-02-standard",
+      "id": "e98180e4-d33a-4049-92b4-3597095fac42",
+      "name": "测试02｜常规跨部门串行",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 5
+    },
+    {
+      "code": "test-03-task-first",
+      "id": "72d145fe-fc6a-482b-86e6-937c6dd9fe6d",
+      "name": "测试03｜任务先行再审核",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 3
+    },
+    {
+      "code": "test-04-parallel",
+      "id": "af60c328-bdd7-44fc-8531-26fce50e8bad",
+      "name": "测试04｜双分支并行汇合",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 4
+    },
+    {
+      "code": "test-05-conditions",
+      "id": "9cfc5822-a49f-4e17-8840-841f770934a1",
+      "name": "测试05｜金额与业务条件分支",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 4
+    },
+    {
+      "code": "test-06-cross",
+      "id": "6f082465-63f6-4b0f-a639-b6923f67ac31",
+      "name": "测试06｜复杂交错协作",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 12
+    },
+    {
+      "code": "test-07-notice-only",
+      "id": "3bda2bf2-779e-4ce7-8a08-4bba6026666f",
+      "name": "测试07｜仅知会免审批",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 3
+    },
+    {
+      "code": "test-08-task-only",
+      "id": "6f8ec36c-1245-4e04-8213-4345eb307172",
+      "name": "测试08｜纯任务并行协作",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 3
+    },
+    {
+      "code": "test-09-security",
+      "id": "f9b494b8-2d61-4ef2-823a-ba0e81d00d84",
+      "name": "测试09｜敏感财务资料隔离",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 4
+    },
+    {
+      "code": "test-10-countersign",
+      "id": "6c0aaca4-dec2-41f1-8087-7c50d3dd6b89",
+      "name": "测试10｜全体部门负责人会签",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 2
+    }
+  ]
+}

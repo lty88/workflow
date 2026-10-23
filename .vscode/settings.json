@@ -1,0 +1,36 @@
+{
+  // 1. 禁用原生格式化，避免冲突
+  "editor.formatOnSave": false,
+
+  // 2. 核心配置：保存时触发 ESLint 修复动作
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "never"
+  },
+
+  // 3. 必须：强制所有相关文件使用 ESLint 插件作为格式化器
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+
+  // 4. 必须：显式声明需要校验的文件类型
+  "eslint.validate": ["javascript", "typescript", "vue", "html", "json", "jsonc"],
+
+  // 5. 必须：指定工作区目录（让 Windsurf 知道去哪里加载每个包的配置）
+  "eslint.workingDirectories": [{ "mode": "auto" }, "./apps/admin", "./apps/user", "./packages/eslint-config"],
+  "totvsLanguageServer.welcomePage": false,
+  "kiroAgent.configureMCP": "Disabled",
+  "cSpell.words": [
+    "cascader",
+    "Popconfirm",
+    "roleid",
+    "zyber"
+  ],
+  "editor.fontSize": 14
+}

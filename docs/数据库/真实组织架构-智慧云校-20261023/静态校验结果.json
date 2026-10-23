@@ -1,0 +1,70 @@
+{
+  "departments": 30,
+  "testAccounts": 120,
+  "verifiedScryptHashes": 120,
+  "databaseExecuted": false,
+  "results": [
+    {
+      "baseline": "用户提供的配置",
+      "configuration": "通过",
+      "template": "通过",
+      "route": [
+        {
+          "node": "申请部门负责人审核",
+          "assignees": [
+            "u-org-sichuan"
+          ]
+        },
+        {
+          "node": "行政部审核",
+          "assignees": [
+            "u-org-xingzheng"
+          ]
+        },
+        {
+          "node": "财务部审核",
+          "assignees": [
+            "u-org-caiwu"
+          ]
+        },
+        {
+          "node": "院领导最终审核",
+          "assignees": [
+            "u-org-yuanlingdao"
+          ]
+        }
+      ]
+    },
+    {
+      "baseline": "项目初始配置",
+      "configuration": "通过",
+      "template": "通过",
+      "route": [
+        {
+          "node": "申请部门负责人审核",
+          "assignees": [
+            "u-org-sichuan"
+          ]
+        },
+        {
+          "node": "行政部审核",
+          "assignees": [
+            "u-org-xingzheng"
+          ]
+        },
+        {
+          "node": "财务部审核",
+          "assignees": [
+            "u-org-caiwu"
+          ]
+        },
+        {
+          "node": "院领导最终审核",
+          "assignees": [
+            "u-org-yuanlingdao"
+          ]
+        }
+      ]
+    }
+  ]
+}

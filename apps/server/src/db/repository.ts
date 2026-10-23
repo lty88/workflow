@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import { readMasterData } from './master-data';
 import type { Pool, PoolConnection, RowDataPacket } from 'mysql2/promise';
 import type {
   Activity,
@@ -95,7 +96,7 @@ export async function transaction<T>(
 }
 
 /**
- * 读取配置，业务写入持有共享锁，发布配置持有排他锁。
+ * 装配业务上下文，主数据读取业务表；写入时通过配置行锁防止并发覆盖。
  * @param db 数据库连接
  * @param lock 配置锁方式
  * @returns 配置状态
@@ -110,20 +111,26 @@ export async function loadConfig(
     `SELECT published,draft,revision,draft_revision FROM configuration WHERE id='company'${suffix}`,
   );
   if (!rows[0]) throw new Error('数据库尚未初始化，请先执行 db:init');
+  const base = jsonValue<CompanyConfig & { storage?: string }>(rows[0].published);
+  const normalized = base.storage === 'master-data-v6';
+  const { storage: _storage, ...context } = base;
+  const current = normalized ? await readMasterData(db, context) : base;
   return {
-    published: jsonValue<CompanyConfig>(rows[0].published),
-    draft: jsonValue<CompanyConfig>(rows[0].draft),
+    published: current,
+    draft: normalized ? structuredClone(current) : jsonValue<CompanyConfig>(rows[0].draft),
     revision: rows[0].revision,
     draftRevision: rows[0].draft_revision,
   };
 }
 
 /**
- * 在发布事务内同步组织、成员与菜单，新成员默认密码123456，既有密码保持不变。
+ * 仅供第六版之前的初始化与迁移同步主表；升级后拒绝整包物化，新成员初始密码123456。
  * @param db 事务连接
  * @param config 发布配置
  */
 export async function materializeConfig(db: Database, config: CompanyConfig): Promise<void> {
+  if ((await query(db, 'SELECT version FROM schema_migrations WHERE version=6')).length)
+    throw new Error('主数据迁移后禁止整包物化，请使用模块保存接口');
   const existingMembers = await query<{ id: string }>(db, 'SELECT id FROM members');
   const existingIds = new Set<string>();
   for (const item of existingMembers) existingIds.add(item.id);
@@ -314,13 +321,14 @@ export async function activityFiles(db: Database, id: string): Promise<FileRecor
     mime: string;
     stage: FileRecord['stage'];
     uploader_id: string;
+    field_key: string | null;
     node_id: string | null;
     access_rule: unknown;
     download_rule: unknown;
     created_at: string;
   }>(
     db,
-    'SELECT id,activity_id,uploader_id,name,size,mime,stage,node_id,access_rule,download_rule,created_at FROM files WHERE activity_id=? ORDER BY created_at',
+    'SELECT id,activity_id,uploader_id,name,size,mime,stage,node_id,field_key,access_rule,download_rule,created_at FROM files WHERE activity_id=? ORDER BY created_at',
     [id],
   );
   const files: FileRecord[] = [];
@@ -332,6 +340,7 @@ export async function activityFiles(db: Database, id: string): Promise<FileRecor
       size: Number(row.size),
       mime: row.mime,
       stage: row.stage,
+      fieldKey: row.field_key || undefined,
       nodeId: row.node_id || undefined,
       uploaderId: row.uploader_id,
       access: row.access_rule ? jsonValue<FileRecord['access']>(row.access_rule) : undefined,

@@ -1,3 +1,5 @@
+import { migrateAttachmentFields } from './attachment-field-migration';
+import { migrateMasterData } from './master-data-migration';
 import { readEnv } from '../env';
 import { createPool } from './repository';
 import { migrateTemplates } from './template-migration';
@@ -13,7 +15,11 @@ async function migrate(): Promise<void> {
     await migrateDataSecurity(pool);
     await migrateInsights(pool);
     await migrateActivityDeletion(pool);
-    console.info('流程模板、数据权限、活动评价及领导看板迁移完成；现有账号密码和活动历史均保留。');
+    await migrateMasterData(pool);
+    await migrateAttachmentFields(pool);
+    console.info(
+      '流程、资料权限、评价看板及主数据及第七版动态附件字段迁移完成；组织、人员等设置保存即生效，现有密码和活动历史保留。',
+    );
   } finally {
     await pool.end();
   }
