@@ -14,7 +14,7 @@
     templateVersionsApi,
     validateTemplateApi,
   } from '@/api/templates'
-  import { editableTemplateDefinition } from '@workflow/domain'
+  import { createUuid, editableTemplateDefinition } from '@workflow/domain'
   import { clone } from '@/composables/format'
   import { useFeedback } from '@/composables/use-feedback'
   import { useAuthStore } from '@/stores/auth'
@@ -86,7 +86,7 @@
   function openCreate(source?: WorkflowTemplate): void {
     sourceId.value = source?.id
     firstNodeKind.value = 'approval'
-    code.value = 'flow-' + crypto.randomUUID().slice(0, 8)
+    code.value = 'flow-' + createUuid().slice(0, 8)
     createOpen.value = true
   }
   /** 请求服务器创建或复制草稿，成功后进入全屏设计器，不复制业务实例。 */

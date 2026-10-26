@@ -18,3 +18,5 @@ export * from './activity-deletion';
 export * from './role-catalog';
 
 export * from './attachments';
+
+export * from './ids';

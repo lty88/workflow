@@ -1,3 +1,4 @@
+import { createUuid } from './ids';
 import type { Activity, Adjustment, CompanyConfig, Permission, WorkflowNode } from './types';
 import type { z } from 'zod';
 import type { actionSchema, decisionSchema, TransferCommand } from './schemas';
@@ -107,7 +108,7 @@ export function auditActivity(
   nodeId?: string,
 ): void {
   activity.audit.push({
-    id: crypto.randomUUID(),
+    id: createUuid(),
     actor,
     actorName: findById(config.users, actor)?.name || actor,
     action,
@@ -470,8 +471,8 @@ export function adjustWorkflow(
     ),
     downloadAccess: anchor.downloadAccess ? structuredClone(anchor.downloadAccess) : undefined,
     origin: 'instance',
-    id: crypto.randomUUID(),
-    key: `extra-${crypto.randomUUID()}`,
+    id: createUuid(),
+    key: `extra-${createUuid()}`,
     label: input.name,
     kind: input.kind,
     deps: input.position === 'after' && anchor.kind !== 'notice' ? [anchor.id] : [...anchor.deps],

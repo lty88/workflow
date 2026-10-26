@@ -2,7 +2,7 @@ import { expect, test, vi } from 'vitest';
 import { mutation, setCsrfToken } from '../../../web/src/api/http';
 
 /**
- * 验证丢失响应后再次提交沿用同一幂等键，成功后下一次动作获得新键。
+ * 模拟HTTP局域网缺少randomUUID，验证网络失败重试复用幂等键，成功后新动作生成新键。
  */
 async function retryCase(): Promise<void> {
   const bodies: string[] = [];
@@ -23,6 +23,8 @@ async function retryCase(): Promise<void> {
       headers: { 'content-type': 'application/json' },
     });
   }
+  const fillRandom = globalThis.crypto.getRandomValues.bind(globalThis.crypto);
+  vi.stubGlobal('crypto', { getRandomValues: fillRandom });
   vi.stubGlobal('fetch', fakeFetch);
   setCsrfToken('csrf-local-test');
   try {

@@ -139,7 +139,12 @@ export async function buildApp(pool: Pool, env: Environment) {
     reply.header('Cache-Control', 'private, no-store');
     const path = request.url.split('?')[0]!;
     const writing = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
-    if (writing && request.headers.origin)
+
+    // 开发环境允许任意 Origin
+    // 生产环境继续校验 Origin
+    const skipOriginCheck = env.NODE_ENV === 'development';
+
+    if (!skipOriginCheck && writing && request.headers.origin) {
       ensure(
         isAllowedOrigin(request.headers.origin, env) ||
           (request.routeOptions.config.publicEvaluation === true &&
@@ -152,6 +157,7 @@ export async function buildApp(pool: Pool, env: Environment) {
         'ORIGIN_REJECTED',
         '请求来源不被允许，请使用配置的前端地址访问',
       );
+    }
     if (
       path === '/api/auth/login' ||
       path === '/api/health' ||

@@ -1,3 +1,4 @@
+import { createUuid } from './ids';
 import type {
   Activity,
   AssigneeRule,
@@ -117,7 +118,7 @@ export function instantiateWorkflow(
   const ids = new Map<string, string>();
   const effectiveCache = new Map<string, string[]>();
   for (const def of checked.order) {
-    ids.set(def.id, crypto.randomUUID());
+    ids.set(def.id, createUuid());
     if (matches(def.condition, payload)) included.add(def.id);
   }
   /**
@@ -206,7 +207,7 @@ export function advanceWorkflow(activity: Activity): WorkflowTask[] {
           exists = true;
       if (exists) continue;
       const task: WorkflowTask = {
-        id: crypto.randomUUID(),
+        id: createUuid(),
         activityId: activity.id,
         nodeId: node.id,
         generation: node.generation,
