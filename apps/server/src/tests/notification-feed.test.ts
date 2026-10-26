@@ -21,7 +21,7 @@ function fixture(total: number, permitted = true) {
     cursorAt: '2026-10-23 10:00:00.000000',
   }));
   /**
-   * 仅实现通知页、实时授权和活动读取查询，未知SQL直接失败。
+   * 实现通知页、实时授权及无执行记录的活动查询，未知SQL直接失败。
    * @param sql 参数化SQL
    * @param params 绑定值
    * @returns 驱动形状的查询结果
@@ -52,7 +52,8 @@ function fixture(total: number, permitted = true) {
         ],
         [],
       ];
-    if (/SELECT data FROM (workflow_nodes|workflow_tasks|audit_events)/.test(sql)) return [[], []];
+    if (/SELECT data FROM (workflow_nodes|workflow_tasks|audit_events|execution_records)/.test(sql))
+      return [[], []];
     if (sql.includes('UTC_TIMESTAMP')) return [[{ at: '2026-10-23 10:00:00.000000' }], []];
     throw new Error('未知SQL:' + sql);
   }

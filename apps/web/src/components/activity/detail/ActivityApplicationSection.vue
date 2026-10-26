@@ -39,7 +39,7 @@
   <div v-if="detail.activity.cancellation && detail.activity.status === 'cancel_review'" class="notice warning">
     取消原因：{{ detail.activity.cancellation.reason }} · 审核人：{{ nameFor(detail.activity.cancellation.reviewer) }}
   </div>
-  <dl v-if="infoFields.length" class="info-grid">
+  <dl v-if="infoFields.length" class="info-grid application-info-grid">
     <div v-for="field in infoFields" :key="field.id">
       <dt>{{ field.label }}</dt>
       <dd>{{ displayValue(field) }}</dd>
@@ -113,6 +113,12 @@
     width: 240px;
     max-width: 100%;
   }
+  .info-grid.application-info-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .application-info-grid > div {
+    min-width: 0;
+  }
   :deep(.info-grid dd) {
     font-size: 14px;
     line-height: 1.8;
@@ -129,5 +135,15 @@
   }
   :deep(.count-tag) {
     font-size: 12px;
+  }
+  @media (max-width: 900px) {
+    .info-grid.application-info-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 600px) {
+    .info-grid.application-info-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 </style>
