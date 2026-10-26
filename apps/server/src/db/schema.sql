@@ -58,10 +58,16 @@ CREATE TABLE IF NOT EXISTS idempotency_records (
 );
 CREATE TABLE IF NOT EXISTS files (
   id VARCHAR(80) PRIMARY KEY, activity_id VARCHAR(80) NOT NULL, uploader_id VARCHAR(80) NOT NULL,
-  name VARCHAR(255) NOT NULL, storage_key VARCHAR(80) NOT NULL UNIQUE, mime VARCHAR(120) NOT NULL,
+  name VARCHAR(255) NOT NULL, storage_key VARCHAR(512) NOT NULL UNIQUE, mime VARCHAR(120) NOT NULL,
   size BIGINT UNSIGNED NOT NULL, stage VARCHAR(20) NOT NULL,
-  node_id VARCHAR(80) NULL, field_key VARCHAR(40) NULL, access_rule JSON NULL, download_rule JSON NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  context_id VARCHAR(80) NULL, action_key VARCHAR(40) NULL, node_id VARCHAR(80) NULL, field_key VARCHAR(40) NULL, access_rule JSON NULL, download_rule JSON NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   INDEX idx_file_field (activity_id, stage, field_key), INDEX idx_file_activity (activity_id, stage), FOREIGN KEY (activity_id) REFERENCES activities(id)
+);
+CREATE TABLE IF NOT EXISTS execution_records (
+  activity_id VARCHAR(80) NOT NULL, id VARCHAR(80) NOT NULL, author_id VARCHAR(80) NOT NULL,
+  submitted_at DATETIME(3) NOT NULL, data JSON NOT NULL,
+  PRIMARY KEY (activity_id,id), INDEX idx_execution_record_time(activity_id,submitted_at,id),
+  FOREIGN KEY (activity_id) REFERENCES activities(id)
 );
 CREATE TABLE IF NOT EXISTS outbox_events (
   id VARCHAR(80) PRIMARY KEY, event_key VARCHAR(180) NOT NULL UNIQUE, activity_id VARCHAR(80) NOT NULL,

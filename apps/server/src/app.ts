@@ -4,7 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
 import { timingSafeEqual } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { createAttachmentStorage } from './storage/attachments';
 import { resolve } from 'node:path';
 import { z, ZodError } from 'zod';
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
@@ -127,6 +127,7 @@ export async function buildApp(pool: Pool, env: Environment) {
   await app.register(cookie);
   await app.register(helmet);
   await app.register(rateLimit, { max: 200, timeWindow: '1 minute' });
+  const attachmentStorage = createAttachmentStorage(env);
   await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 5 } });
   app.decorateRequest('profile', null);
 
@@ -639,7 +640,7 @@ export async function buildApp(pool: Pool, env: Environment) {
   async function upload(request: FastifyRequest) {
     const id = resourceId(request);
     const stage = z
-      .object({ stage: z.enum(['application', 'execution', 'archive', 'node']) })
+      .object({ stage: z.enum(['application', 'execution', 'archive', 'node', 'operation']) })
       .parse(request.query).stage;
     const file = await request.file();
     ensure(file, 422, 'FILE_REQUIRED', '请选择文件');
@@ -671,25 +672,27 @@ export async function buildApp(pool: Pool, env: Environment) {
       buffer,
       requestKey(request),
       access,
+      attachmentStorage,
     );
   }
   app.post('/api/activities/:id/files', upload);
 
   /**
-   * 下载已授权活动附件，磁盘路径不暴露给客户端。
+   * 下载已授权的本地或OSS私有附件，存储路径与凭据不暴露给客户端。
    * @param request 请求
    * @param reply 响应
    * @returns 文件流
    */
   async function download(request: FastifyRequest, reply: FastifyReply) {
     const file = await authorizeFileRead(pool, actorId(request), resourceId(request));
+    reply.header('Cache-Control', 'private, no-store');
     reply.header('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`);
     reply.type(file.mime);
-    return reply.send(createReadStream(resolve(env.UPLOAD_DIR, file.storageKey)));
+    return reply.send(await attachmentStorage.read(file.storageKey));
   }
   app.get('/api/files/:id', download);
   /**
-   * 在线预览有阅读权限的PDF或图片，其他格式保持独立下载授权。
+   * 代理预览有阅读权限的本地或OSS图片和PDF，保留独立下载授权。
    * @param request HTTP请求
    * @param reply HTTP响应
    * @returns 文件流
@@ -699,7 +702,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     reply.header('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`);
     reply.header('Cache-Control', 'private, no-store');
     reply.type(file.mime);
-    return reply.send(createReadStream(resolve(env.UPLOAD_DIR, file.storageKey)));
+    return reply.send(await attachmentStorage.read(file.storageKey));
   }
   app.get('/api/files/:id/preview', previewFile);
   /**

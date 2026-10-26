@@ -1,3 +1,4 @@
+import { validateOperationAttachments, linkOperationAttachments } from './operation-attachments';
 import type { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import {
   activeMember,
@@ -12,7 +13,7 @@ import { digest } from './auth';
 import { ensure } from '../errors';
 
 /**
- * 事务内逻辑删除活动，取消待办、关闭评价并保留审批及附件历史，使用幂等键防止重试重复操作。
+ * 事务内校验删除材料并逻辑删除活动，取消待办、关闭评价，保留审批与附件历史，幂等防止重复操作。
  * @param pool 数据库连接池
  * @param actor 当前登录成员
  * @param id 活动标识
@@ -68,10 +69,13 @@ export async function deleteActivity(
       '当前无删除资格；发起者需先撤回或完成取消后再删除',
     );
     ensure(activity.version === input.expectedVersion, 409, 'VERSION_CONFLICT', '活动已变化，请刷新后再删除');
+    const context = { connection: db, config, activity };
+    await validateOperationAttachments(context, actor, input.attachmentContextId, 'delete', 'operation');
     const now = new Date();
     activity.deleted = { at: now.toISOString(), by: actor, reason: input.reason };
     invalidatePending(activity);
     auditActivity(config, activity, actor, '删除活动', input.reason);
+    linkOperationAttachments(context, input.attachmentContextId);
     activity.version += 1;
     activity.updatedAt = now.toISOString();
     await saveActivity(db, activity);

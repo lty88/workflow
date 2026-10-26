@@ -6,9 +6,9 @@ export const ROLE_PURPOSES: Record<string, string> = {
   applicant: '创建活动、提交申请、维护本人申请',
   department: '审核本部门及下级活动、查看部门数据',
   reviewer: '办理指派给自己的跨部门审核与任务',
-  coordinator: '协调流程、调整节点、指派执行人员',
-  executor: '完成办理任务、执行活动并提交成果',
-  archivist: '审核活动成果并归档',
+  coordinator: '协调流程、调整节点；无审批模板指派执行人员',
+  executor: '执行活动、提交执行记录与成果归档',
+  archivist: '无审批模板审核成果归档；有审批活动由终审人复核',
   director: '领导审核、查看公司活动与经营看板',
 };
 export const ROLE_GROUPS = [

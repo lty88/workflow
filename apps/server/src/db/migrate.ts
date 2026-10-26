@@ -1,4 +1,5 @@
 import { migrateAttachmentFields } from './attachment-field-migration';
+import { migrateExecutionAttachments } from './execution-attachment-migration';
 import { migrateMasterData } from './master-data-migration';
 import { readEnv } from '../env';
 import { createPool } from './repository';
@@ -17,8 +18,9 @@ async function migrate(): Promise<void> {
     await migrateActivityDeletion(pool);
     await migrateMasterData(pool);
     await migrateAttachmentFields(pool);
+    await migrateExecutionAttachments(pool);
     console.info(
-      '流程、资料权限、评价看板及主数据及第七版动态附件字段迁移完成；组织、人员等设置保存即生效，现有密码和活动历史保留。',
+      '流程、资料权限、评价看板及主数据及第八版执行记录与业务附件迁移完成；组织、人员等设置保存即生效，现有密码和活动历史保留。',
     );
   } finally {
     await pool.end();

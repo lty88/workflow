@@ -2,12 +2,14 @@
   import FormAttachmentField from './FormAttachmentField.vue'
   import { computed } from 'vue'
   import { NForm, NFormItem, NInput, NInputNumber, NSelect, NDatePicker, NCheckbox, NCheckboxGroup } from 'naive-ui'
-  import { visibleFields, amountFen } from '@workflow/domain'
+  import { visibleFields, BUDGET_EXPENSE_KEYS, budgetTotal, hasBudgetBreakdown } from '@workflow/domain'
   import type { FormField } from '@workflow/domain'
   import type { DynamicFormProps } from './types'
   const props = defineProps<DynamicFormProps>()
   const emit = defineEmits<{ 'update:modelValue': [value: Record<string, string>]; 'upload-busy': [value: boolean] }>()
   const fields = computed(() => visibleFields(props.schema, props.modelValue).filter(inSection))
+  const autoBudget = computed(() => hasBudgetBreakdown(props.schema))
+  const totalBudget = computed(() => budgetTotal(props.modelValue))
   /**
    * 保留当前分区的可见字段，显隐依赖仍基于完整表单。
    * @param field 字段
@@ -17,7 +19,7 @@
     return !props.keys || props.keys.includes(field.key)
   }
   /**
-   * 只更新可编辑字段并从费用明细计算总预算，受限字段保持只读。
+   * 更新可编辑字段并复用领域规则按整数分合计预算，空费用暂计零，受限字段保持只读。
    * @param key 字段键
    * @param value 输入值
    * @param attachmentResult 是否为已启动的附件上传完成回调，允许回填上传期间锁定的表单
@@ -35,10 +37,7 @@
     )
     if ((props.disabled && !attachmentResult) || !field || field.readOnly || field.redacted) return
     const next = { ...props.modelValue, [key]: value === null ? '' : String(value) }
-    if (['expert_fee', 'conference_fee', 'travel_fee'].includes(key)) {
-      const total = amountFen(next.expert_fee) + amountFen(next.conference_fee) + amountFen(next.travel_fee)
-      next.budget = Number.isFinite(total) ? (total / 100).toFixed(2) : ''
-    }
+    if (autoBudget.value && (BUDGET_EXPENSE_KEYS as readonly string[]).includes(key)) next.budget = budgetTotal(next)
     emit('update:modelValue', next)
   }
   /**
@@ -105,7 +104,14 @@
         :key="field.id"
         :id="'field-' + field.key"
         :validation-status="fieldError(field) ? 'error' : undefined"
-        :feedback="fieldError(field) || undefined"
+        :feedback="
+          fieldError(field) ||
+          (field.key === 'start_at'
+            ? '支持当天发起和补录；结束时间需晚于开始时间。'
+            : field.key === 'budget' && autoBudget
+              ? '根据费用明细自动合计，支持零预算。'
+              : undefined)
+        "
         :label="field.label"
         :required="field.required"
         :class="{ 'form-wide': field.type === 'textarea' || field.type === 'checkboxes' || field.type === 'attachment' }"
@@ -132,12 +138,21 @@
           :placeholder="'请输入' + field.label"
           @update:value="update(field.key, $event)"
         />
+        <NInput
+          v-else-if="field.type === 'number' && field.key === 'budget' && autoBudget"
+          :value="totalBudget"
+          readonly
+          :disabled="disabled || field.readOnly || field.redacted"
+          placeholder="请填写有效的费用明细"
+        >
+          <template #suffix>元</template>
+        </NInput>
         <NInputNumber
           v-else-if="field.type === 'number'"
           :value="modelValue[field.key] ? Number(modelValue[field.key]) : null"
           :min="0"
           :precision="field.key === 'people' ? 0 : 2"
-          :max="100000000"
+          :max="field.key === 'people' ? 100000 : undefined"
           :disabled="disabled || field.readOnly || field.redacted || field.key === 'budget'"
           style="width: 100%"
           :placeholder="field.key === 'budget' ? '费用明细自动合计' : '请输入数字'"

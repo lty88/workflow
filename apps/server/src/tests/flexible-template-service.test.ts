@@ -26,12 +26,13 @@ function memoryPool() {
   const tasks = new Map<string, WorkflowTask>();
   const events: unknown[][] = [];
   /**
-   * 按SQL读写模板、活动、节点和可靠通知，保持服务层业务逻辑真实执行。
+   * 按SQL读写模板、活动、节点和可靠通知，提供空执行记录及附件以真实执行提交校验。
    * @param sql 参数化语句
    * @param values 绑定值
    * @returns MySQL驱动形状的查询或更新结果
    */
   async function execute(sql: string, values: unknown[] = []): Promise<[unknown, unknown[]]> {
+    if (sql.includes('FROM execution_records') || sql.includes('FROM files')) return [[], []];
     if (sql.includes('FROM configuration'))
       return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
     if (sql.includes('FROM template_catalog_lock')) return [[{ id: 'catalog' }], []];
@@ -110,8 +111,9 @@ function memoryPool() {
   /**
    * 用已发布模板准备完整活动草稿，供真实提交服务校验。
    * @param value 新发布模板
+   * @param overrides 覆盖默认时间、费用等申请字段，用于提交边界场景
    */
-  function prepare(value: WorkflowTemplate): void {
+  function prepare(value: WorkflowTemplate, overrides: Record<string, string> = {}): void {
     const payload = {
       ...defaultValues(config.form),
       activity_name: '首节点流转校验',
@@ -131,6 +133,7 @@ function memoryPool() {
       conference_fee: '0',
       travel_fee: '0',
       budget: '0',
+      ...overrides,
     };
     activity = {
       id: 'a-submit',
@@ -211,3 +214,38 @@ async function lifecycleCase(): Promise<void> {
   }
 }
 test('真实服务贯通三种首节点创建、发布、提交，知会可靠投递且不形成待办', lifecycleCase);
+
+/** 核对填写耗时和历史补录均可提交，服务端仍按费用明细重新计算超过一亿元的预算。 */
+async function lenientSubmissionCase(): Promise<void> {
+  const now = Date.now();
+  for (const elapsed of [5 * 60000, 2 * 86400000]) {
+    const memory = memoryPool();
+    const created = await createTemplate(memory.pool, 'u-admin', {
+      code: 'lenient-submission',
+      firstNodeKind: 'approval',
+      idempotencyKey: crypto.randomUUID(),
+    });
+    const published = await publishTemplate(memory.pool, 'u-admin', created.id, {
+      expectedDraftRevision: created.draftRevision,
+      idempotencyKey: crypto.randomUUID(),
+    });
+    const start = new Date(now - elapsed).toISOString();
+    const end = new Date(now - elapsed + 3600000).toISOString();
+    memory.prepare(published, {
+      start_at: start,
+      end_at: end,
+      expert_fee: '50',
+      conference_fee: '100000000',
+      travel_fee: '60',
+      budget: '1',
+    });
+    await submitActivity(memory.pool, 'u-lin', 'a-submit', 1, crypto.randomUUID(), published.currentVersion);
+    const saved = memory.result().activity!;
+    expect(saved.status).toBe('approving');
+    expect(saved.payload.start_at).toBe(start);
+    expect(saved.payload.end_at).toBe(end);
+    expect(saved.payload.budget).toBe('100000110.00');
+    expect(saved.snapshots[0]!.payload.budget).toBe('100000110.00');
+  }
+}
+test('真实提交服务允许填表耗时及历史补录，预算超过原上限仍按明细保存', lenientSubmissionCase);

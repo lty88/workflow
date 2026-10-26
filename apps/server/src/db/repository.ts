@@ -11,7 +11,7 @@ import type {
   WorkflowTask,
 } from '@workflow/domain';
 import type { Environment } from '../env';
-import { DEFAULT_PASSWORD } from '@workflow/domain';
+import { DEFAULT_PASSWORD, synchronizeWorkflowOwner } from '@workflow/domain';
 import { hashPassword } from '../services/password';
 
 export type Database = Pool | PoolConnection;
@@ -179,7 +179,7 @@ export async function materializeConfig(db: Database, config: CompanyConfig): Pr
 }
 
 /**
- * 读取未删除活动和规范化任务、节点、审计，统一阻止访问已删除活动。
+ * 读取未删除活动及独立任务、节点、审计和执行记录，兼容旧JSON记录，阻止访问已删除活动。
  * @param db 数据库连接
  * @param id 活动标识
  * @param lock 是否锁定主单
@@ -212,19 +212,34 @@ export async function loadActivity(db: Database, id: string, lock = false): Prom
   for (const node of nodes) activity.nodes.push(jsonValue<WorkflowNode>(node.data));
   activity.tasks = [];
   for (const task of tasks) activity.tasks.push(jsonValue<WorkflowTask>(task.data));
+  const reports = await query<{ data: unknown }>(
+    db,
+    'SELECT data FROM execution_records WHERE activity_id=? ORDER BY submitted_at,id',
+    [id],
+  );
+  const records = new Map((activity.executionRecords || []).map((record) => [record.id, record]));
+  for (const row of reports) {
+    const record = jsonValue<NonNullable<Activity['executionRecords']>[number]>(row.data);
+    records.set(record.id, record);
+  }
+  activity.executionRecords = [...records.values()].sort((a, b) =>
+    a.submittedAt.localeCompare(b.submittedAt),
+  );
   activity.audit = [];
   for (const audit of audits) activity.audit.push(jsonValue<AuditEvent>(audit.data));
+  synchronizeWorkflowOwner(activity);
   return activity;
 }
 
 /**
- * 原子保存模板选择索引、主单、节点和个人任务，历史意见不删除。
+ * 同步实际终审负责人并原子保存主单、节点、任务与执行记录，历史意见和执行记录只追加。
  * @param db 事务连接
  * @param activity 活动实例
  * @param create 是否新建
  */
 export async function saveActivity(db: Database, activity: Activity, create = false): Promise<void> {
-  const stored = { ...activity, nodes: [], tasks: [], audit: [] };
+  synchronizeWorkflowOwner(activity);
+  const stored = { ...activity, nodes: [], tasks: [], audit: [], executionRecords: [] };
   const now = new Date(activity.updatedAt);
   if (create)
     await db.execute(
@@ -299,6 +314,11 @@ export async function saveActivity(db: Database, activity: Activity, create = fa
         JSON.stringify(task),
       ],
     );
+  for (const record of activity.executionRecords || [])
+    await db.execute(
+      'INSERT IGNORE INTO execution_records(activity_id,id,author_id,submitted_at,data) VALUES (?,?,?,?,?)',
+      [activity.id, record.id, record.authorId, new Date(record.submittedAt), JSON.stringify(record)],
+    );
   for (const audit of activity.audit)
     await db.execute(
       'INSERT IGNORE INTO audit_events(id,activity_id,actor_id,action,data,created_at) VALUES (?,?,?,?,?,?)',
@@ -322,13 +342,15 @@ export async function activityFiles(db: Database, id: string): Promise<FileRecor
     stage: FileRecord['stage'];
     uploader_id: string;
     field_key: string | null;
+    context_id: string | null;
+    action_key: string | null;
     node_id: string | null;
     access_rule: unknown;
     download_rule: unknown;
     created_at: string;
   }>(
     db,
-    'SELECT id,activity_id,uploader_id,name,size,mime,stage,node_id,field_key,access_rule,download_rule,created_at FROM files WHERE activity_id=? ORDER BY created_at',
+    'SELECT id,activity_id,uploader_id,name,size,mime,stage,node_id,field_key,context_id,action_key,access_rule,download_rule,created_at FROM files WHERE activity_id=? ORDER BY created_at',
     [id],
   );
   const files: FileRecord[] = [];
@@ -341,6 +363,8 @@ export async function activityFiles(db: Database, id: string): Promise<FileRecor
       mime: row.mime,
       stage: row.stage,
       fieldKey: row.field_key || undefined,
+      contextId: row.context_id || undefined,
+      actionKey: row.action_key || undefined,
       nodeId: row.node_id || undefined,
       uploaderId: row.uploader_id,
       access: row.access_rule ? jsonValue<FileRecord['access']>(row.access_rule) : undefined,

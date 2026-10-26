@@ -14,7 +14,7 @@ export async function requireDatabaseReady(pool: Pool): Promise<void> {
   }
   const versions = await query<{ version: number }>(
     pool,
-    'SELECT version FROM schema_migrations WHERE version IN (2,3,4,5,6,7)',
+    'SELECT version FROM schema_migrations WHERE version IN (2,3,4,5,6,7,8)',
   );
   if (
     !versions.some(
@@ -109,4 +109,16 @@ export async function requireDatabaseReady(pool: Pool): Promise<void> {
     !attachmentColumns.length
   )
     throw new Error('数据库需升级动态表单附件字段，请先运行 pnpm db:migrate，再启动服务。');
+  const executionTables = await query(
+    pool,
+    "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='execution_records'",
+  );
+  if (!executionTables.length)
+    throw new Error('数据库需升级执行记录表，请先运行 pnpm db:migrate，再启动服务。');
+  const executionColumns = await query(
+    pool,
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='files' AND COLUMN_NAME IN ('context_id','action_key')",
+  );
+  if (!versions.some((row) => row.version === 8) || executionColumns.length !== 2)
+    throw new Error('数据库需升级执行记录与业务表单附件，请先运行 pnpm db:migrate，再启动服务。');
 }

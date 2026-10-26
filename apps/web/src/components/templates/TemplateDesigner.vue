@@ -78,8 +78,8 @@
     let index = -1
     for (let i = 0; i < next.nodes.length; i++) if (next.nodes[i]!.id === node.id) index = i
     if (index < 0) return false
-    if (node.label.trim().length < 2) {
-      feedback.failure(new Error('节点名称至少2字，请先修正右侧属性'))
+    if (node.label.trim().length === 0) {
+      feedback.failure(new Error('请填写节点名称，并修正右侧属性'))
       inspectorOpen.value = true
       return false
     }

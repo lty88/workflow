@@ -1,8 +1,7 @@
 <script setup lang="tsx">
-  import FormAttachmentField from '../FormAttachmentField.vue'
+  import FormAttachmentField from '@/components/activity/FormAttachmentField.vue'
   import { computed } from 'vue'
-  import { NSelect, NTag } from 'naive-ui'
-  import { STATUSES } from '@workflow/domain'
+  import { NSelect } from 'naive-ui'
   import type { ActivityDetailSectionProps } from './types'
   import { formatMoney } from '@/composables/format'
   import { participantName } from './presentation'
@@ -10,24 +9,11 @@
 
   const props = defineProps<ActivityDetailSectionProps>()
   const revision = defineModel<string>('revision', { required: true })
-  const {
-    statusTone,
-    viewData,
-    isOld,
-    templateLabel,
-    infoFields,
-    textFields,
-    attachmentFields,
-    moneyFields,
-    budgetRestricted,
-    budgetTotal,
-    revisionOptions,
-    nextHint,
-    displayValue,
-  } = useActivityPresentation(
-    computed(() => props.detail),
-    revision
-  )
+  const { viewData, templateLabel, infoFields, textFields, attachmentFields, moneyFields, budgetRestricted, budgetTotal, revisionOptions, displayValue } =
+    useActivityPresentation(
+      computed(() => props.detail),
+      revision
+    )
 
   /**
    * 按参与人标识读取已授权的展示姓名。
@@ -39,29 +25,16 @@
   }
 </script>
 <template>
-  <div class="detail-title">
+  <div class="application-section-heading">
     <div>
-      <h1>{{ detail.activity.name || '未命名活动' }}</h1>
-      <p>
-        {{ detail.activity.code }} · 发起人 {{ nameFor(detail.activity.applicant) }} · 申请 V{{ detail.activity.revision }} · 流程结构 R{{
-          detail.activity.structureRevision
-        }}
-      </p>
+      <h2>申请资料</h2>
+      <p>{{ templateLabel }} · 申请 V{{ revision === 'current' ? detail.activity.revision : revision }} · 流程结构 R{{ detail.activity.structureRevision }}</p>
     </div>
-    <NTag :bordered="false" round :type="statusTone">{{ STATUSES[detail.activity.status] }}</NTag>
-  </div>
-  <div v-if="nextHint" class="next-step">
-    <div>
-      <strong>{{ nextHint.text }}</strong>
-      <span v-if="nextHint.owner">当前负责人：{{ nextHint.owner }}</span>
+    <div v-if="detail.activity.snapshots.length" class="application-revision">
+      <span>查看版本</span>
+      <NSelect v-model:value="revision" size="medium" :options="revisionOptions" aria-label="申请资料版本" />
     </div>
-    <span>组织配置 V{{ detail.activity.configVersion }}</span>
   </div>
-  <p class="help-text">{{ templateLabel }}</p>
-  <div v-if="detail.activity.snapshots.length" class="revision-select">
-    <NSelect v-model:value="revision" size="small" :options="revisionOptions" />
-  </div>
-  <div v-if="isOld" class="notice warning">正在查看历史申请快照 V{{ revision }}。如需办理当前任务，请先切换回“当前申请内容”。</div>
   <div v-if="detail.activity.status === 'needs_info'" class="notice warning">申请被退回，请查看审核意见。修改后重新提交会生成新的审批轮次。</div>
   <div v-if="detail.activity.cancellation && detail.activity.status === 'cancel_review'" class="notice warning">
     取消原因：{{ detail.activity.cancellation.reason }} · 审核人：{{ nameFor(detail.activity.cancellation.reviewer) }}
@@ -107,3 +80,54 @@
     </table>
   </div>
 </template>
+
+<style scoped>
+  .application-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #edf0f6;
+  }
+  .application-section-heading h2 {
+    font-size: 17px;
+    margin: 0 0 8px;
+  }
+  .application-section-heading p {
+    color: #79869a;
+    font-size: 12px;
+    margin: 0;
+    line-height: 1.7;
+  }
+  .application-revision {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #65758c;
+  }
+  .application-revision :deep(.n-select) {
+    width: 240px;
+    max-width: 100%;
+  }
+  :deep(.info-grid dd) {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  :deep(.info-grid dt) {
+    font-size: 13px;
+  }
+  :deep(.detail-section h2) {
+    font-size: 16px;
+  }
+  :deep(.detail-section p),
+  :deep(.budget-table) {
+    font-size: 14px;
+  }
+  :deep(.count-tag) {
+    font-size: 12px;
+  }
+</style>

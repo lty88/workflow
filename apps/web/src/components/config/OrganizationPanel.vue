@@ -1,4 +1,6 @@
 <script setup lang="tsx">
+  import { useFormValidation } from '@/composables/use-form-validation'
+  import { requiredRule } from '@/composables/form-validation'
   import { computed, ref } from 'vue'
   import { useMediaQuery } from '@vueuse/core'
   import { NAlert, NButton, NCard, NDrawer, NDrawerContent, NForm, NFormItem, NInput, NSelect, NSwitch, NTag, NTree, NEmpty } from 'naive-ui'
@@ -28,6 +30,10 @@
   const password = ref('')
   const busy = ref(false)
   const newMember = ref(false)
+  const { formRef: departmentFormRef, validate: validateDepartment } = useFormValidation()
+  const { formRef: memberFormRef, validate: validateMember } = useFormValidation()
+  const departmentRules = { name: requiredRule('部门名称') }
+  const memberRules = { name: requiredRule('姓名'), username: requiredRule('登录账号'), department: requiredRule('主部门', true) }
   /**
    * 点击组织图部门时筛选成员，点击成员时进入编辑抽屉。
    * @param selection 图节点选择
@@ -158,9 +164,9 @@
    * 保存部门配置，循环和负责人引用提交时由服务端校验。
    */
   async function saveDepartment(): Promise<void> {
-    if (props.saving) return
-    if (!dept.value || dept.value.name.trim().length < 2) {
-      feedback.failure(new Error('部门名称至少2字'))
+    if (props.saving || !(await validateDepartment())) return
+    if (!dept.value || !dept.value.name.trim()) {
+      feedback.failure(new Error('请填写部门名称'))
       return
     }
     if (dept.value.parent === dept.value.id) {
@@ -210,10 +216,10 @@
    * 校验登录账号后提交成员资料到主表。
    */
   async function saveMember(): Promise<void> {
-    if (props.saving) return
+    if (props.saving || !(await validateMember())) return
     const item = member.value
-    if (!item || item.name.trim().length < 2 || !/^[a-zA-Z0-9_.-]{3,50}$/.test(item.username)) {
-      feedback.failure(new Error('请填写至少2字姓名和3至50位有效登录账号'))
+    if (!item || !item.name.trim() || !/^[a-zA-Z0-9_.-]{3,50}$/.test(item.username)) {
+      feedback.failure(new Error('请填写姓名和3至50位有效登录账号'))
       return
     }
     for (const user of props.modelValue.users)
@@ -303,8 +309,8 @@
   </div>
   <NDrawer v-model:show="deptOpen" :width="mobile ? '100%' : 500">
     <NDrawerContent title="部门配置" closable>
-      <NForm v-if="dept" label-placement="top">
-        <NFormItem label="部门名称" required><NInput v-model:value="dept.name" :maxlength="60" /></NFormItem>
+      <NForm v-if="dept" ref="departmentFormRef" :model="dept" :rules="departmentRules" label-placement="top">
+        <NFormItem label="部门名称" path="name" required><NInput v-model:value="dept.name" :maxlength="60" /></NFormItem>
         <NFormItem label="上级部门"><NSelect v-model:value="dept.parent" :options="[{ label: '无（顶级部门）', value: '' }, ...departments]" /></NFormItem>
         <NFormItem label="部门负责人"><NSelect v-model:value="dept.manager" :options="[{ label: '暂不设置', value: '' }, ...managers]" filterable /></NFormItem>
         <NFormItem label="启用"><NSwitch v-model:value="dept.active" /></NFormItem>
@@ -315,10 +321,12 @@
   </NDrawer>
   <NDrawer v-model:show="memberOpen" :width="mobile ? '100%' : 500">
     <NDrawerContent :title="newMember ? '新增成员' : '编辑成员'" closable>
-      <NForm v-if="member" label-placement="top">
-        <NFormItem label="姓名" required><NInput v-model:value="member.name" :maxlength="50" /></NFormItem>
-        <NFormItem label="登录账号" required><NInput v-model:value="member.username" :maxlength="50" placeholder="英文、数字、下划线、点或连字符" /></NFormItem>
-        <NFormItem label="主部门" required><NSelect v-model:value="member.department" :options="departments" filterable /></NFormItem>
+      <NForm v-if="member" ref="memberFormRef" :model="member" :rules="memberRules" label-placement="top">
+        <NFormItem label="姓名" path="name" required><NInput v-model:value="member.name" :maxlength="50" /></NFormItem>
+        <NFormItem label="登录账号" path="username" required>
+          <NInput v-model:value="member.username" :maxlength="50" placeholder="英文、数字、下划线、点或连字符" />
+        </NFormItem>
+        <NFormItem label="主部门" path="department" required><NSelect v-model:value="member.department" :options="departments" filterable /></NFormItem>
         <NFormItem label="角色"><NSelect v-model:value="member.roles" :options="roles" multiple filterable /></NFormItem>
         <NFormItem label="启用"><NSwitch v-model:value="member.active" /></NFormItem>
         <NAlert type="info">新成员保存后初始密码为123456，可按需修改。停用后现有待办保留，重新分配前无法由该成员办理。</NAlert>

@@ -77,8 +77,8 @@
    */
   async function save(): Promise<void> {
     if (props.saving) return
-    if (!page.value || page.value.name.trim().length < 2 || !page.value.group) {
-      feedback.failure(new Error('请填写至少2字名称并选择分组'))
+    if (!page.value || page.value.name.trim().length === 0 || !page.value.group) {
+      feedback.failure(new Error('请填写页面名称并选择分组'))
       return
     }
     const next = clone(props.modelValue)
@@ -232,8 +232,8 @@
    */
   async function saveGroup(): Promise<void> {
     if (props.saving) return
-    if (!group.value || group.value.name.trim().length < 2) {
-      feedback.failure(new Error('分组名称至少2字'))
+    if (!group.value || group.value.name.trim().length === 0) {
+      feedback.failure(new Error('请填写分组名称'))
       return
     }
     const next = clone(props.modelValue)

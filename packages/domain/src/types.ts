@@ -51,6 +51,8 @@ export interface AttachmentOptions {
   extensions: string[];
 }
 export interface FileAccessInput {
+  contextId?: string;
+  actionKey?: string;
   fieldKey?: string;
   nodeId?: string;
   access?: DataAccessRule;
@@ -205,12 +207,19 @@ export interface WorkflowTask {
   createdAt?: string;
 }
 export interface ExecutionReport {
+  title?: string;
   start: string;
   end: string;
   people: number;
   summary: string;
   spend: string;
   exception: string;
+}
+export interface ExecutionRecord extends ExecutionReport {
+  id: string;
+  authorId: string;
+  authorName: string;
+  submittedAt: string;
 }
 export interface ArchiveRecord {
   version: number;
@@ -242,6 +251,7 @@ export interface ApplicationRevision {
   submittedAt: string;
 }
 export interface AuditEvent {
+  attachmentContextId?: string;
   nodeId?: string;
   fileId?: string;
   id: string;
@@ -252,6 +262,9 @@ export interface AuditEvent {
   createdAt: string;
 }
 export interface Activity {
+  lastApprovalTaskId?: string;
+  workflowOwnerId?: string;
+  workflowOwnerNodeId?: string;
   applicantName?: string;
   deleted?: { at: string; by: string; reason: string };
   activityTypeId?: string;
@@ -278,6 +291,8 @@ export interface Activity {
   assignment: string;
   actualStart: string;
   report: ExecutionReport | null;
+  executionRecords?: ExecutionRecord[];
+  executionCompletedAt?: string;
   archive: ArchiveRecord | null;
   archives: ArchiveRecord[];
   cancellation: Cancellation | null;
@@ -294,7 +309,7 @@ export interface FileRecord extends FileAccessInput {
   name: string;
   size: number;
   mime: string;
-  stage: 'application' | 'execution' | 'archive' | 'node';
+  stage: 'application' | 'execution' | 'archive' | 'node' | 'operation';
   createdAt: string;
 }
 export interface ActivityDetail {
@@ -325,6 +340,7 @@ export interface ApiErrorBody {
   error: { code: string; message: string; details?: string[] };
 }
 export interface Adjustment {
+  attachmentContextId?: string;
   name: string;
   kind: NodeDefinition['kind'];
   assignee: AssigneeRule;

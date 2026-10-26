@@ -413,7 +413,7 @@ function archiveCase(): void {
   const version = activity.version;
   applyActivityAction(
     config,
-    'u-wang',
+    'u-zhao',
     activity,
     {
       expectedVersion: version,
@@ -452,6 +452,22 @@ function archiveCase(): void {
     },
     false,
   );
+  expect(activity.status).toBe('executing');
+  expect(activity.report).toBeNull();
+  expect(activity.executionRecords).toHaveLength(1);
+  applyActivityAction(
+    config,
+    'u-su',
+    activity,
+    {
+      expectedVersion: version,
+      idempotencyKey: crypto.randomUUID(),
+      action: 'execution-complete',
+      comment: '',
+      report: { ...activity.executionRecords![0]!, end: new Date().toISOString(), title: undefined },
+    },
+    false,
+  );
   expect(activity.status).toBe('archive_draft');
   expect(
     /**
@@ -459,7 +475,7 @@ function archiveCase(): void {
      */ () =>
       applyActivityAction(
         config,
-        'u-lin',
+        'u-su',
         activity,
         {
           expectedVersion: version,
@@ -472,7 +488,7 @@ function archiveCase(): void {
   ).toThrow('请上传成果');
   applyActivityAction(
     config,
-    'u-lin',
+    'u-su',
     activity,
     {
       expectedVersion: version,
@@ -485,7 +501,7 @@ function archiveCase(): void {
   );
   applyActivityAction(
     config,
-    'u-he',
+    'u-zhao',
     activity,
     {
       expectedVersion: version,

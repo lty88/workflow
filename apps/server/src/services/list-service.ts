@@ -14,6 +14,18 @@ import type { listQuerySchema } from '@workflow/domain';
 import { jsonValue, loadConfig, query } from '../db/repository';
 import { ensure } from '../errors';
 
+// 新主单直接读取终审负责人；旧主单通过本轮已通过任务只读计算，不改写历史数据。
+const WORKFLOW_OWNER_SQL = `COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.workflowOwnerId')),''),
+  (SELECT t.assignee_id FROM workflow_tasks t JOIN workflow_nodes n ON n.id=t.node_id
+    WHERE t.activity_id=a.id AND n.activity_id=a.id AND t.status='approved' AND n.status='completed'
+      AND n.generation=t.generation AND JSON_UNQUOTE(JSON_EXTRACT(n.data,'$.kind'))='approval'
+      AND COALESCE(JSON_EXTRACT(n.data,'$.applicationRevision'),1)=COALESCE(JSON_EXTRACT(a.data,'$.revision'),1)
+      AND JSON_CONTAINS(JSON_EXTRACT(n.data,'$.assignees'),JSON_QUOTE(t.assignee_id))
+    ORDER BY COALESCE(JSON_UNQUOTE(JSON_EXTRACT(t.data,'$.actedAt')),'') DESC,t.id DESC LIMIT 1))`;
+const NO_APPROVAL_SQL = `NOT EXISTS(SELECT 1 FROM workflow_nodes n WHERE n.activity_id=a.id
+  AND JSON_UNQUOTE(JSON_EXTRACT(n.data,'$.kind'))='approval' AND n.status NOT IN ('skipped','invalidated')
+  AND COALESCE(JSON_EXTRACT(n.data,'$.applicationRevision'),1)=COALESCE(JSON_EXTRACT(a.data,'$.revision'),1))`;
+
 export interface ActivityListItem {
   canDelete: boolean;
   restrictedFields?: string[];
@@ -86,7 +98,7 @@ function sqlPlaceholder(_value: string): string {
 }
 
 /**
- * 构造当前成员真正可办理的待办查询，包含审批和执行归档任务。
+ * 构造审批、终审人执行指派、执行人归档及终审人归档审核的真实待办条件。
  * @param config 当前配置
  * @param actor 当前成员
  * @returns SQL条件与参数
@@ -103,20 +115,31 @@ function taskWhere(config: CompanyConfig, actor: string): { sql: string; params:
     );
     params.push(actor, ...kinds, JSON.stringify(findById(config.users, actor)!.roles));
   }
-  if (hasPermission(config, actor, 'activity:assign')) parts.push("a.status='ready_assign'");
+  if (hasPermission(config, actor, 'approval:decide')) {
+    parts.push(`(a.status='ready_assign' AND ${WORKFLOW_OWNER_SQL}=?)`);
+    params.push(actor);
+    parts.push(
+      `(a.status='archive_review' AND ${WORKFLOW_OWNER_SQL}=? AND JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.archive.submittedBy'))<>? AND JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.executor'))<>?)`,
+    );
+    params.push(actor, actor, actor);
+  }
+  if (hasPermission(config, actor, 'activity:assign'))
+    parts.push(`(a.status='ready_assign' AND ${NO_APPROVAL_SQL})`);
   if (hasPermission(config, actor, 'execution:report')) {
     parts.push(
-      "(a.status IN ('ready_execute','executing') AND JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.executor'))=?)",
+      "(a.status IN ('ready_execute','executing','archive_draft') AND JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.executor'))=?)",
     );
     params.push(actor);
   }
   if (hasPermission(config, actor, 'activity:submit')) {
-    parts.push("(a.status IN ('archive_draft','needs_info') AND a.applicant_id=?)");
+    parts.push("(a.status='needs_info' AND a.applicant_id=?)");
     params.push(actor);
   }
   if (hasPermission(config, actor, 'archive:review')) {
-    parts.push("(a.status='archive_review' AND JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.archive.reviewer'))=?)");
-    params.push(actor);
+    parts.push(
+      `(a.status='archive_review' AND ${NO_APPROVAL_SQL} AND JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.archive.reviewer'))=? AND JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.archive.submittedBy'))<>? AND JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.executor'))<>?)`,
+    );
+    params.push(actor, actor, actor);
   }
   if (hasPermission(config, actor, 'approval:decide')) {
     parts.push(

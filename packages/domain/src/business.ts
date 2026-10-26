@@ -1,4 +1,11 @@
 import { createUuid } from './ids';
+import {
+  canCoordinateExecution,
+  finalApproval,
+  hasEffectiveApproval,
+  synchronizeWorkflowOwner,
+} from './post-workflow';
+import { appendExecutionRecord, executionReportErrors } from './execution-records';
 import type { Activity, Adjustment, CompanyConfig, Permission, WorkflowNode } from './types';
 import type { z } from 'zod';
 import type { actionSchema, decisionSchema, TransferCommand } from './schemas';
@@ -36,7 +43,7 @@ export function requireRule(
 }
 
 /**
- * 计算当前成员的业务按钮能力，服务端处理动作时再次计算。
+ * 按实际终审人分配执行指派和归档审核，执行人持续记录并在完成后提交归档。
  * @param config 当前配置
  * @param userId 成员
  * @param activity 活动
@@ -55,19 +62,31 @@ export function activityActions(config: CompanyConfig, userId: string, activity:
     actions.push('withdraw');
   if (activity.status === 'approving' && hasPermission(config, userId, 'workflow:adjust'))
     actions.push('adjust');
-  if (activity.status === 'ready_assign' && hasPermission(config, userId, 'activity:assign'))
+  if (activity.status === 'ready_assign' && canCoordinateExecution(config, userId, activity))
     actions.push('assign');
   if (activity.executor === userId && hasPermission(config, userId, 'execution:report')) {
     if (activity.status === 'ready_execute') actions.push('start');
-    if (activity.status === 'executing') actions.push('report');
+    if (activity.status === 'executing') {
+      actions.push('report');
+      if (activity.executionRecords?.length || activity.report) actions.push('execution-complete');
+    }
   }
-  if (own && activity.status === 'archive_draft' && hasPermission(config, userId, 'activity:submit'))
+  if (
+    activity.executor === userId &&
+    activity.status === 'archive_draft' &&
+    hasPermission(config, userId, 'execution:report')
+  )
     actions.push('archive-submit');
   if (
     activity.status === 'archive_review' &&
-    activity.archive?.reviewer === userId &&
+    activity.archive &&
     activity.archive.submittedBy !== userId &&
-    hasPermission(config, userId, 'archive:review')
+    activity.executor !== userId &&
+    (finalApproval(activity)
+      ? canCoordinateExecution(config, userId, activity)
+      : !hasEffectiveApproval(activity) &&
+        activity.archive.reviewer === userId &&
+        hasPermission(config, userId, 'archive:review'))
   )
     actions.push('archive-approve', 'archive-return');
   if (
@@ -142,10 +161,7 @@ export function decideTask(
     '任务与知会节点只支持完成',
   );
   if (command.decision !== 'approve')
-    requireRule(
-      (command.publicComment || command.comment).trim().length >= 5,
-      '退回或拒绝请填写至少5字公开补充要求或原因',
-    );
+    requireRule(!!(command.publicComment || command.comment).trim(), '退回或拒绝请填写公开补充要求或原因');
   task.comment = command.comment.trim();
   task.publicComment =
     command.publicComment?.trim() ||
@@ -158,6 +174,7 @@ export function decideTask(
   task.actedAt = new Date().toISOString();
   if (command.decision === 'approve') {
     task.status = findById(activity.nodes, task.nodeId)?.kind === 'approval' ? 'approved' : 'completed';
+    if (task.status === 'approved') activity.lastApprovalTaskId = task.id;
     settleNode(activity, task.nodeId);
     advanceWorkflow(activity);
   } else {
@@ -173,6 +190,11 @@ export function decideTask(
     command.comment,
     task.nodeId,
   );
+  if (activity.status === 'ready_assign' && findById(activity.nodes, task.nodeId)?.kind === 'approval') {
+    activity.workflowOwnerId = actor;
+    activity.workflowOwnerNodeId = task.nodeId;
+  }
+  synchronizeWorkflowOwner(activity);
 }
 
 /**
@@ -190,7 +212,7 @@ export function transferTask(
   taskId: string,
   command: TransferCommand,
 ): void {
-  requireRule(command.reason.trim().length >= 5, '转交原因至少5字');
+  requireRule(!!command.reason.trim(), '请填写转交原因');
   requireRule(activityActions(config, actor, activity).includes('adjust'), '无待办转交权限', 'FORBIDDEN');
   const task = findById(activity.tasks, taskId);
   const node = task && findById(activity.nodes, task.nodeId);
@@ -249,16 +271,30 @@ export function transferTask(
 }
 
 /**
- * 选取具备资格且数据范围覆盖的归档审核人。
+ * 由实际终审办理人审核归档；无审批节点的模板才沿用独立归档审核岗位。
  * @param config 当前配置
  * @param activity 活动
  * @param applicant 档案提交人
  * @returns 审核人标识
  */
 function archiveReviewer(config: CompanyConfig, activity: Activity, applicant: string): string {
+  const final = finalApproval(activity);
+  if (final) {
+    requireRule(
+      final.task.assignee !== applicant && final.task.assignee !== activity.executor,
+      '归档审核人与执行人、提交人不能为同一人',
+    );
+    requireRule(
+      canCoordinateExecution(config, final.task.assignee, activity),
+      '最后审批人已停用或失去办理资格，请先调整终审负责人',
+    );
+    return final.task.assignee;
+  }
+  requireRule(!hasEffectiveApproval(activity), '未找到有效终审办理记录，请核查审批流程');
   for (const user of config.users)
     if (
       user.id !== applicant &&
+      user.id !== activity.executor &&
       hasPermission(config, user.id, 'archive:review') &&
       canReadActivity(config, user.id, activity)
     )
@@ -298,7 +334,7 @@ function cancellationReviewer(config: CompanyConfig, activity: Activity, request
 }
 
 /**
- * 执行批准后业务闭环，任何阶段变更均检查当前权限与版本。
+ * 执行终审人指派、执行人汇报归档及终审人复核的闭环，任何阶段变更均检查权限与版本。
  * @param config 当前配置
  * @param actor 操作者
  * @param activity 活动
@@ -328,12 +364,16 @@ export function applyActivityAction(
       break;
     case 'assign':
       requireRule(
+        !finalApproval(activity) || command.executor !== finalApproval(activity)!.task.assignee,
+        '终审人负责归档审核，请选择其他人员执行活动',
+      );
+      requireRule(
         command.executor &&
           activeMember(config, command.executor) &&
           hasPermission(config, command.executor, 'execution:report'),
         '请选择有效执行人',
       );
-      requireRule(note.length >= 5, '执行安排至少5字');
+      requireRule(!!note, '请填写执行安排');
       activity.executor = command.executor;
       requireRule(canReadActivity(config, command.executor, activity), '执行人数据范围不覆盖本活动');
       activity.assignment = note;
@@ -347,24 +387,37 @@ export function applyActivityAction(
       title = '开始执行';
       break;
     case 'report': {
-      const report = command.report;
-      requireRule(report, '缺少执行汇报');
-      const start = Date.parse(report.start);
-      const end = Date.parse(report.end);
+      requireRule(command.report, '缺少执行记录');
+      const errors = executionReportErrors(command.report);
+      requireRule(!errors.length, errors.join('；'));
       requireRule(
-        Number.isFinite(start) && Number.isFinite(end) && end >= start && end <= Date.now(),
-        '实际时间无效或晚于当前时间',
+        !activity.executionRecords?.some((record) => record.id === command.attachmentContextId),
+        '该执行记录已提交',
+        'CONFLICT',
       );
-      requireRule(report.people > 0 || report.exception.trim().length >= 5, '实到人数为零时需说明原因');
-      requireRule(!report.spend || Number.isFinite(amountFen(report.spend)), '实际支出格式无效');
-      activity.report = report;
+      appendExecutionRecord(config, actor, activity, command.report, command.attachmentContextId);
+      title = '新增执行记录';
+      break;
+    }
+    case 'execution-complete': {
+      requireRule(activity.executionRecords?.length || activity.report, '请至少提交一条执行记录');
+      requireRule(command.report, '请确认执行完成汇总');
+      const errors = executionReportErrors(command.report, true);
+      requireRule(!errors.length, errors.join('；'));
+      const actualStart = Date.parse(activity.actualStart);
+      requireRule(
+        !Number.isFinite(actualStart) || Date.parse(command.report.end) >= actualStart,
+        '完成时间不能早于活动实际开始时间',
+      );
+      activity.report = command.report;
+      activity.executionCompletedAt = new Date().toISOString();
       activity.status = 'archive_draft';
-      title = '提交执行汇报';
+      title = '完成执行并提交归档';
       break;
     }
     case 'archive-submit': {
       requireRule(activity.report, '请先完成执行汇报');
-      requireRule(note.length >= 10, '成果摘要至少10字');
+      requireRule(!!note, '请填写成果摘要');
       requireRule(archiveFileExists || !!command.url, '请上传成果文件或填写成果链接');
       requireRule(!command.url || isHttps(command.url), '成果链接必须使用HTTPS');
       activity.archive = {
@@ -380,6 +433,7 @@ export function applyActivityAction(
       break;
     }
     case 'archive-approve':
+      synchronizeWorkflowOwner(activity);
       requireRule(command.checks?.length === 3 && command.checks.every(allChecked), '请确认全部归档检查项');
       requireRule(activity.archive, '档案不存在');
       activity.archive.code = `DA-${activity.code.slice(3)}`;
@@ -388,16 +442,17 @@ export function applyActivityAction(
       title = '审核归档通过';
       break;
     case 'archive-return':
-      requireRule(note.length >= 5 && activity.archive, '请填写至少5字的缺项原因');
+      synchronizeWorkflowOwner(activity);
+      requireRule(!!note && activity.archive, '请填写缺项原因');
       activity.archive.comment = note;
       activity.archives.push(structuredClone(activity.archive));
       activity.status = 'archive_draft';
       title = '退回活动档案';
       break;
     case 'cancel-request':
-      requireRule(note.length >= 5, '取消原因至少5字');
+      requireRule(!!note, '请填写取消原因');
       if (activity.status === 'executing')
-        requireRule((command.disposal || '').trim().length >= 5, '请说明已发生费用的处置方式');
+        requireRule(!!(command.disposal || '').trim(), '请说明已发生费用的处置方式');
       activity.cancellation = {
         previous: activity.status,
         requester: actor,
@@ -414,7 +469,7 @@ export function applyActivityAction(
       title = '批准取消活动';
       break;
     case 'cancel-reject':
-      requireRule(note.length >= 5 && activity.cancellation, '请填写至少5字拒绝原因');
+      requireRule(!!note && activity.cancellation, '请填写拒绝原因');
       activity.status = activity.cancellation.previous;
       title = '拒绝取消并恢复流程';
       break;
@@ -424,6 +479,7 @@ export function applyActivityAction(
       title = '撤销取消申请';
       break;
   }
+  synchronizeWorkflowOwner(activity);
   auditActivity(config, activity, actor, title, note || command.report?.summary || '');
 }
 
@@ -455,6 +511,8 @@ export function adjustWorkflow(
     '流程结构已变化，请刷新',
     'CONFLICT',
   );
+  requireRule(!!input.name.trim(), '请填写节点名称');
+  requireRule(!!input.reason.trim(), '请填写调整原因');
   const anchor = findById(activity.nodes, input.anchor);
   requireRule(anchor && !['invalidated', 'skipped'].includes(anchor.status), '请选择当前有效节点');
   if (input.position === 'before') requireRule(anchor.status !== 'completed', '已完成节点不能前加签');

@@ -3,6 +3,8 @@ import type { Activity, ActivityDetail, CompanyConfig, DataAccessRule, FileRecor
 import {
   applicantForm,
   canDownloadFile,
+  canReadFile,
+  canUpdateFileAccess,
   canReadNodeContent,
   configSchema,
   hasScopedDataPermission,
@@ -442,20 +444,45 @@ function fieldCase(): void {
 }
 test('当前字段约束覆盖旧快照，脱敏只读且服务器保留原值', fieldCase);
 
-/** 核对节点与附件规则取交集，附件级共享无法放大节点权限，上传者只能收紧。 */
-function fileIntersectionCase(): void {
-  const { config, detail } = fixture();
-  detail.files[0]!.access = { mode: 'shared', roleIds: [], userIds: [] };
+/**
+ * 为下载相关用例单独授予申请人下载权限，区分角色能力与文件可见范围。
+ * @param config 测试组织配置
+ */
+function grantApplicantDownload(config: CompanyConfig): void {
+  const role = config.roles.find(
+    /**
+     * 取得申请人角色。
+     * @param item 角色记录
+     * @returns 是否申请人角色
+     */
+    (item) => item.id === 'applicant',
+  )!;
+  role.permissions.push('file:download');
+}
+
+/** 核对附件明确共享独立于内部说明，默认继承的附件仍保持节点隔离。 */
+function fileSharingCase(): void {
+  const { config, detail, nodeId } = fixture();
+  grantApplicantDownload(config);
+  const file = detail.files[0]!;
+  expect(canReadFile(config, 'u-lin', detail.activity, file)).toBe(false);
+  file.access = { mode: 'shared', roleIds: [], userIds: [] };
+  const safe = projectActivityDetail(config, 'u-lin', detail);
   expect(
-    projectActivityDetail(config, 'u-zhao', detail).files.map(
+    safe.files.some(
       /**
-       * 将测试记录转换为查询行或断言标识。
-       * @param file 测试集合当前项
-       * @returns 当前映射或受保护调用的结果
+       * 定位申请人已获分享的节点附件。
+       * @param item 投影后的附件
+       * @returns 是否为共享文件
        */
-      (file) => file.id,
+      (item) => item.id === file.id,
     ),
-  ).not.toContain('f-private');
+  ).toBe(true);
+  expect(safe.access!.readableNodeIds).not.toContain(nodeId);
+  expect(safe.activity.tasks[0]!.comment).toBe('');
+  expect(safe.activity.tasks[0]!.publicComment).toBe('财务资料待补充');
+  expect(canDownloadFile(config, 'u-lin', detail.activity, file)).toBe(true);
+  expect(canReadFile(config, 'u-qiao', detail.activity, file)).toBe(false);
   const previous: DataAccessRule = { mode: 'restricted', roleIds: ['finance'], userIds: [] };
   expect(isNarrowerAccess(previous, { ...previous, roleIds: ['finance', 'marketing'] })).toBe(false);
   expect(isNarrowerAccess(previous, { ...previous, mode: 'shared' })).toBe(false);
@@ -463,7 +490,144 @@ function fileIntersectionCase(): void {
   expect(configSchema.safeParse(config).success).toBe(true);
   expect(validateConfig(config)).toEqual([]);
 }
-test('节点与附件取交集并拒绝上传者扩大接收范围', fileIntersectionCase);
+test('明确共享附件对活动申请人开放，内部说明与继承附件保持独立', fileSharingCase);
+
+/** 核对文件指定受众和独立下载范围生效，下载仍依赖角色权限。 */
+function fileAudienceCase(): void {
+  const { config, detail } = fixture();
+  grantApplicantDownload(config);
+  const file = detail.files[0]!;
+  const node = detail.activity.nodes.find(
+    /**
+     * 定位附件所属节点以设置默认下载范围。
+     * @param item 流程节点
+     * @returns 是否为所属节点
+     */
+    (item) => item.id === file.nodeId,
+  )!;
+  node.downloadAccess = { mode: 'restricted', roleIds: ['finance'], userIds: [] };
+  file.access = { mode: 'restricted', roleIds: [], userIds: [], applicant: true };
+  expect(canReadFile(config, 'u-lin', detail.activity, file)).toBe(true);
+  expect(canReadFile(config, 'u-zhao', detail.activity, file)).toBe(false);
+  expect(canDownloadFile(config, 'u-lin', detail.activity, file)).toBe(true);
+  file.downloadAccess = { mode: 'restricted', roleIds: ['finance'], userIds: [] };
+  expect(canReadFile(config, 'u-lin', detail.activity, file)).toBe(true);
+  expect(canDownloadFile(config, 'u-lin', detail.activity, file)).toBe(false);
+  file.downloadAccess = { mode: 'shared', roleIds: [], userIds: [] };
+  const applicantRole = config.roles.find(
+    /**
+     * 获取申请人角色以模拟下载权限被撤销。
+     * @param role 组织角色
+     * @returns 是否申请人角色
+     */
+    (role) => role.id === 'applicant',
+  )!;
+  applicantRole.permissions = applicantRole.permissions.filter(
+    /**
+     * 移除下载能力，保留活动阅读资格。
+     * @param permission 角色权限
+     * @returns 是否保留
+     */
+    (permission) => permission !== 'file:download',
+  );
+  expect(canReadFile(config, 'u-lin', detail.activity, file)).toBe(true);
+  expect(canDownloadFile(config, 'u-lin', detail.activity, file)).toBe(false);
+}
+test('文件指定授权与下载规则独立生效，下载仍检查角色权限', fileAudienceCase);
+
+/** 核对尚未提交的表单附件即使设置共享也不会提前向申请人开放。 */
+function pendingSharedFileCase(): void {
+  const { config, detail } = fixture();
+  const file = detail.files[0]!;
+  file.access = { mode: 'shared', roleIds: [], userIds: [] };
+  file.contextId = 'pending-context';
+  expect(canReadFile(config, 'u-lin', detail.activity, file)).toBe(false);
+  expect(canReadFile(config, 'u-zhou', detail.activity, file)).toBe(true);
+  detail.activity.audit.push({
+    id: 'committed',
+    actor: 'u-zhou',
+    actorName: '审核人',
+    action: '通过',
+    note: '',
+    attachmentContextId: file.contextId,
+    createdAt: '',
+  });
+  expect(canReadFile(config, 'u-lin', detail.activity, file)).toBe(true);
+  file.nodeId = 'missing-node';
+  expect(canReadFile(config, 'u-lin', detail.activity, file)).toBe(false);
+}
+test('单文件共享仍隔离未提交附件且校验节点存在', pendingSharedFileCase);
+
+/** 核对指定部门负责人可以阅读自己的节点，负责人变更后旧账号失去节点阅读资格。 */
+function departmentManagerReaderCase(): void {
+  const { config, detail } = fixture();
+  const node = detail.activity.nodes.find(
+    /**
+     * 获取财务测试节点并切换为指定部门负责人的受理方式。
+     * @param item 流程节点
+     * @returns 是否目标节点
+     */
+    (item) => item.id === detail.files[0]!.nodeId,
+  )!;
+  node.assigneeRule = { type: 'department_manager', value: 'research' };
+  expect(canReadNodeContent(config, 'u-zhou', detail.activity, node)).toBe(true);
+  config.departments.find(
+    /**
+     * 定位教育研究院以模拟负责人变更。
+     * @param department 组织部门
+     * @returns 是否指定部门
+     */
+    (department) => department.id === 'research',
+  )!.manager = 'u-chen';
+  expect(canReadNodeContent(config, 'u-zhou', detail.activity, node)).toBe(false);
+}
+test('指定部门负责人规则参与节点阅读权限并实时响应负责人变更', departmentManagerReaderCase);
+
+/** 核对只有仍有节点阅读资格的上传人可分享自己的文件，其他读者不能修改。 */
+function fileAccessManagementCase(): void {
+  const { config, detail } = fixture();
+  const file = detail.files[0]!;
+  file.access = { mode: 'restricted', roleIds: ['finance'], userIds: [] };
+  const next = {
+    access: { mode: 'shared', roleIds: [], userIds: [] },
+  } satisfies import('@workflow/domain').FileAccessInput;
+  expect(canUpdateFileAccess(config, 'u-zhou', detail.activity, file, next)).toBe(true);
+  expect(canUpdateFileAccess(config, 'u-lin', detail.activity, file, next)).toBe(false);
+  file.access = { mode: 'shared', roleIds: [], userIds: [] };
+  config.users.find(
+    /**
+     * 取上传人以撤回其财务节点受理资格。
+     * @param user 组织成员
+     * @returns 是否上传人
+     */
+    (user) => user.id === 'u-zhou',
+  )!.roles = ['academic'];
+  expect(canReadFile(config, 'u-zhou', detail.activity, file)).toBe(true);
+  expect(canUpdateFileAccess(config, 'u-zhou', detail.activity, file, {})).toBe(false);
+  expect(
+    canUpdateFileAccess(config, 'u-zhou', detail.activity, file, {
+      access: { mode: 'restricted', roleIds: [], userIds: ['u-zhou'] },
+    }),
+  ).toBe(true);
+}
+test('节点上传人可主动分享，节点资格撤回后仅可收紧文件权限', fileAccessManagementCase);
+
+/** 核对申请人可以通过节点明确授权阅读内部说明，同部门身份本身不构成授权。 */
+function applicantNodeAccessCase(): void {
+  const { config, detail } = fixture();
+  const node = detail.activity.nodes.find(
+    /**
+     * 定位包含内部说明的节点。
+     * @param item 流程节点
+     * @returns 是否目标节点
+     */
+    (item) => item.id === detail.activity.tasks[0]!.nodeId,
+  )!;
+  expect(projectActivityDetail(config, 'u-lin', detail).activity.tasks[0]!.comment).toBe('');
+  node.access = { mode: 'restricted', roleIds: [], userIds: [], nodeAssignees: true, applicant: true };
+  expect(projectActivityDetail(config, 'u-lin', detail).activity.tasks[0]!.comment).toBe('INTERNAL-SECRET');
+}
+test('节点勾选申请人可开放内部说明，未授权时只展示公开结论', applicantNodeAccessCase);
 
 /**
  * 提供真实服务使用的数据库协议替身，未知查询立即失败，不启动任何数据库或HTTP服务。
@@ -484,6 +648,7 @@ function database(config: CompanyConfig, detail: ActivityDetail) {
       return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
     if (sql.startsWith('SELECT COUNT(*) AS total FROM activities')) return [[{ total: 1 }], []];
     if (sql.includes('FROM activities')) return [[{ data: structuredClone(detail.activity) }], []];
+    if (sql.includes('FROM execution_records')) return [[], []];
     if (sql.includes('FROM workflow_nodes'))
       return [
         detail.activity.nodes.map(
@@ -566,6 +731,31 @@ function database(config: CompanyConfig, detail: ActivityDetail) {
   }
   return { pool: { execute, getConnection } as unknown as Pool, actions };
 }
+
+/** 核对真实详情与文件下载服务按显式共享返回文件，同时继续过滤节点内部说明。 */
+async function sharedFileServiceCase(): Promise<void> {
+  const { config, detail } = fixture();
+  grantApplicantDownload(config);
+  detail.files[0]!.access = { mode: 'shared', roleIds: [], userIds: [] };
+  const db = database(config, detail);
+  const safe = await getDetail(db.pool, 'u-lin', 'a1');
+  expect(
+    safe.files.some(
+      /**
+       * 定位服务端实际返回的共享附件。
+       * @param file 已授权附件
+       * @returns 是否目标文件
+       */
+      (file) => file.id === 'f-private',
+    ),
+  ).toBe(true);
+  expect(JSON.stringify(safe)).not.toContain('INTERNAL-SECRET');
+  await expect(authorizeFileRead(db.pool, 'u-lin', 'f-private')).resolves.toMatchObject({
+    mime: 'application/pdf',
+  });
+  await expect(authorizeFileRead(db.pool, 'u-qiao', 'f-private')).rejects.toMatchObject({ status: 404 });
+}
+test('真实详情与下载服务放行活动内共享文件并保留内部说明隔离', sharedFileServiceCase);
 
 /** 核对直接调用真实详情和下载服务仍执行内容授权，成功的敏感读取留有记录。 */
 async function servicesCase(): Promise<void> {

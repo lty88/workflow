@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { configSchema } from '@workflow/domain'
 import type { CompanyConfig, ConfigState } from '@workflow/domain'
 import type { SettingsModule, SettingsChanges, MemberBatchAction } from '@/typings/api/settings'
 import { configApi, saveSettingsApi, deleteMemberApi, batchMembersApi } from '@/api/configuration'
@@ -37,7 +38,7 @@ export const useConfigStore = defineStore(
     function update(value: CompanyConfig): void {
       draft.value = value
     }
-    /** 仅提交当前模块字段，保存即生效并更新技术修订号。
+    /** 浏览器先校验当前模块必填及格式，再调用保存接口并更新技术修订号。
      * @param module 当前设置模块
      */
     async function save(module: SettingsModule): Promise<void> {
@@ -52,6 +53,8 @@ export const useConfigStore = defineStore(
             : module === 'menus'
               ? { groups: value.groups, pages: value.pages, roles: value.roles }
               : { form: value.form }
+      const checked = configSchema.partial().safeParse(changes)
+      if (!checked.success) throw new Error('请完善当前设置：' + checked.error.issues.map((issue) => issue.path.join('.') + ' ' + issue.message).join('；'))
       busy.value = true
       try {
         apply(await saveSettingsApi(module, changes, state.value.revision))

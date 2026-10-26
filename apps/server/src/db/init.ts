@@ -7,6 +7,7 @@ import {
   validateConfig,
   withStandardBusinessRoles,
 } from '@workflow/domain';
+import { migrateExecutionAttachments } from './execution-attachment-migration';
 import { migrateMasterData } from './master-data-migration';
 import { readEnv } from '../env';
 import { createPool, materializeConfig, query, transaction } from './repository';
@@ -36,6 +37,7 @@ async function initialize(): Promise<void> {
       await migrateActivityDeletion(pool);
       await migrateMasterData(pool);
       await migrateAttachmentFields(pool);
+      await migrateExecutionAttachments(pool);
       console.info('数据库结构已检查，现有配置和密码均保留。');
       return;
     }
@@ -75,6 +77,7 @@ async function initialize(): Promise<void> {
     await migrateActivityDeletion(pool);
     await migrateMasterData(pool);
     await migrateAttachmentFields(pool);
+    await migrateExecutionAttachments(pool);
     console.info('初始化完成。管理员账号：admin；管理员和示例员工默认密码123456，可由.env配置初始值。');
   } finally {
     await pool.end();

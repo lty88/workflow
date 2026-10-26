@@ -115,7 +115,7 @@ function configurationCase(): void {
   expect(validateConfig(config)).toEqual([]);
   const role = config.roles.find((item) => item.id === 'activity-deletion-admin')!;
   expect(role.permissions).toEqual(['activity:read', 'activity:delete:any']);
-  for (const reason of ['', '四个字'])
+  for (const reason of ['', '   ', '\n\t'])
     expect(
       activityDeleteSchema.safeParse({ reason, expectedVersion: 1, idempotencyKey: 'request-key-123456' })
         .success,
@@ -199,6 +199,7 @@ function memoryPool(status: Activity['status'] = 'approving') {
     }
     if (sql.includes('SELECT request_hash,response')) return [[{ request_hash: hash, response }], []];
     if (sql.includes('FROM activities')) return [marked ? [] : [{ data: structuredClone(activity) }], []];
+    if (sql.includes('FROM execution_records')) return [[], []];
     if (sql.includes('FROM workflow_nodes')) return [activity.nodes.map((node) => ({ data: node })), []];
     if (sql.includes('FROM workflow_tasks')) return [activity.tasks.map((task) => ({ data: task })), []];
     if (sql.includes('FROM audit_events')) return [activity.audit.map((event) => ({ data: event })), []];

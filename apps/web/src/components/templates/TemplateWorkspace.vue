@@ -14,7 +14,7 @@
     templateVersionsApi,
     validateTemplateApi,
   } from '@/api/templates'
-  import { createUuid, editableTemplateDefinition } from '@workflow/domain'
+  import { createUuid, editableTemplateDefinition, templateDefinitionSchema } from '@workflow/domain'
   import { clone } from '@/composables/format'
   import { useFeedback } from '@/composables/use-feedback'
   import { useAuthStore } from '@/stores/auth'
@@ -107,9 +107,23 @@
       busy.value = false
     }
   }
+  /** 校验模板设置与节点基本必填项，失败时保留页面输入并阻止保存、发布请求。
+   * @returns 是否允许发送模板接口
+   */
+  function validateLocalDefinition(): boolean {
+    if (!definition.value) return false
+    const checked = templateDefinitionSchema.safeParse(definition.value)
+    errors.value = checked.success ? [] : checked.error.issues.map((issue) => issue.path.join('.') + ' ' + issue.message)
+    for (const node of definition.value.nodes) {
+      if (!node.label.trim()) errors.value.push('请填写节点名称')
+      if (node.assignee.type !== 'manager' && !node.assignee.value) errors.value.push(`请选择${node.label || '当前节点'}的受理人、角色或部门`)
+    }
+    if (errors.value.length) feedback.failure(new Error(errors.value[0]))
+    return !errors.value.length
+  }
   /** 保存当前模板草稿并更新本地版本；网络重试沿用原请求标识。 */
   async function save(): Promise<void> {
-    if (!auth.can('config:manage') || !selected.value || !definition.value || busy.value) return
+    if (!auth.can('config:manage') || !selected.value || !definition.value || busy.value || !validateLocalDefinition()) return
     busy.value = true
     try {
       apply(await saveTemplateApi(selected.value.id, definition.value, selected.value.draftRevision))
@@ -123,7 +137,7 @@
   }
   /** 保存必要的本地修改后发布模板新版本，旧活动保持原快照。 */
   async function publish(): Promise<void> {
-    if (!auth.can('config:manage') || !selected.value || !definition.value || busy.value) return
+    if (!auth.can('config:manage') || !selected.value || !definition.value || busy.value || !validateLocalDefinition()) return
     busy.value = true
     try {
       if (dirty.value) apply(await saveTemplateApi(selected.value.id, definition.value, selected.value.draftRevision))

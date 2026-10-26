@@ -107,11 +107,14 @@ export function useActivityPresentation(detail: ComputedRef<ActivityDetail>, rev
       draft: { owner: nameFor(detail.value, item.applicant), text: '填写资料并提交申请' },
       needs_info: { owner: nameFor(detail.value, item.applicant), text: '按退回意见补充后重新提交' },
       withdrawn: { owner: nameFor(detail.value, item.applicant), text: '修改后可重新提交' },
-      cancel_review: { owner: nameFor(detail.value, item.applicant), text: '取消审批处理中，执行操作已冻结' },
-      ready_assign: { owner: '—', text: '流程办理已完成，请指派执行人' },
+      cancel_review: { owner: item.cancellation ? nameFor(detail.value, item.cancellation.reviewer) : '—', text: '取消审批处理中，执行操作已冻结' },
+      ready_assign: {
+        owner: nameFor(detail.value, item.workflowOwnerId || ''),
+        text: item.workflowOwnerId ? '由最后审批人指派执行人，并负责后续归档审核' : '无审批节点，由流程协调人指派执行人',
+      },
       ready_execute: { owner: nameFor(detail.value, item.executor), text: '按计划时间开始执行' },
-      executing: { owner: nameFor(detail.value, item.executor), text: '完成后提交执行汇报' },
-      archive_draft: { owner: nameFor(detail.value, item.applicant), text: '补齐成果材料并提交档案' },
+      executing: { owner: nameFor(detail.value, item.executor), text: '持续记录执行进展，全部结束后确认完成' },
+      archive_draft: { owner: nameFor(detail.value, item.executor), text: '由执行人补齐成果材料并提交归档审核' },
       archive_review: {
         owner: item.archive ? nameFor(detail.value, item.archive.reviewer) : '—',
         text: '核查执行结果与成果后归档',

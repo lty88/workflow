@@ -317,18 +317,30 @@
           </NCard>
           <NCard title="申请附件">
             <AttachmentList
-              v-if="savedId && detail"
               :activity-id="savedId"
-              :files="detail.files"
-              :activity-version="detail.activity.version"
+              :files="detail?.files || []"
+              :activity-version="version"
               stage="application"
               :can-upload="!submission && !busy && !uploading"
-              @uploaded="refreshFiles"
+              :prepare-upload="prepareFieldUpload"
+              :refresh-files="refreshFiles"
+              @busy="uploading = $event"
             />
-            <p v-else class="help-text">保存草稿后即可上传申请附件。</p>
           </NCard>
           <NAlert type="info" :bordered="false">提交时将再次校验必填项、费用合计、负责人和受理权限。当前填写人：{{ auth.profile?.user.name }}。</NAlert>
         </div>
+        <NCard v-if="step < 3" title="补充附件（选填）" class="step-panel">
+          <AttachmentList
+            :activity-id="savedId"
+            :files="detail?.files || []"
+            :activity-version="version"
+            stage="application"
+            :can-upload="!submission && !busy && !uploading"
+            :prepare-upload="prepareFieldUpload"
+            :refresh-files="refreshFiles"
+            @busy="uploading = $event"
+          />
+        </NCard>
         <div class="sticky-actions">
           <span class="muted">{{ savedId ? '已建立草稿 · 可继续编辑' : '尚未保存' }}</span>
           <div class="gap">

@@ -27,6 +27,8 @@ export const dataAccessRuleSchema = z
   .strict();
 export const fileAccessInputSchema = z
   .object({
+    contextId: z.uuid().optional(),
+    actionKey: z.string().min(1).max(40).optional(),
     fieldKey: z
       .string()
       .regex(/^[a-z][a-z0-9_]{1,39}$/)
@@ -44,7 +46,7 @@ export const configSchema = z
         z
           .object({
             id,
-            name: z.string().min(2).max(60),
+            name: z.string().trim().min(1).max(60),
             parent: z.string().max(80),
             manager: z.string().max(80),
             active: z.boolean(),
@@ -58,7 +60,7 @@ export const configSchema = z
         z
           .object({
             id,
-            name: z.string().min(2).max(50),
+            name: z.string().trim().min(1).max(50),
             username: z.string().regex(/^[a-zA-Z0-9_.-]{3,50}$/),
             department: id,
             roles: z.array(id).max(30),
@@ -73,7 +75,7 @@ export const configSchema = z
         z
           .object({
             id,
-            name: z.string().min(2).max(50),
+            name: z.string().trim().min(1).max(50),
             permissions: z.array(permission).max(30),
             scope: z.enum(['self', 'department', 'department_tree', 'tasks', 'all']),
             pages: z.array(id).max(100),
@@ -83,7 +85,7 @@ export const configSchema = z
       .min(1)
       .max(100),
     groups: z
-      .array(z.object({ id, name: z.string().min(2).max(50), active: z.boolean() }).strict())
+      .array(z.object({ id, name: z.string().trim().min(1).max(50), active: z.boolean() }).strict())
       .min(1)
       .max(30),
     pages: z
@@ -91,7 +93,7 @@ export const configSchema = z
         z
           .object({
             id,
-            name: z.string().min(2).max(50),
+            name: z.string().trim().min(1).max(50),
             group: id,
             component: z.enum([
               'summary',
@@ -112,7 +114,7 @@ export const configSchema = z
     form: z
       .object({
         id,
-        name: z.string().min(2).max(80),
+        name: z.string().trim().min(1).max(80),
         fields: z
           .array(
             z
@@ -162,13 +164,13 @@ export const configSchema = z
       .strict(),
     workflow: z
       .object({
-        name: z.string().min(2).max(80),
+        name: z.string().trim().min(1).max(80),
         nodes: z
           .array(
             z
               .object({
                 id,
-                label: z.string().min(2).max(80),
+                label: z.string().trim().min(1).max(80),
                 kind: z.enum(['approval', 'task', 'notice']),
                 deps: z.array(id).max(100),
                 assignee,
@@ -186,7 +188,7 @@ export const configSchema = z
   })
   .strict();
 
-export const payloadSchema = z.record(z.string().regex(/^[a-z][a-z0-9_]{1,39}$/), z.string().max(3000));
+export const payloadSchema = z.record(z.string().regex(/^[a-z][a-z0-9_]{1,39}$/), z.string());
 export const loginSchema = z
   .object({ username: z.string().min(3).max(50), password: z.string().min(1).max(200) })
   .strict();
@@ -210,17 +212,19 @@ export const submitSchema = versionSchema.extend({
 });
 export const decisionSchema = z
   .object({
+    attachmentContextId: z.uuid().optional(),
     decision: z.enum(['approve', 'return', 'reject']),
-    comment: z.string().max(500).default(''),
-    publicComment: z.string().max(500).optional(),
+    comment: z.string().trim().default(''),
+    publicComment: z.string().trim().optional(),
     expectedTaskVersion: z.number().int().positive(),
     idempotencyKey: z.string().min(16).max(100),
   })
   .strict();
 export const transferSchema = z
   .object({
+    attachmentContextId: z.uuid().optional(),
     assignee: id,
-    reason: z.string().min(5).max(500),
+    reason: z.string().trim().min(1, '请填写原因'),
     expectedTaskVersion: z.number().int().positive(),
     idempotencyKey: z.string().min(16).max(100),
   })
@@ -228,28 +232,31 @@ export const transferSchema = z
 export type TransferCommand = Omit<z.infer<typeof transferSchema>, 'idempotencyKey'>;
 export const adjustmentSchema = z
   .object({
-    name: z.string().min(2).max(80),
+    attachmentContextId: z.uuid().optional(),
+    name: z.string().trim().min(1).max(80),
     kind: z.enum(['approval', 'task', 'notice']),
     assignee,
     anchor: id,
     position: z.enum(['before', 'after', 'parallel']),
-    reason: z.string().min(5).max(500),
+    reason: z.string().trim().min(1, '请填写原因'),
     expectedStructureRevision: z.number().int().positive(),
     idempotencyKey: z.string().min(16).max(100),
   })
   .strict();
 export const reportSchema = z
   .object({
-    start: z.string().min(10).max(40),
-    end: z.string().min(10).max(40),
+    title: z.string().trim().optional(),
+    start: z.string().trim().min(1, '请选择实际开始时间'),
+    end: z.string().trim().min(1, '请选择实际结束时间'),
     people: z.number().int().min(0).max(100000),
-    summary: z.string().min(10).max(3000),
+    summary: z.string().trim().min(1, '请填写执行情况与成果'),
     spend: z.string().max(30).default(''),
-    exception: z.string().max(1000).default(''),
+    exception: z.string().trim().default(''),
   })
   .strict();
 export const actionSchema = z
   .object({
+    attachmentContextId: z.uuid().optional(),
     expectedVersion: z.number().int().positive(),
     idempotencyKey: z.string().min(16).max(100),
     action: z.enum([
@@ -257,6 +264,7 @@ export const actionSchema = z
       'assign',
       'start',
       'report',
+      'execution-complete',
       'archive-submit',
       'archive-approve',
       'archive-return',
@@ -265,12 +273,12 @@ export const actionSchema = z
       'cancel-reject',
       'cancel-withdraw',
     ]),
-    comment: z.string().max(1000).default(''),
+    comment: z.string().trim().default(''),
     executor: z.string().max(80).optional(),
     report: reportSchema.optional(),
     url: z.string().max(1000).optional(),
     checks: z.array(z.boolean()).max(3).optional(),
-    disposal: z.string().max(1000).optional(),
+    disposal: z.string().trim().optional(),
   })
   .strict();
 export type ActionCommand = Omit<z.infer<typeof actionSchema>, 'idempotencyKey'>;

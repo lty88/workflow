@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+  import AttachmentUploadPrompt from './AttachmentUploadPrompt.vue'
   import { computed, ref } from 'vue'
   import { NAlert, NButton, NEmpty, NPopconfirm, NUpload } from 'naive-ui'
   import type { UploadCustomRequestOptions } from 'naive-ui'
@@ -110,17 +111,32 @@
       </NPopconfirm>
     </div>
     <NAlert v-if="ids.length > files.length" type="warning" :bordered="false" class="field-hint">部分附件受独立权限限制或暂未读取，请刷新后查看。</NAlert>
-    <NUpload v-if="!disabled || pending" :custom-request="upload" :accept="accept" :multiple="false" :show-file-list="false" :disabled="!canUpload">
-      <NButton :loading="pending" :disabled="!canUpload">{{ pending ? '正在上传…' : '上传附件' }}</NButton>
+    <NUpload
+      class="field-attachment-uploader"
+      v-if="!disabled || pending"
+      :custom-request="upload"
+      :accept="accept"
+      :multiple="false"
+      :show-file-list="false"
+      :disabled="!canUpload"
+    >
+      <AttachmentUploadPrompt
+        :busy="pending"
+        :disabled="!canUpload"
+        :description="'支持 ' + rules.extensions.join('、').toUpperCase()"
+        :limit-label="`单个文件不超过 ${rules.maxSizeMB} MB · 已上传 ${ids.length} / ${rules.maxCount} 个`"
+      />
     </NUpload>
-    <p v-if="!disabled || pending" class="field-hint">
-      已上传 {{ ids.length }} / {{ rules.maxCount }} 个 · 单个 ≤ {{ rules.maxSizeMB }} MB · {{ rules.extensions.join('、').toUpperCase() }}
-    </p>
     <p v-if="!disabled && !prepareUpload && !activityId" class="field-hint">此处为配置预览，实际填写活动时可上传附件。</p>
     <NEmpty v-if="disabled && !pending && !ids.length" size="small" description="未上传附件" />
   </div>
 </template>
 <style scoped>
+  .field-attachment-uploader,
+  :deep(.field-attachment-uploader .n-upload-trigger) {
+    width: 100%;
+    display: block;
+  }
   .field-attachments {
     width: 100%;
     font-size: 14px;

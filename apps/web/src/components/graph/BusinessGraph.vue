@@ -648,6 +648,9 @@
   .success {
     background: #36a87e;
   }
+  .error {
+    background: #dc4c5b;
+  }
   .warning {
     background: #d9a02d;
   }
@@ -748,6 +751,10 @@
           <span>
             <i class="success" />
             已完成
+          </span>
+          <span>
+            <i class="error" />
+            退回 / 拒绝
           </span>
           <span>
             <i class="warning" />

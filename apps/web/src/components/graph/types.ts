@@ -1,7 +1,7 @@
 import type { GraphData } from '@antv/g6'
 import type { SelectOption } from 'naive-ui'
 export type GraphNodeKind = 'department' | 'member' | 'workflow' | 'runtime' | 'stage'
-export type GraphTone = 'normal' | 'active' | 'success' | 'warning' | 'muted'
+export type GraphTone = 'normal' | 'active' | 'success' | 'warning' | 'muted' | 'error'
 export type GraphDirection = 'TB' | 'LR'
 export interface GraphLocateOption extends SelectOption {
   label: string

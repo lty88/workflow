@@ -7,16 +7,67 @@ import type {
   FormValidationResult,
 } from './types';
 
+const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/;
+export const BUDGET_EXPENSE_KEYS = ['expert_fee', 'conference_fee', 'travel_fee'] as const;
+
 /**
- * 将非负元金额转换为整数分，拒绝空值和精度超限。
+ * 按十进制拆分把非负元金额转换为整数分，取消业务金额上限并保留安全整数精度。
  * @param value 输入值
  * @returns 整数分或 NaN
  */
 export function amountFen(value: unknown): number {
   const text = String(value ?? '').trim();
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return NaN;
-  const n = Math.round(Number(text) * 100);
-  return Number.isSafeInteger(n) && n <= 10000000000 ? n : NaN;
+  if (!AMOUNT_PATTERN.test(text)) return NaN;
+  const [yuan, decimal = ''] = text.split('.');
+  const n = Number(yuan) * 100 + Number(decimal.padEnd(2, '0'));
+  return Number.isSafeInteger(n) ? n : NaN;
+}
+
+/**
+ * 将安全整数分格式化为固定两位小数的元金额，避免大金额除法或浮点舍入丢失分位。
+ * @param value 非负整数分
+ * @returns 两位小数金额，无效或超出精确范围时返回空字符串
+ */
+export function formatAmountFen(value: number): string {
+  if (!Number.isSafeInteger(value) || value < 0) return '';
+  const digits = String(value).padStart(3, '0');
+  return `${digits.slice(0, -2)}.${digits.slice(-2)}`;
+}
+
+/**
+ * 判断表单是否具备完整且可读取的费用明细与预算字段，供前后端统一启用自动合计。
+ * @param form 当前动态表单定义
+ * @returns 是否可以从三项费用自动计算预算
+ */
+export function hasBudgetBreakdown(form: FormDefinition): boolean {
+  const keys = new Set<string>();
+  for (const field of form.fields) if (field.type === 'number' && !field.redacted) keys.add(field.key);
+  return (
+    keys.has('budget') &&
+    BUDGET_EXPENSE_KEYS.every(
+      /**
+       * 确认每一项费用字段都可参与合计。
+       * @param key 费用字段键
+       * @returns 是否存在对应数字字段
+       */
+      (key) => keys.has(key),
+    )
+  );
+}
+
+/**
+ * 用整数分汇总活动三项预算，未填写的明细暂按零展示，必填校验仍由明细字段承担。
+ * @param input 包含专家费、会务费与差旅费的表单输入
+ * @returns 精确的两位小数总额，明细无效或合计超出安全精度时返回空字符串
+ */
+export function budgetTotal(input: Record<string, string>): string {
+  let total = 0;
+  for (const key of BUDGET_EXPENSE_KEYS) {
+    const text = (input[key] ?? '').trim();
+    total += text ? amountFen(text) : 0;
+    if (!Number.isSafeInteger(total)) return '';
+  }
+  return formatAmountFen(total);
 }
 
 /**
@@ -87,7 +138,7 @@ export function visibleFields(form: FormDefinition, payload: Record<string, stri
 }
 
 /**
- * 按完整显隐关系校验动态表单，可限定当前步骤字段，并剔除隐藏和未知输入。
+ * 按显隐关系校验动态表单与时间先后，统一计算预算，支持已开始活动及补录并剔除未知输入。
  * @param form 表单定义
  * @param input 提交输入
  * @param keys 可选的待校验字段键，省略时完整校验
@@ -113,14 +164,8 @@ export function validateForm(
   }
   const payload: Record<string, string> = {};
   input = { ...input };
-  let expenseFields = 0;
-  for (const field of form.fields)
-    if (['expert_fee', 'conference_fee', 'travel_fee'].includes(field.key)) expenseFields += 1;
-  if (expenseFields === 3) {
-    let total = 0;
-    for (const key of ['expert_fee', 'conference_fee', 'travel_fee']) total += amountFen(input[key]);
-    input.budget = Number.isFinite(total) ? (total / 100).toFixed(2) : '';
-  }
+  const autoBudget = hasBudgetBreakdown(form);
+  if (autoBudget) input.budget = budgetTotal(input);
   for (const field of visibleFields(form, input)) {
     const value = (input[field.key] ?? '').trim();
     payload[field.key] = value;
@@ -133,14 +178,31 @@ export function validateForm(
       payload[field.key] = ids?.length ? JSON.stringify(ids) : '';
       continue;
     }
+    if (autoBudget && field.key === 'budget' && !value) {
+      // 明细格式错误由对应字段提示，仅在有效明细合计溢出时提示预算，避免级联报必填。
+      const validDetails = BUDGET_EXPENSE_KEYS.every(
+        /**
+         * 区分明细格式错误和总额超出精确计算范围。
+         * @param key 费用字段键
+         * @returns 是否为空或有效金额
+         */
+        (key) => !input[key]?.trim() || Number.isFinite(amountFen(input[key])),
+      );
+      if (validDetails) report(field.key, '预算合计超出系统可精确处理的金额范围，请调整费用明细');
+      continue;
+    }
     if (field.required && !value) {
       report(field.key, `${field.label}为必填项`);
       continue;
     }
     if (!value) continue;
-    if (value.length > 3000) report(field.key, `${field.label}不能超过3000字`);
     if (field.type === 'number' && !Number.isFinite(amountFen(value)))
-      report(field.key, `${field.label}需为非负数字，最多两位小数`);
+      report(
+        field.key,
+        AMOUNT_PATTERN.test(value)
+          ? `${field.label}超出系统可精确处理的数字范围，请减小金额`
+          : `${field.label}需为非负数字，最多两位小数`,
+      );
     if (field.type === 'select' && !field.options.includes(value))
       report(field.key, `${field.label}请选择有效选项`);
     if (field.type === 'datetime' && !Number.isFinite(Date.parse(value)))

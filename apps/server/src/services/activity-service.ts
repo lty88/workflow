@@ -1,7 +1,9 @@
+import { validateOperationAttachments, linkOperationAttachments } from './operation-attachments';
 import type { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import type { Activity, ActivityDetail, CompanyConfig, WorkflowTask } from '@workflow/domain';
 import {
   preserveFormAccess,
+  canCoordinateExecution,
   projectActivityDetail,
   mergeWritablePayload,
   activeMember,
@@ -128,12 +130,12 @@ export async function mutateActivity(
     const recipients = new Set<string>([changed.applicant]);
     if (changed.status === 'ready_execute' && changed.executor) recipients.add(changed.executor);
     if (changed.status === 'archive_review' && changed.archive) recipients.add(changed.archive.reviewer);
+    if (changed.status === 'archive_draft' && changed.executor) recipients.add(changed.executor);
     if (changed.status === 'cancel_review' && changed.cancellation)
       recipients.add(changed.cancellation.reviewer);
     if (changed.status === 'ready_assign')
       for (const user of config.users)
-        if (hasPermission(config, user.id, 'activity:assign') && canReadActivity(config, user.id, changed))
-          recipients.add(user.id);
+        if (canCoordinateExecution(config, user.id, changed)) recipients.add(user.id);
     for (const userId of recipients)
       if (userId !== actor)
         await enqueue(
@@ -211,6 +213,7 @@ export async function createDraft(
       assignment: '',
       actualStart: '',
       report: null,
+      executionRecords: [],
       archive: null,
       archives: [],
       cancellation: null,
@@ -306,7 +309,7 @@ export async function submitActivity(
   expectedTemplateVersion?: number,
 ): Promise<MutationResult> {
   /**
-   * 生成新的申请轮次，首批满足前置的节点同步激活。
+   * 校验表单与预算后生成申请轮次，允许已开始活动及补录，首批满足前置的节点同步激活。
    * @param context 事务上下文
    * @returns 已提交实例
    */
@@ -342,8 +345,6 @@ export async function submitActivity(
       ...workflow.errors,
       ...validateAttachmentReferences(form, checked.payload, await activityFiles(connection, id), id),
     ];
-    if (checked.payload.start_at && Date.parse(checked.payload.start_at) < Date.now())
-      errors.push('活动开始时间不能早于当前时间');
     if (errors.length) throw new HttpError(422, 'VALIDATION', '申请或审核配置需要修正', errors);
     invalidatePending(activity);
     activity.nodes.push(...workflow.nodes);
@@ -420,7 +421,17 @@ export async function handleDecision(
    */
   async function handle(context: MutationContext): Promise<Activity> {
     ensure(context.activity, 404, 'NOT_FOUND', '活动不存在');
+    const task = findById(context.activity.tasks, taskId);
+    await validateOperationAttachments(
+      context,
+      actor,
+      command.attachmentContextId,
+      'decision',
+      'node',
+      task?.nodeId,
+    );
     decideTask(context.config, actor, context.activity, taskId, command);
+    linkOperationAttachments(context, command.attachmentContextId);
     return context.activity;
   }
   return mutateActivity(
@@ -454,10 +465,25 @@ export async function handleAction(
    */
   async function handle(context: MutationContext): Promise<Activity> {
     ensure(context.activity, 404, 'NOT_FOUND', '活动不存在');
+    const stage =
+      command.action === 'report' || command.action === 'execution-complete'
+        ? 'execution'
+        : command.action === 'archive-submit'
+          ? 'archive'
+          : 'operation';
+    await validateOperationAttachments(context, actor, command.attachmentContextId, command.action, stage);
     const files = await activityFiles(context.connection, id);
     let archiveFile = false;
-    for (const file of files) if (file.stage === 'archive') archiveFile = true;
+    for (const file of files)
+      if (
+        file.stage === 'archive' &&
+        (!file.contextId ||
+          file.contextId === command.attachmentContextId ||
+          context.activity.audit.some((event) => event.attachmentContextId === file.contextId))
+      )
+        archiveFile = true;
     applyActivityAction(context.config, actor, context.activity, command, archiveFile);
+    linkOperationAttachments(context, command.attachmentContextId);
     return context.activity;
   }
   return mutateActivity(
@@ -491,7 +517,9 @@ export async function handleAdjustment(
    */
   async function handle(context: MutationContext): Promise<Activity> {
     ensure(context.activity, 404, 'NOT_FOUND', '活动不存在');
+    await validateOperationAttachments(context, actor, command.attachmentContextId, 'adjust', 'operation');
     adjustWorkflow(context.config, actor, context.activity, command);
+    linkOperationAttachments(context, command.attachmentContextId);
     return context.activity;
   }
   return mutateActivity(
@@ -531,7 +559,9 @@ export async function handleTransfer(
    */
   async function handle(context: MutationContext): Promise<Activity> {
     ensure(context.activity, 404, 'NOT_FOUND', '活动不存在');
+    await validateOperationAttachments(context, actor, command.attachmentContextId, 'adjust', 'operation');
     transferTask(context.config, actor, context.activity, taskId, command);
+    linkOperationAttachments(context, command.attachmentContextId);
     await enqueue(
       context.connection,
       context.activity,

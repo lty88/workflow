@@ -276,6 +276,12 @@ export function projectActivityDetail(
         !hasScopedDataPermission(config, actor, source, 'activity:sensitive:export')))
   )
     safe.activity.report.spend = '';
+  if (
+    budget &&
+    (!canAccessField(config, actor, source, budget) ||
+      (exporting && isSensitiveField(config, budget) && !sensitiveExport))
+  )
+    for (const record of safe.activity.executionRecords || []) record.spend = '';
   for (const field of source.schema.fields)
     if (
       isSensitiveField(config, field) &&

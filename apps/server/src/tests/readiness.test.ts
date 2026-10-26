@@ -26,9 +26,20 @@ async function readyDatabaseCase(): Promise<void> {
   async function execute(sql: string): Promise<[unknown[], unknown[]]> {
     if (sql.includes('schema_migrations'))
       return [
-        [{ version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }],
+        [
+          { version: 2 },
+          { version: 3 },
+          { version: 4 },
+          { version: 5 },
+          { version: 6 },
+          { version: 7 },
+          { version: 8 },
+        ],
         [],
       ];
+    if (sql.includes('information_schema.TABLES')) return [[{ TABLE_NAME: 'execution_records' }], []];
+    if (sql.includes("('context_id','action_key')"))
+      return [[{ COLUMN_NAME: 'context_id' }, { COLUMN_NAME: 'action_key' }], []];
     if (sql.includes('information_schema.COLUMNS'))
       return [
         [

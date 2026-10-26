@@ -1,8 +1,10 @@
-import type { ActivityDetail, FileRecord, FormDefinition, FormValidationIssue, WorkflowTask } from '@workflow/domain'
+import type { ActivityDetail, FileRecord, FormDefinition, FormValidationIssue, WorkflowTask, WorkflowNode } from '@workflow/domain'
 import type { ComputedRef, Ref } from 'vue'
 export interface DeleteActivityProps {
   activity: Pick<ActivityDetail['activity'], 'id' | 'code' | 'name' | 'version'>
   allowed: boolean
+  prominent?: boolean
+  disabled?: boolean
 }
 export interface ActivityTemplateOptions {
   existingDetail?: ComputedRef<ActivityDetail | null>
@@ -47,7 +49,29 @@ export interface SubmissionAttempt {
   id: string
   version: number
 }
+export interface BusinessFormAttachmentProps {
+  detail: ActivityDetail
+  contextId: string
+  actionKey: string
+  stage: FileRecord['stage']
+  nodeId?: string
+  disabled?: boolean
+}
+export interface ExecutionReportFormProps {
+  completion?: boolean
+}
+export interface AttachmentUploadPromptProps {
+  busy?: boolean
+  disabled?: boolean
+  description: string
+  limitLabel: string
+}
 export interface AttachmentProps {
+  contextId?: string
+  actionKey?: string
+  includeContexts?: boolean
+  prepareUpload?: () => Promise<string>
+  refreshFiles?: () => Promise<void>
   nodeId?: string
   activityVersion?: number
   activityId: string
@@ -66,7 +90,8 @@ export interface AdjustmentProps {
   detail: ActivityDetail
 }
 export interface WorkflowViewDetail {
-  activity: Pick<ActivityDetail['activity'], 'nodes' | 'tasks'> & Partial<Pick<ActivityDetail['activity'], 'status' | 'revision' | 'cancellation'>>
+  activity: Pick<ActivityDetail['activity'], 'nodes' | 'tasks'> &
+    Partial<Pick<ActivityDetail['activity'], 'status' | 'revision' | 'cancellation' | 'applicant' | 'executor' | 'archive' | 'workflowOwnerId'>>
   participants: ActivityDetail['participants']
   actions?: string[]
   taskWarnings?: ActivityDetail['taskWarnings']
@@ -78,7 +103,8 @@ export const ACTION_LABELS: Record<string, string> = {
   adjust: '新增流程节点',
   assign: '指派执行人',
   start: '开始执行',
-  report: '提交执行汇报',
+  report: '新增执行记录',
+  'execution-complete': '完成执行并提交归档',
   'archive-submit': '提交档案',
   'archive-approve': '审核归档',
   'archive-return': '退回档案',
@@ -94,6 +120,8 @@ export const NODE_STATUSES: Record<string, string> = {
   active: '办理中',
   completed: '已完成',
   invalidated: '已失效',
+  returned: '已退回',
+  rejected: '已拒绝',
   skipped: '未命中条件',
 }
 export const TASK_STATUSES: Record<string, string> = {
@@ -109,4 +137,9 @@ export interface FileAccessDialogProps {
   show: boolean
   file: FileRecord | null
   activityVersion: number
+}
+
+export type NodeProgressStatus = WorkflowNode['status'] | 'returned' | 'rejected'
+export interface WorkflowProgressNode extends WorkflowNode {
+  displayStatus: NodeProgressStatus
 }

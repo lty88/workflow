@@ -1,6 +1,6 @@
-import type { TransferCommand } from '@workflow/domain';
-import type { MutationResult, WorkflowPreview } from '@/typings/api';
-import { mutation, request } from './http';
+import type { TransferCommand } from '@workflow/domain'
+import type { MutationResult, WorkflowPreview } from '@/typings/api'
+import { mutation, request } from './http'
 
 /**
  * 办理个人审核任务。
@@ -9,6 +9,7 @@ import { mutation, request } from './http';
  * @param decision 决策
  * @param comment 节点内部说明
  * @param publicComment 活动内共享的结论或补充要求
+ * @param attachmentContextId 本次办理附件分组
  * @returns 更新结果
  */
 export function decisionApi(
@@ -17,8 +18,9 @@ export function decisionApi(
   decision: 'approve' | 'return' | 'reject',
   comment: string,
   publicComment = '',
+  attachmentContextId?: string
 ): Promise<MutationResult> {
-  return mutation(`/tasks/${id}/decisions`, { expectedTaskVersion, decision, comment, publicComment });
+  return mutation(`/tasks/${id}/decisions`, { expectedTaskVersion, decision, comment, publicComment, attachmentContextId })
 }
 
 /**
@@ -28,7 +30,7 @@ export function decisionApi(
  * @returns 工单新版本
  */
 export function transferApi(id: string, command: TransferCommand): Promise<MutationResult> {
-  return mutation(`/tasks/${id}/transfer`, command);
+  return mutation(`/tasks/${id}/transfer`, command)
 }
 
 /**
@@ -37,5 +39,5 @@ export function transferApi(id: string, command: TransferCommand): Promise<Mutat
  * @returns 路线与受理人
  */
 export function previewApi(payload: Record<string, string>): Promise<WorkflowPreview> {
-  return request('/workflow/preview', { method: 'POST', body: JSON.stringify({ payload }) });
+  return request('/workflow/preview', { method: 'POST', body: JSON.stringify({ payload }) })
 }

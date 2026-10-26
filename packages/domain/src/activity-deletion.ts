@@ -4,8 +4,9 @@ import { canReadActivity, findById } from './permissions';
 
 export const activityDeleteSchema = z
   .object({
+    attachmentContextId: z.uuid().optional(),
     expectedVersion: z.number().int().positive(),
-    reason: z.string().trim().min(5, '请填写至少5字的删除原因').max(500),
+    reason: z.string().trim().min(1, '请填写删除原因').max(500),
     idempotencyKey: z.string().min(16).max(100),
   })
   .strict();

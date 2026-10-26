@@ -13,7 +13,7 @@ import {
   validateConfig,
   validateForm,
 } from '@workflow/domain';
-import type { Activity, ActivityDetail, FormField } from '@workflow/domain';
+import type { Activity, ActivityDetail, FileRecord, FormField } from '@workflow/domain';
 import type { MutationContext } from '../services/activity-service';
 import { mutateActivity } from '../services/activity-service';
 import { uploadFile } from '../services/file-service';
@@ -77,7 +77,7 @@ function fixture() {
     createdAt: '',
     updatedAt: '',
   };
-  const file = {
+  const file: FileRecord = {
     id: 'f1',
     activityId: 'a1',
     fieldKey: field.key,
@@ -137,10 +137,11 @@ function referencesCase(): void {
   expect(attachmentFileErrors(field, { name: '证明.PDF', size: 100 })).toEqual([]);
 }
 test('服务端引用校验拒绝其他活动、其他字段、错误阶段和超限文件', referencesCase);
-/** 核对字段受限后元数据、预览与下载共同执行权限，历史快照也不扩大当前权限。
+/** 核对明确共享的字段附件仍受字段权限限制，元数据、预览、下载与历史快照统一隔离。
  */
 function privacyCase(): void {
   const { config, field, file, activity, detail } = fixture();
+  file.access = { mode: 'shared', roleIds: [], userIds: [] };
   activity.payload[field.key] = '["f1"]';
   expect(canReadFile(config, 'u-chen', activity, file)).toBe(true);
   const restricted = {

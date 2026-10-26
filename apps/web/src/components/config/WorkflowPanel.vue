@@ -206,8 +206,8 @@
    * 保存节点并提前检查环路。
    */
   function save(): void {
-    if (!editing.value || editing.value.label.trim().length < 2) {
-      feedback.failure(new Error('节点名称至少2字'))
+    if (!editing.value || editing.value.label.trim().length === 0) {
+      feedback.failure(new Error('请填写节点名称'))
       return
     }
     const next = clone(props.modelValue)

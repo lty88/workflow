@@ -61,7 +61,7 @@ export const TEMPLATE_BOUNDARY_IDS: readonly string[] = ['stage:apply', 'stage:a
 const identifier = z.string().min(1).max(80);
 export const templateDefinitionSchema = z
   .object({
-    name: z.string().trim().min(2).max(80),
+    name: z.string().trim().min(1, '请填写模板名称').max(80),
     activityTypeIds: z.array(identifier).min(1).max(30),
     defaultForTypeIds: z.array(identifier).max(30),
     departmentIds: z.array(identifier).max(200),

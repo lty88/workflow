@@ -1,8 +1,10 @@
-import { mkdir, writeFile, unlink } from 'node:fs/promises';
-import { basename, resolve } from 'node:path';
+import { basename } from 'node:path';
+import { createLocalAttachmentStorage } from '../storage/attachments';
+import type { AttachmentStorage } from '../storage/types';
 import type { Pool } from 'mysql2/promise';
 import {
   activityActions,
+  attachmentContextCommitted,
   attachmentIds,
   attachmentOptions,
   attachmentFileErrors,
@@ -13,8 +15,7 @@ import {
   canReadNodeContent,
   canReadFile,
   canDownloadFile,
-  isNarrowerAccess,
-  SHARED_ACCESS,
+  canUpdateFileAccess,
   fileAccessWriteSchema,
   findById,
   validateDataAccessRule,
@@ -53,7 +54,7 @@ function acceptedMime(name: string, buffer: Buffer): string {
 }
 
 /**
- * 在权限与阶段校验后保存附件，数据库失败时清理本次创建的磁盘文件。
+ * 在权限、阶段与表单分组校验后保存附件，数据库失败时清理本次创建的存储对象。
  * @param pool 连接池
  * @param root 存储目录
  * @param actor 上传人
@@ -62,7 +63,8 @@ function acceptedMime(name: string, buffer: Buffer): string {
  * @param originalName 原始文件名
  * @param buffer 内容
  * @param key 幂等键
- * @param access 附件收紧规则、所属节点或表单字段，始终继承父级内容授权
+ * @param access 附件查看下载规则与所属节点或表单字段，空规则继承节点，显式规则单独授权
+ * @param storage 本地或OSS存储适配器
  * @returns 文件元数据
  */
 export async function uploadFile(
@@ -75,6 +77,7 @@ export async function uploadFile(
   buffer: Buffer,
   key: string,
   access: FileAccessInput = {},
+  storage: AttachmentStorage = createLocalAttachmentStorage(root),
 ): Promise<FileRecord> {
   ensure(buffer.length > 0 && buffer.length <= 20 * 1024 * 1024, 422, 'FILE_SIZE', '文件需大于0且不超过20MB');
   const name = basename(originalName)
@@ -87,7 +90,7 @@ export async function uploadFile(
     throw Object.assign(new Error('文件格式或签名不受支持'), { statusCode: 422 });
   }
   const id = digest(`${actor}:${activityId}:${key}`);
-  const storagePath = resolve(root, id);
+  let storageKey = id;
   let created = false;
   try {
     await mutateActivity(
@@ -104,6 +107,25 @@ export async function uploadFile(
       async function store(context) {
         const activity = context.activity!;
         const node = access.nodeId ? findById(activity.nodes, access.nodeId) : undefined;
+        ensure(
+          !access.contextId || !attachmentContextCommitted(activity, access.contextId),
+          409,
+          'ATTACHMENTS_COMMITTED',
+          '本次记录已提交，附件不可继续追加；请新增一条记录',
+        );
+        ensure(
+          !access.fieldKey || (!access.contextId && !access.actionKey),
+          422,
+          'FILE_CONTEXT',
+          '动态字段附件不能混用业务表单分组',
+        );
+        ensure(
+          stage !== 'operation' || (!!access.contextId && !!access.actionKey && !access.nodeId),
+          422,
+          'FILE_CONTEXT',
+          '业务表单附件必须指定本次分组和动作',
+        );
+        ensure(!access.contextId || !!access.actionKey, 422, 'FILE_CONTEXT', '附件分组缺少业务动作');
         let field;
         if (access.fieldKey) {
           ensure(stage === 'application' && !access.nodeId, 422, 'FILE_FIELD', '表单字段附件仅允许申请阶段');
@@ -163,31 +185,56 @@ export async function uploadFile(
             hasPermission(context.config, actor, 'execution:report');
         if (stage === 'archive')
           allowed = activityActions(context.config, actor, activity).includes('archive-submit');
+        if (stage === 'operation')
+          allowed =
+            !!access.actionKey &&
+            [
+              'delete',
+              'withdraw',
+              'assign',
+              'start',
+              'archive-approve',
+              'archive-return',
+              'cancel-request',
+              'cancel-approve',
+              'cancel-reject',
+              'cancel-withdraw',
+              'adjust',
+            ].includes(access.actionKey) &&
+            activityActions(context.config, actor, activity).includes(access.actionKey);
+        if (access.contextId) {
+          if (stage === 'execution')
+            allowed = allowed && ['report', 'execution-complete'].includes(access.actionKey || '');
+          else if (stage === 'node') allowed = allowed && access.actionKey === 'decision';
+          else if (stage === 'archive') allowed = allowed && access.actionKey === 'archive-submit';
+          else if (stage !== 'operation') allowed = false;
+        }
         ensure(allowed, 403, 'FORBIDDEN', '当前身份或阶段不允许上传该类附件');
         if (!field) {
           const existing = await query<{ total: number }>(
             context.connection,
-            'SELECT COUNT(*) AS total FROM files WHERE activity_id=? AND stage=? AND node_id <=> ? AND field_key IS NULL',
-            [activityId, stage, access.nodeId || null],
+            'SELECT COUNT(*) AS total FROM files WHERE activity_id=? AND stage=? AND node_id <=> ? AND context_id <=> ? AND field_key IS NULL',
+            [activityId, stage, access.nodeId || null, access.contextId || null],
           );
-          ensure(Number(existing[0]?.total || 0) < 10, 422, 'FILE_LIMIT', '该阶段最多上传10个文件');
+          ensure(Number(existing[0]?.total || 0) < 10, 422, 'FILE_LIMIT', '每个表单或记录最多上传10个文件');
         }
-        await mkdir(root, { recursive: true });
-        await writeFile(storagePath, buffer, { flag: 'wx', mode: 0o600 });
+        storageKey = await storage.put(id, buffer, mime);
         created = true;
         await context.connection.execute(
-          'INSERT INTO files(id,activity_id,uploader_id,name,storage_key,mime,size,stage,node_id,field_key,access_rule,download_rule) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+          'INSERT INTO files(id,activity_id,uploader_id,name,storage_key,mime,size,stage,node_id,field_key,context_id,action_key,access_rule,download_rule) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
           [
             id,
             activityId,
             actor,
             name,
-            id,
+            storageKey,
             mime,
             buffer.length,
             stage,
             access.nodeId || null,
             access.fieldKey || null,
+            access.contextId || null,
+            access.actionKey || null,
             access.access ? JSON.stringify(access.access) : null,
             access.downloadAccess ? JSON.stringify(access.downloadAccess) : null,
           ],
@@ -210,7 +257,15 @@ export async function uploadFile(
       },
     );
   } catch (error) {
-    if (created) await unlink(storagePath).catch(ignoreCleanupError);
+    if (created) {
+      // 提交结果不明时保留对象，避免删除已经成功登记的附件。
+      try {
+        const registered = await query(pool, 'SELECT id FROM files WHERE id=?', [id]);
+        if (!registered.length) await storage.remove(storageKey).catch(ignoreCleanupError);
+      } catch {
+        /* 数据库不可用时保留对象，等待后续核查。 */
+      }
+    }
     throw error;
   }
   return {
@@ -222,6 +277,8 @@ export async function uploadFile(
     stage,
     nodeId: access.nodeId,
     fieldKey: access.fieldKey,
+    contextId: access.contextId,
+    actionKey: access.actionKey,
     createdAt: new Date().toISOString(),
   };
 }
@@ -257,7 +314,12 @@ export async function authorizeFileRead(
       'SELECT activity_id,storage_key FROM files WHERE id=?',
       [id],
     );
-    ensure(rows[0] && /^[a-f0-9]{64}$/.test(rows[0].storage_key), 404, 'NOT_FOUND', '文件不存在或无访问权限');
+    ensure(
+      rows[0] && /^(?:[a-f0-9]{64}|oss:[a-zA-Z0-9_-]{1,60}\/[a-f0-9]{64})$/.test(rows[0].storage_key),
+      404,
+      'NOT_FOUND',
+      '文件不存在或无访问权限',
+    );
     const activity = await loadActivity(connection, rows[0].activity_id);
     const files = await activityFiles(connection, rows[0].activity_id);
     const file = findById(files, id);
@@ -295,7 +357,7 @@ export async function authorizeFileRead(
 }
 
 /**
- * 修改已有附件授权，上传者只能收紧，具备活动访问权的配置管理员可调整；主单版本保护并发。
+ * 修改已有附件授权，节点上传人仍有节点阅读资格时可分享自己的附件，其余上传人仅可收紧。
  * @param pool 数据库连接池
  * @param actor 当前成员
  * @param id 文件标识
@@ -348,17 +410,12 @@ export async function updateFileAccess(
       'FILE_ACCESS',
       '阶段附件不能使用节点受理人授权',
     );
-    if (!admin)
-      ensure(
-        isNarrowerAccess(file.access || SHARED_ACCESS, command.access || SHARED_ACCESS) &&
-          isNarrowerAccess(
-            file.downloadAccess || file.access || SHARED_ACCESS,
-            command.downloadAccess || command.access || SHARED_ACCESS,
-          ),
-        403,
-        'FILE_ACCESS_WIDENING',
-        '上传人只能收紧已有授权，扩大范围请由授权管理员调整',
-      );
+    ensure(
+      canUpdateFileAccess(context.config, actor, activity, file, command),
+      403,
+      'FILE_ACCESS_WIDENING',
+      '分享节点附件需上传人仍有该节点内部阅读资格；其他上传人只能收紧授权，或由授权管理员调整',
+    );
     await context.connection.execute(
       'UPDATE files SET access_rule=?,download_rule=? WHERE id=? AND activity_id=?',
       [

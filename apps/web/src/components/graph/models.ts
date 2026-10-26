@@ -3,6 +3,7 @@ import type { EdgeData, NodeData } from '@antv/g6'
 import { activeMember, findById, topological, STATUSES } from '@workflow/domain'
 import type { ActivityStatus, CompanyConfig } from '@workflow/domain'
 import type { WorkflowViewDetail } from '@/components/activity/types'
+import { nodeProgressStatus } from '@/components/activity/workflow-progress'
 import { NODE_STATUSES } from '@/components/activity/types'
 import type { BusinessGraphModel, GraphNodeMeta, GraphTone, OrganizationCardMeta } from './types'
 
@@ -12,6 +13,7 @@ const colors: Record<GraphTone, { fill: string; stroke: string }> = {
   success: { fill: '#effaf5', stroke: '#36a87e' },
   warning: { fill: '#fff8e9', stroke: '#d9a02d' },
   muted: { fill: '#f1f3f7', stroke: '#bdc5d3' },
+  error: { fill: '#fff1f2', stroke: '#dc4c5b' },
 }
 const stages = [
   { id: 'assign', name: '指派执行人', statuses: ['ready_assign'] },
@@ -290,13 +292,14 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
 }
 
 /**
- * 在图中追加指派、执行及归档阶段，不把阶段状态当成审批节点。
+ * 追加指派、执行及归档阶段并标明对应负责人，不把业务阶段当成审批节点。
  * @param nodes 图节点
  * @param edges 图边
  * @param from 审批汇合节点
  * @param status 当前业务状态
+ * @param owners 各阶段的负责人姓名或职责说明
  */
-function addStages(nodes: NodeData[], edges: EdgeData[], from: string, status?: ActivityStatus): void {
+function addStages(nodes: NodeData[], edges: EdgeData[], from: string, status?: ActivityStatus, owners: Record<string, string> = {}): void {
   let current = -1
   for (let index = 0; index < stages.length; index += 1) if (stages[index]!.statuses.includes(status || '')) current = index
   let previous = from
@@ -309,7 +312,9 @@ function addStages(nodes: NodeData[], edges: EdgeData[], from: string, status?: 
         businessId: stage.id,
         kind: 'stage',
         label: stage.name,
-        summary: current === index ? '当前业务阶段' : current > index || status === 'archived' ? '已完成' : '后续业务阶段',
+        summary: [current === index ? '当前业务阶段' : current > index || status === 'archived' ? '已完成' : '后续业务阶段', owners[stage.id]]
+          .filter(Boolean)
+          .join(' · '),
         tone,
       })
     )
@@ -342,11 +347,20 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
   const edges: EdgeData[] = []
   const hasRealStatus = !!detail.activity.status
   for (const node of checked.order) {
+    const progress = nodeProgressStatus(node, detail.activity.tasks)
     let tone: GraphTone =
-      node.status === 'active' ? 'active' : node.status === 'completed' ? 'success' : ['invalidated', 'skipped'].includes(node.status) ? 'muted' : 'normal'
+      progress === 'returned' || progress === 'rejected'
+        ? 'error'
+        : node.status === 'active'
+          ? 'active'
+          : node.status === 'completed'
+            ? 'success'
+            : ['invalidated', 'skipped'].includes(node.status)
+              ? 'muted'
+              : 'normal'
     for (const warning of detail.taskWarnings || []) {
       const task = findById(detail.activity.tasks, warning.taskId)
-      if (task?.nodeId === node.id) tone = 'warning'
+      if (task?.nodeId === node.id && tone !== 'error') tone = 'warning'
     }
     const names: string[] = []
     for (const id of node.assignees) names.push(findById(detail.participants, id)?.name || id)
@@ -355,7 +369,7 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
         businessId: node.id,
         kind: 'runtime',
         label: node.label,
-        summary: `${NODE_STATUSES[node.status]} · ${names.join('、') || '无受理人'} · V${node.applicationRevision || revision}`,
+        summary: `${NODE_STATUSES[progress]} · ${names.join('、') || '无受理人'} · V${node.applicationRevision || revision}`,
         tone,
       })
     )
@@ -380,7 +394,14 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
     }
     if (current.length && current.every((node) => node.kind === 'notice'))
       for (const node of current) edges.push(edge('runtime:' + node.id, 'stage:approved', true))
-    addStages(nodes, edges, 'stage:approved', detail.activity.status)
+    const owner = findById(detail.participants, detail.activity.workflowOwnerId || '')?.name || '流程协调人'
+    const executor = findById(detail.participants, detail.activity.executor || '')?.name || '执行负责人'
+    const archiveReviewer = findById(detail.participants, detail.activity.archive?.reviewer || detail.activity.workflowOwnerId || '')?.name || '归档审核人'
+    addStages(nodes, edges, 'stage:approved', detail.activity.status, {
+      assign: owner,
+      execute: executor,
+      archive: detail.activity.status === 'archive_review' || detail.activity.status === 'archived' ? `审核：${archiveReviewer}` : `提交：${executor}`,
+    })
     addException(nodes, edges, detail)
   }
   return { data: { nodes, edges } }
@@ -422,7 +443,7 @@ function addException(nodes: NodeData[], edges: EdgeData[], detail: WorkflowView
       kind: 'stage',
       label: STATUSES[status],
       summary: cancelling ? '取消流程分支 · 按审核结果恢复或终止' : '本轮审批已结束 · 历史意见保留',
-      tone: ['withdrawn', 'cancelled'].includes(status) ? 'muted' : 'warning',
+      tone: ['needs_info', 'rejected'].includes(status) ? 'error' : ['withdrawn', 'cancelled'].includes(status) ? 'muted' : 'warning',
     })
   )
   if (from) edges.push(edge(from, 'stage:exception', true))

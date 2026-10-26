@@ -1,9 +1,11 @@
+import { attachmentContextCommitted } from './execution-records';
 import { attachmentFieldsForFile } from './attachments';
 import type {
   Activity,
   CompanyConfig,
   DataAccessRule,
   FileRecord,
+  FileAccessInput,
   FormField,
   Permission,
   Role,
@@ -114,6 +116,14 @@ export function isCurrentNodeReader(
   if (node.assigneeRule.type === 'user') return node.assigneeRule.value === actor;
   if (node.assigneeRule.type === 'manager')
     return findById(config.departments, activity.department)?.manager === actor;
+  if (node.assigneeRule.type === 'department_manager') {
+    const department = findById(config.departments, node.assigneeRule.value);
+    return (
+      !!department?.active &&
+      department.manager === actor &&
+      findById(config.users, actor)?.department === department.id
+    );
+  }
   return findById(config.users, actor)?.roles.includes(node.assigneeRule.value) || false;
 }
 
@@ -227,7 +237,7 @@ export function canAccessField(
 }
 
 /**
- * 判断附件可见性，文件自行设置的规则与节点规则取交集。
+ * 隔离未提交附件；未指定文件查看规则时继承节点，明确共享或指定授权时单独判断文件受众。
  * @param config 当前组织
  * @param actor 当前成员
  * @param activity 活动
@@ -241,14 +251,16 @@ export function canReadFile(
   file: FileRecord,
 ): boolean {
   if (file.activityId !== activity.id || !canReadActivity(config, actor, activity)) return false;
+  if (file.contextId && !attachmentContextCommitted(activity, file.contextId) && file.uploaderId !== actor)
+    return false;
   if (file.fieldKey) {
     const fields = attachmentFieldsForFile(activity, file);
     if (!fields.length) return false;
     for (const field of fields) if (!canAccessField(config, actor, activity, field)) return false;
   }
   const node = file.nodeId ? findById(activity.nodes, file.nodeId) : undefined;
-  if ((file.stage === 'node' || file.nodeId) && (!node || !canReadNodeContent(config, actor, activity, node)))
-    return false;
+  if ((file.stage === 'node' || file.nodeId) && !node) return false;
+  if (node && !file.access && !canReadNodeContent(config, actor, activity, node)) return false;
   return (
     hasScopedDataPermission(config, actor, activity, 'activity:sensitive:read') ||
     audienceAllows(config, actor, activity, file.access || SHARED_ACCESS, node)
@@ -256,7 +268,7 @@ export function canReadFile(
 }
 
 /**
- * 判断独立下载授权，拥有敏感阅读权限不会自动获得受限附件下载权。
+ * 判断独立下载授权；单独设置的文件规则优先生效，未设置时沿用节点，敏感阅读不自动授予下载。
  * @param config 当前组织
  * @param actor 当前成员
  * @param activity 活动
@@ -281,6 +293,8 @@ export function canDownloadFile(
   if (override) return true;
   if (
     node &&
+    !file.access &&
+    !file.downloadAccess &&
     !audienceAllows(config, actor, activity, node.downloadAccess || node.access || NODE_PRIVATE_ACCESS, node)
   )
     return false;
@@ -316,7 +330,7 @@ export function validateDataAccessRule(
 }
 
 /**
- * 保守判断附加授权是否只收紧范围，避免上传者通过修改文件权限扩大接收人。
+ * 比较显式受众是否只收紧范围，用于缺少节点分享资格时限制上传人的授权修改。
  * @param previous 原始附加规则
  * @param next 新附加规则
  * @returns 新规则是否为原规则的明确子集
@@ -329,4 +343,37 @@ export function isNarrowerAccess(previous: DataAccessRule, next: DataAccessRule)
   for (const key of ['applicant', 'executor', 'departmentManager', 'nodeAssignees'] as const)
     if (next[key] && !previous[key]) return false;
   return true;
+}
+
+/**
+ * 判断附件授权修改资格，节点上传人在仍有内部阅读资格时可分享自己的文件；其余上传人只能收紧。
+ * @param config 当前组织与角色权限
+ * @param actor 修改人标识
+ * @param activity 所属活动
+ * @param file 当前附件及授权
+ * @param next 新查看和下载规则，空值表示继承
+ * @returns 是否允许保存这次授权修改
+ */
+export function canUpdateFileAccess(
+  config: CompanyConfig,
+  actor: string,
+  activity: Activity,
+  file: FileRecord,
+  next: Pick<FileAccessInput, 'access' | 'downloadAccess'>,
+): boolean {
+  if (!canReadFile(config, actor, activity, file)) return false;
+  if (hasPermission(config, actor, 'config:manage')) return true;
+  if (file.uploaderId !== actor) return false;
+  const node = file.nodeId ? findById(activity.nodes, file.nodeId) : undefined;
+  if (node && canReadNodeContent(config, actor, activity, node)) return true;
+  // 节点阅读资格被收回后，不允许通过切换继承关系改变实际受众。
+  if (node && (!!file.access !== !!next.access || !!file.downloadAccess !== !!next.downloadAccess))
+    return false;
+  return (
+    isNarrowerAccess(file.access || SHARED_ACCESS, next.access || SHARED_ACCESS) &&
+    isNarrowerAccess(
+      file.downloadAccess || file.access || SHARED_ACCESS,
+      next.downloadAccess || next.access || SHARED_ACCESS,
+    )
+  );
 }

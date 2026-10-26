@@ -1,7 +1,12 @@
 <script setup lang="tsx">
+  import { useFormValidation } from '@/composables/use-form-validation'
+  import { requiredRule } from '@/composables/form-validation'
+  import type { FormRules } from 'naive-ui'
   import { computed, ref, watch } from 'vue'
   import { useMediaQuery } from '@vueuse/core'
   import { NDrawer, NDrawerContent, NForm, NFormItem, NInput, NSelect, NButton, NAlert } from 'naive-ui'
+  import BusinessFormAttachments from './BusinessFormAttachments.vue'
+  import { createUuid } from '@workflow/domain'
   import type { Adjustment, WorkflowNode } from '@workflow/domain'
   import type { AdjustmentProps } from './types'
   import type { Directory } from '@/typings/api'
@@ -14,7 +19,9 @@
   const mobile = useMediaQuery('(max-width: 850px)')
   const directory = ref<Directory | null>(null)
   const busy = ref(false)
+  const uploading = ref(false)
   const form = ref<Omit<Adjustment, 'idempotencyKey'>>({
+    attachmentContextId: createUuid(),
     name: '',
     kind: 'approval',
     assignee: { type: 'user', value: '' },
@@ -23,6 +30,15 @@
     reason: '',
     expectedStructureRevision: 1,
   })
+  const { formRef, validate: validateBeforeSubmit, resetValidation } = useFormValidation()
+  const formRules = computed<FormRules>(() => ({
+    name: requiredRule('节点名称'),
+    anchor: requiredRule('参考节点', true),
+    reason: requiredRule('调整原因'),
+    kind: requiredRule('节点类型', true),
+    position: requiredRule('插入位置', true),
+    assignee: { type: requiredRule('受理人规则', true), ...(form.value.assignee.type !== 'manager' ? { value: requiredRule('受理人或角色', true) } : {}) },
+  }))
   const anchors = computed(() => props.detail.activity.nodes.filter(validNode).map(nodeOption))
   const people = computed(() =>
     form.value.assignee.type === 'department_manager'
@@ -68,7 +84,9 @@
    */
   async function initialize(open: boolean): Promise<void> {
     if (!open) return
+    resetValidation()
     form.value = {
+      attachmentContextId: createUuid(),
       name: '',
       kind: 'approval',
       assignee: { type: 'user', value: '' },
@@ -91,10 +109,10 @@
     form.value.assignee.value = ''
   }
   /**
-   * 提交在途节点插入，服务端保存结构版本和受影响任务历史。
+   * 等待附件上传后提交节点插入，保存本次材料、结构版本和受影响任务历史。
    */
   async function submit(): Promise<void> {
-    if (!props.detail.actions.includes('adjust')) return
+    if (busy.value || uploading.value || !props.detail.actions.includes('adjust') || !(await validateBeforeSubmit())) return
     busy.value = true
     try {
       await adjustmentApi(props.detail.activity.id, form.value)
@@ -109,14 +127,20 @@
   }
 </script>
 <template>
-  <NDrawer :show="show" :width="mobile ? '100%' : 520" @update:show="emit('update:show', $event)">
-    <NDrawerContent title="新增流程节点" closable>
+  <NDrawer
+    :show="show"
+    :mask-closable="!busy && !uploading"
+    :close-on-esc="!busy && !uploading"
+    :width="mobile ? '100%' : 520"
+    @update:show="emit('update:show', $event)"
+  >
+    <NDrawerContent title="新增流程节点" :closable="!busy && !uploading">
       <NAlert type="warning" :bordered="false" class="mb">
         调整当前工单 R{{ detail.activity.structureRevision }}。受影响的未完成任务将重新生成；已完成意见保留。知会节点不阻断后续。
       </NAlert>
-      <NForm label-placement="top" :disabled="busy">
-        <NFormItem label="节点名称" required><NInput v-model:value="form.name" :maxlength="80" /></NFormItem>
-        <NFormItem label="节点类型">
+      <NForm ref="formRef" :model="form" :rules="formRules" label-placement="top" :disabled="busy || uploading">
+        <NFormItem label="节点名称" path="name" required><NInput v-model:value="form.name" :maxlength="80" /></NFormItem>
+        <NFormItem label="节点类型" path="kind" required>
           <NSelect
             v-model:value="form.kind"
             :options="[
@@ -126,8 +150,8 @@
             ]"
           />
         </NFormItem>
-        <NFormItem label="参考节点" required><NSelect v-model:value="form.anchor" :options="anchors" /></NFormItem>
-        <NFormItem label="插入位置">
+        <NFormItem label="参考节点" path="anchor" required><NSelect v-model:value="form.anchor" :options="anchors" /></NFormItem>
+        <NFormItem label="插入位置" path="position" required>
           <NSelect
             v-model:value="form.position"
             :options="[
@@ -137,7 +161,7 @@
             ]"
           />
         </NFormItem>
-        <NFormItem label="受理人规则">
+        <NFormItem label="受理人规则" path="assignee.type" required>
           <NSelect
             v-model:value="form.assignee.type"
             :options="[
@@ -149,14 +173,23 @@
             @update:value="clearAssignee"
           />
         </NFormItem>
-        <NFormItem v-if="form.assignee.type !== 'manager'" label="受理人 / 角色" required>
+        <NFormItem v-if="form.assignee.type !== 'manager'" label="受理人 / 角色" path="assignee.value" required>
           <NSelect v-model:value="form.assignee.value" :options="people" filterable />
         </NFormItem>
-        <NFormItem label="调整原因（至少5字）" required>
+        <NFormItem label="调整原因" path="reason" required>
           <NInput v-model:value="form.reason" type="textarea" :maxlength="500" :autosize="{ minRows: 4 }" />
         </NFormItem>
+        <BusinessFormAttachments
+          v-if="show"
+          :detail="detail"
+          :context-id="form.attachmentContextId!"
+          action-key="adjust"
+          stage="operation"
+          :disabled="busy || uploading"
+          @busy="uploading = $event"
+        />
       </NForm>
-      <template #footer><NButton type="primary" :loading="busy" @click="submit">确认新增节点</NButton></template>
+      <template #footer><NButton type="primary" :loading="busy" :disabled="uploading" @click="submit">确认新增节点</NButton></template>
     </NDrawerContent>
   </NDrawer>
 </template>

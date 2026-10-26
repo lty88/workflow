@@ -148,7 +148,7 @@
     </NCard>
     <NCard v-if="role" title="角色授权">
       <NForm label-placement="top">
-        <NFormItem label="角色名称"><NInput :value="role.name" :maxlength="50" @update:value="update('name', $event)" /></NFormItem>
+        <NFormItem label="角色名称" required><NInput :value="role.name" :maxlength="50" @update:value="update('name', $event)" /></NFormItem>
         <NFormItem label="数据范围"><NSelect :value="role.scope" :options="scopeOptions" @update:value="update('scope', $event)" /></NFormItem>
         <NAlert type="info" :bordered="false" class="mb">
           普通活动范围按有效角色合并。敏感查看、敏感导出和附件下载，分别受授予该权限的同一角色数据范围限制；配置管理员不会自动获得敏感阅读权限。
