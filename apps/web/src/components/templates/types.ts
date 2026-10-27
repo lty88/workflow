@@ -2,111 +2,113 @@ import type {
   ActivityType,
   CompanyConfig,
   NodeDefinition,
+  NodeApprovalPolicy,
   TemplateDefinition,
   TemplateLayout,
   TemplateRelease,
   TemplateSelection,
   TemplateSummary,
   WorkflowTemplate,
-} from '@workflow/domain';
-import type { GraphConnection, GraphToolbarControls } from '@/components/graph/types';
-export type InsertPosition = 'before' | 'after' | 'parallel';
+} from '@workflow/domain'
+import type { GraphConnection, GraphToolbarControls } from '@/components/graph/types'
+export type InsertPosition = 'before' | 'after' | 'parallel'
 export interface NodeInspectorHandle {
-  draft: () => NodeDefinition | null;
+  draft: () => NodeDefinition | null
 }
 export interface EditorHeaderProps {
-  name: string;
-  code: string;
-  version: number;
-  revision: number;
-  dirty: boolean;
-  busy: boolean;
-  readonly: boolean;
-  expanded: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
-  paletteOpen: boolean;
-  inspectorOpen: boolean;
+  name: string
+  code: string
+  version: number
+  revision: number
+  dirty: boolean
+  busy: boolean
+  readonly: boolean
+  expanded: boolean
+  canUndo: boolean
+  canRedo: boolean
+  paletteOpen: boolean
+  inspectorOpen: boolean
 }
 export interface EditorPaletteProps {
-  nodes: NodeDefinition[];
-  selected: string;
-  position: InsertPosition;
-  collapsed: boolean;
-  disabled: boolean;
+  nodes: NodeDefinition[]
+  selected: string
+  position: InsertPosition
+  collapsed: boolean
+  disabled: boolean
 }
 export interface EditorCanvasToolbarProps {
-  atStart: boolean;
-  canInsert: boolean;
-  controls: GraphToolbarControls;
-  connectMode: boolean;
-  disabled: boolean;
-  selectedName: string;
-  position: InsertPosition;
-  hasEdge: boolean;
-  canRemove: boolean;
+  atStart: boolean
+  canInsert: boolean
+  controls: GraphToolbarControls
+  connectMode: boolean
+  disabled: boolean
+  selectedName: string
+  position: InsertPosition
+  hasEdge: boolean
+  canRemove: boolean
 }
 export interface TemplateSettingsProps {
-  modelValue: TemplateDefinition;
-  config: CompanyConfig;
-  types: ActivityType[];
-  disabled: boolean;
+  modelValue: TemplateDefinition
+  config: CompanyConfig
+  types: ActivityType[]
+  disabled: boolean
 }
 export interface TemplateSelectorProps {
-  modelValue: TemplateSelection | null;
-  templates: TemplateSummary[];
-  types: ActivityType[];
-  disabled?: boolean;
+  modelValue: TemplateSelection | null
+  templates: TemplateSummary[]
+  types: ActivityType[]
+  disabled?: boolean
 }
 export interface TemplateLibraryProps {
-  items: WorkflowTemplate[];
-  types: ActivityType[];
-  config: CompanyConfig;
-  busy: boolean;
+  items: WorkflowTemplate[]
+  types: ActivityType[]
+  config: CompanyConfig
+  busy: boolean
 }
 export interface TemplateDesignerProps {
-  initialExpanded?: boolean;
-  errors?: string[];
-  modelValue: TemplateDefinition;
-  template: WorkflowTemplate;
-  config: CompanyConfig;
-  types: ActivityType[];
-  busy: boolean;
-  dirty: boolean;
+  initialExpanded?: boolean
+  errors?: string[]
+  modelValue: TemplateDefinition
+  template: WorkflowTemplate
+  config: CompanyConfig
+  types: ActivityType[]
+  busy: boolean
+  dirty: boolean
 }
 export interface NodeInspectorProps {
-  node: NodeDefinition | null;
-  nodes: NodeDefinition[];
-  config: CompanyConfig;
-  disabled: boolean;
+  node: NodeDefinition | null
+  nodes: NodeDefinition[]
+  config: CompanyConfig
+  disabled: boolean
+  ratingEnabled?: boolean
 }
 export interface TemplateCanvasProps {
-  canRemove: boolean;
-  position: InsertPosition;
-  definition: TemplateDefinition;
-  config: CompanyConfig;
-  selected: string;
-  disabled: boolean;
+  canRemove: boolean
+  position: InsertPosition
+  definition: TemplateDefinition
+  config: CompanyConfig
+  selected: string
+  disabled: boolean
 }
 export interface TemplateHistoryProps {
-  show: boolean;
-  versions: TemplateRelease[];
-  config: CompanyConfig;
+  show: boolean
+  versions: TemplateRelease[]
+  config: CompanyConfig
 }
-export type {
-  ActivityType,
-  TemplateDefinition,
-  TemplateLayout,
-  TemplateSelection,
-  TemplateSummary,
-  WorkflowTemplate,
-  GraphConnection,
-};
+export type { ActivityType, TemplateDefinition, TemplateLayout, TemplateSelection, TemplateSummary, WorkflowTemplate, GraphConnection }
 
 export interface TemplateSystemInspectorProps {
-  start: boolean;
-  disabled: boolean;
+  start: boolean
+  disabled: boolean
 }
 export interface TemplateFlowGuideProps {
-  nodes: NodeDefinition[];
+  nodes: NodeDefinition[]
+}
+
+export interface ApprovalRulesProps {
+  modelValue?: NodeApprovalPolicy
+  node: NodeDefinition
+  nodes: NodeDefinition[]
+  ratingEnabled: boolean
+  disabled: boolean
 }

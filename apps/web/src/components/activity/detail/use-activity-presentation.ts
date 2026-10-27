@@ -120,7 +120,7 @@ export function useActivityPresentation(detail: ComputedRef<ActivityDetail>, rev
         text: '核查执行结果与成果后归档',
       },
       archived: { owner: '—', text: '活动闭环完成，档案只读' },
-      rejected: { owner: '—', text: '查看拒绝原因，可复制为新申请' },
+      rejected: { owner: '—', text: '查看终止原因，可复制为新申请' },
       cancelled: { owner: '—', text: '活动已取消，可复制为新申请' },
     }
     return hints[item.status] || { owner: '—', text: '查看办理记录' }

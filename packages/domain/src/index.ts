@@ -23,3 +23,4 @@ export * from './ids';
 export * from './execution-records';
 
 export * from './post-workflow';
+export * from './approval-rules';

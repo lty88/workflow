@@ -44,7 +44,7 @@
     <NCollapse class="upload-access" @update:expanded-names="expand">
       <NCollapseItem title="新上传文件的默认权限" name="permissions">
         <NAlert type="info" :bordered="false" class="mb">
-          这里仅影响随后上传的新文件。默认继承所属节点；选择“活动内共享”后，申请人等有权访问本活动的人员可查看该附件，不会同时公开节点内部说明。下载还需具备下载权限并满足文件下载范围。
+          这里仅影响随后上传的新文件。默认继承所属节点；选择“活动内共享”后，申请人等有权访问本活动的人员可查看该附件，其他文件保持各自权限。下载还需具备下载权限并满足文件下载范围。
         </NAlert>
         <NAlert v-if="permissionIssues.length" type="warning" :bordered="false" class="mb">{{ permissionIssues.join('；') }}</NAlert>
         <NSpin :show="loading">

@@ -108,7 +108,8 @@ function taskCase(): void {
   const pending = activity.tasks.find((task) => task.status === 'pending')!;
   decideTask(seedConfig(), pending.assignee, activity, pending.id, {
     decision: 'approve',
-    comment: '准备材料已经提交',
+    comment: '',
+    publicComment: '准备材料已经提交',
     expectedTaskVersion: pending.version,
     idempotencyKey: crypto.randomUUID(),
   });

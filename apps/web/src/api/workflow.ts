@@ -1,26 +1,14 @@
-import type { TransferCommand } from '@workflow/domain'
+import type { DecisionCommand, TransferCommand } from '@workflow/domain'
 import type { MutationResult, WorkflowPreview } from '@/typings/api'
 import { mutation, request } from './http'
 
-/**
- * 办理个人审核任务。
+/** 办理个人节点任务，服务端复核冻结操作权限、退回轮次与评分并生成新待办。
  * @param id 个人任务标识
- * @param expectedTaskVersion 任务版本
- * @param decision 决策
- * @param comment 节点内部说明
- * @param publicComment 活动内共享的结论或补充要求
- * @param attachmentContextId 本次办理附件分组
- * @returns 更新结果
+ * @param command 审批意见、评分、退回目标及任务版本
+ * @returns 更新后的活动版本
  */
-export function decisionApi(
-  id: string,
-  expectedTaskVersion: number,
-  decision: 'approve' | 'return' | 'reject',
-  comment: string,
-  publicComment = '',
-  attachmentContextId?: string
-): Promise<MutationResult> {
-  return mutation(`/tasks/${id}/decisions`, { expectedTaskVersion, decision, comment, publicComment, attachmentContextId })
+export function decisionApi(id: string, command: DecisionCommand): Promise<MutationResult> {
+  return mutation(`/tasks/${id}/decisions`, command)
 }
 
 /**

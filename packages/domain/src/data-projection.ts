@@ -2,6 +2,7 @@ import type { Activity, ActivityDetail, CompanyConfig, FileRecord, FormDefinitio
 import { canHandleTask, canReadActivity, findById, hasPermission } from './permissions';
 import { attachmentFieldsForFile } from './attachments';
 import { visibleFields } from './forms';
+import { decisionCapabilities } from './approval-rules';
 import {
   canAccessField,
   canDownloadFile,
@@ -165,6 +166,10 @@ export function projectActivityDetail(
   if (!canReadActivity(config, actor, source))
     throw Object.assign(new Error('活动不存在或无访问权限'), { statusCode: 404 });
   const safe = structuredClone(detail);
+  safe.decisionCapabilities = {};
+  for (const task of source.tasks)
+    if (canHandleTask(config, actor, source, task))
+      safe.decisionCapabilities[task.id] = decisionCapabilities(config, actor, source, task);
   const current = projectFormData(config, actor, source, source.schema, source.payload, exporting);
   safe.activity.schema = current.schema;
   safe.activity.payload = current.payload;

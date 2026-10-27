@@ -395,7 +395,7 @@ export async function submitActivity(
 }
 
 /**
- * 办理个人任务；请求只接受任务标识和版本，不接受前端指定下一节点。
+ * 办理个人任务；在实例锁内校验节点操作权限、退回目标轮次与评分，原子保存并投递新待办。
  * @param pool 连接池
  * @param actor 当前成员
  * @param taskId 任务标识

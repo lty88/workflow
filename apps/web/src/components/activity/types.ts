@@ -120,16 +120,18 @@ export const NODE_STATUSES: Record<string, string> = {
   active: '办理中',
   completed: '已完成',
   invalidated: '已失效',
-  returned: '已退回',
-  rejected: '已拒绝',
+  returned: '已退回修改',
+  rejected: '已终止申请',
   skipped: '未命中条件',
+  reworking: '待重新办理',
+  terminated: '因申请终止而取消',
 }
 export const TASK_STATUSES: Record<string, string> = {
   pending: '待办理',
   approved: '已通过',
   completed: '已完成',
-  returned: '已退回',
-  rejected: '已拒绝',
+  returned: '已退回修改',
+  rejected: '已终止申请',
   cancelled: '已取消',
 }
 
@@ -139,7 +141,30 @@ export interface FileAccessDialogProps {
   activityVersion: number
 }
 
-export type NodeProgressStatus = WorkflowNode['status'] | 'returned' | 'rejected'
+export type NodeProgressStatus = WorkflowNode['status'] | 'returned' | 'rejected' | 'reworking' | 'terminated'
 export interface WorkflowProgressNode extends WorkflowNode {
   displayStatus: NodeProgressStatus
+}
+
+export interface ApprovalDecisionFieldsProps {
+  detail: ActivityDetail
+  task: WorkflowTask
+  capabilities?: import('@workflow/domain').DecisionCapabilities
+  opinion: string
+  scores: Record<string, number | null>
+  required: boolean
+}
+export interface ApprovalReturnDialogProps {
+  show: boolean
+  decision: 'return' | 'reject'
+  detail: ActivityDetail
+  capabilities?: import('@workflow/domain').DecisionCapabilities
+  opinion: string
+  busy: boolean
+}
+export interface NegativeDecisionInput {
+  decision: 'return' | 'reject'
+  publicComment: string
+  returnTargetId?: string
+  expectedTargetGeneration?: number
 }

@@ -43,7 +43,7 @@ export const STATUSES: Record<ActivityStatus, string> = {
   approving: '流程办理中',
   needs_info: '待补充',
   withdrawn: '已撤回',
-  rejected: '已拒绝',
+  rejected: '申请已终止',
   ready_assign: '待指派',
   ready_execute: '待执行',
   executing: '执行中',

@@ -94,7 +94,7 @@ function generationCase(): void {
   expect(nodeProgressStatus(source, [{ ...task, generation: 2, status: 'rejected' }])).toBe('rejected');
 }
 test('按节点与轮次识别结果，旧驳回不影响新一轮', generationCase);
-/** 核对完整流程图及选中态保留红色，受理异常提示不会覆盖退回状态。 */
+/** 核对退回橙色、终止红色及选中态，其他取消状态保持灰色。 */
 function graphCase(): void {
   for (const decision of ['returned', 'rejected'] as const) {
     const { detail } = fixture(decision);
@@ -115,15 +115,15 @@ function graphCase(): void {
         return node.id === 'runtime:parallel';
       },
     )!;
-    expect(source.data?.tone).toBe('error');
-    expect(source.style?.fill).toBe('#fff1f2');
-    expect(source.data?.summary).toContain(decision === 'returned' ? '已退回' : '已拒绝');
+    expect(source.data?.tone).toBe(decision === 'returned' ? 'warning' : 'error');
+    expect(source.style?.fill).toBe(decision === 'returned' ? '#fff8e9' : '#fff1f2');
+    expect(source.data?.summary).toContain(decision === 'returned' ? '已退回' : '已终止申请');
     expect(parallel.data?.tone).toBe('muted');
-    expect(parallel.data?.summary).toContain('已失效');
-    expect(workflowSelectionStyle(source).stroke).toBe('#dc4c5b');
+    expect(parallel.data?.summary).toContain(decision === 'rejected' ? '因申请终止而取消' : '已失效');
+    expect(workflowSelectionStyle(source).stroke).toBe(decision === 'returned' ? '#d9a02d' : '#dc4c5b');
   }
 }
-test('流程图源节点红色且显示真实结论，其他失效节点灰色', graphCase);
+test('流程图退回橙色终止红色，其他取消节点灰色', graphCase);
 /** 核对历史开关开启时能找回旧轮的驳回点，当前申请仍只展示当前节点。 */
 function historyCase(): void {
   const { detail, source, task } = fixture('returned');
@@ -158,7 +158,7 @@ function historyCase(): void {
         return node.id === 'runtime:source';
       },
     )?.data?.tone,
-  ).toBe('error');
+  ).toBe('warning');
   expect(
     history.data.nodes!.find(
       /** 定位本次申请的正常办理节点。
@@ -171,3 +171,26 @@ function historyCase(): void {
   ).toBe('active');
 }
 test('历史申请驳回可识别，当前申请不受旧结果影响', historyCase);
+
+/** 核对新退回轮次只强调目标与源点，终止取消状态与旧失效区分。 */
+function reworkProgressCase(): void {
+  const { source, parallel, task } = fixture('returned');
+  source.status = 'waiting';
+  source.generation = 2;
+  source.rework = {
+    fromNodeId: source.id,
+    targetNodeId: parallel.id,
+    returnTaskId: task.id,
+    at: task.actedAt!,
+  };
+  parallel.status = 'active';
+  parallel.generation = 2;
+  parallel.rework = { ...source.rework };
+  expect(nodeProgressStatus(source, [task], 'approving')).toBe('returned');
+  expect(nodeProgressStatus(parallel, [task], 'approving')).toBe('reworking');
+  source.status = 'active';
+  expect(nodeProgressStatus(source, [task], 'approving')).toBe('active');
+  parallel.status = 'invalidated';
+  expect(nodeProgressStatus(parallel, [task], 'rejected')).toBe('terminated');
+}
+test('新退回目标与源点橙色展示，终止关联取消有明确状态', reworkProgressCase);

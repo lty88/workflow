@@ -1,7 +1,7 @@
-import { findById, topological } from '@workflow/domain';
-import type { NodeDefinition, TemplateDefinition } from '@workflow/domain';
-import { clone, newId } from '@/composables/format';
-import type { GraphConnection } from '@/components/graph/types';
+import { defaultApprovalPolicy, findById, topological } from '@workflow/domain'
+import type { NodeDefinition, TemplateDefinition } from '@workflow/domain'
+import { clone, newId } from '@/composables/format'
+import type { GraphConnection } from '@/components/graph/types'
 
 /**
  * 在模板参考节点前、后或并行插入节点，并重接后继依赖。
@@ -15,36 +15,37 @@ export function insertNode(
   definition: TemplateDefinition,
   anchorId: string,
   kind: NodeDefinition['kind'],
-  position: 'before' | 'after' | 'parallel',
+  position: 'before' | 'after' | 'parallel'
 ): { definition: TemplateDefinition; id: string } {
-  const next = clone(definition);
-  const anchor = findById(next.nodes, anchorId);
-  const atStart = anchorId === 'stage:apply' || (!anchorId && !next.nodes.length);
-  if (!anchor && !atStart) throw new Error('请先选择业务节点或开始节点');
-  if (next.nodes.length >= 80) throw new Error('每套模板最多80个节点');
+  const next = clone(definition)
+  const anchor = findById(next.nodes, anchorId)
+  const atStart = anchorId === 'stage:apply' || (!anchorId && !next.nodes.length)
+  if (!anchor && !atStart) throw new Error('请先选择业务节点或开始节点')
+  if (next.nodes.length >= 80) throw new Error('每套模板最多80个节点')
   const added: NodeDefinition = {
     id: newId('n'),
     label: { approval: '新增专项审核', task: '新增协作任务', notice: '新增知会' }[kind],
     kind,
+    approvalPolicy: kind === 'approval' ? defaultApprovalPolicy() : undefined,
     deps: atStart ? [] : position === 'after' ? [anchor!.id] : [...anchor!.deps],
     assignee: kind === 'approval' ? { type: 'manager', value: '' } : { type: 'role', value: 'coordinator' },
-  };
+  }
   if (atStart) {
-    for (const node of next.nodes) if (!node.deps.length) node.deps = [added.id];
-    next.nodes.push(added);
-    return { definition: next, id: added.id };
+    for (const node of next.nodes) if (!node.deps.length) node.deps = [added.id]
+    next.nodes.push(added)
+    return { definition: next, id: added.id }
   }
-  if (!anchor) throw new Error('参考节点不存在');
+  if (!anchor) throw new Error('参考节点不存在')
   for (const child of next.nodes) {
-    if (child.id === anchor.id || !child.deps.includes(anchor.id)) continue;
-    const deps: string[] = [];
-    for (const id of child.deps) deps.push(position === 'after' && id === anchor.id ? added.id : id);
-    if (position === 'parallel') deps.push(added.id);
-    child.deps = [...new Set(deps)];
+    if (child.id === anchor.id || !child.deps.includes(anchor.id)) continue
+    const deps: string[] = []
+    for (const id of child.deps) deps.push(position === 'after' && id === anchor.id ? added.id : id)
+    if (position === 'parallel') deps.push(added.id)
+    child.deps = [...new Set(deps)]
   }
-  if (position === 'before') anchor.deps = [added.id];
-  next.nodes.push(added);
-  return { definition: next, id: added.id };
+  if (position === 'before') anchor.deps = [added.id]
+  next.nodes.push(added)
+  return { definition: next, id: added.id }
 }
 
 /**
@@ -54,8 +55,8 @@ export function insertNode(
  * @returns 业务节点存在时为真，旧版默认保护标记不再限制模板编辑
  */
 export function canRemoveNode(definition: TemplateDefinition, id: string): boolean {
-  const node = findById(definition.nodes, id);
-  return !!node;
+  const node = findById(definition.nodes, id)
+  return !!node
 }
 
 /**
@@ -65,20 +66,29 @@ export function canRemoveNode(definition: TemplateDefinition, id: string): boole
  * @returns 删除后的模板
  */
 export function removeNode(definition: TemplateDefinition, id: string): TemplateDefinition {
-  const next = clone(definition);
-  const removed = findById(next.nodes, id);
-  if (!removed) throw new Error('节点不存在，无法删除');
-  const kept: NodeDefinition[] = [];
+  const next = clone(definition)
+  const removed = findById(next.nodes, id)
+  if (!removed) throw new Error('节点不存在，无法删除')
+  const kept: NodeDefinition[] = []
   for (const node of next.nodes) {
-    if (node.id === id) continue;
-    const deps: string[] = [];
-    for (const dep of node.deps) deps.push(...(dep === id ? removed.deps : [dep]));
-    node.deps = [...new Set(deps)];
-    kept.push(node);
+    if (node.id === id) continue
+    const deps: string[] = []
+    for (const dep of node.deps) deps.push(...(dep === id ? removed.deps : [dep]))
+    node.deps = [...new Set(deps)]
+    if (node.approvalPolicy)
+      node.approvalPolicy.returnNodeIds = node.approvalPolicy.returnNodeIds.filter(
+        /** 移除已删除的退回目标引用，空配置将在启用校验时提示修正。
+         * @param targetId 已配置目标
+         * @returns 是否仍存在
+         */ function retained(targetId) {
+          return targetId !== id
+        }
+      )
+    kept.push(node)
   }
-  next.nodes = kept;
-  delete next.layout.positions[id];
-  return next;
+  next.nodes = kept
+  delete next.layout.positions[id]
+  return next
 }
 
 /**
@@ -88,25 +98,21 @@ export function removeNode(definition: TemplateDefinition, id: string): Template
  * @param remove 是否删除已有依赖
  * @returns 修改后的模板
  */
-export function changeConnection(
-  definition: TemplateDefinition,
-  connection: GraphConnection,
-  remove = false,
-): TemplateDefinition {
-  const next = clone(definition);
-  const source = findById(next.nodes, connection.source);
-  const target = findById(next.nodes, connection.target);
-  if (!source || !target) throw new Error('只能连接真实流程节点');
-  if (source.id === target.id) throw new Error('节点不能依赖自身');
+export function changeConnection(definition: TemplateDefinition, connection: GraphConnection, remove = false): TemplateDefinition {
+  const next = clone(definition)
+  const source = findById(next.nodes, connection.source)
+  const target = findById(next.nodes, connection.target)
+  if (!source || !target) throw new Error('只能连接真实流程节点')
+  if (source.id === target.id) throw new Error('节点不能依赖自身')
   if (remove) {
-    const kept = [];
-    for (const id of target.deps) if (id !== source.id) kept.push(id);
-    target.deps = kept;
+    const kept = []
+    for (const id of target.deps) if (id !== source.id) kept.push(id)
+    target.deps = kept
   } else {
-    if (target.deps.includes(source.id)) throw new Error('该依赖连线已存在');
-    target.deps.push(source.id);
+    if (target.deps.includes(source.id)) throw new Error('该依赖连线已存在')
+    target.deps.push(source.id)
   }
-  const checked = topological(next.nodes);
-  if (checked.error) throw new Error(checked.error);
-  return next;
+  const checked = topological(next.nodes)
+  if (checked.error) throw new Error(checked.error)
+  return next
 }

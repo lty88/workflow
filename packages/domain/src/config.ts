@@ -1,6 +1,7 @@
 import type { CompanyConfig } from './types';
 import { activeMember, findById, hasPermission, withinDepartment } from './permissions';
 import { topological } from './workflow';
+import { approvalPolicyErrors } from './approval-rules';
 import { amountFen } from './forms';
 import { validateDataAccessRule } from './data-access';
 
@@ -128,6 +129,7 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
     }
   }
   if (topological(visibleGraph).error) errors.push('表单显隐条件存在循环或缺失引用');
+  errors.push(...approvalPolicyErrors(config.workflow.nodes, !!config.workflow.ratingEnabled));
   const graph = topological(config.workflow.nodes);
   if (graph.error) errors.push(graph.error);
   let protectedCount = 0;

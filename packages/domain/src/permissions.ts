@@ -161,7 +161,7 @@ export function canReadActivity(
 }
 
 /**
- * 校验个人待办归属、节点状态与当前权限，防止自审及旧轮次办理。
+ * 校验个人待办归属、实时负责人、节点状态与权限，防止自审、组织变更和旧轮次办理。
  * @param config 当前配置
  * @param userId 当前成员
  * @param activity 实例
@@ -201,6 +201,15 @@ export function canHandleTask(
     findById(config.departments, activity.department)?.manager !== userId
   )
     return false;
+  if (!task.delegated && node.assigneeRule.type === 'department_manager') {
+    const department = findById(config.departments, node.assigneeRule.value);
+    if (
+      !department?.active ||
+      department.manager !== userId ||
+      findById(config.users, userId)?.department !== department.id
+    )
+      return false;
+  }
   return (
     node.assignees.includes(userId) &&
     hasPermission(config, userId, node.kind === 'approval' ? 'approval:decide' : 'task:complete')

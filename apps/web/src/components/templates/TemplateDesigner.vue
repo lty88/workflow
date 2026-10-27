@@ -342,6 +342,7 @@
             v-show="inspectorOpen"
             ref="inspector"
             :node="selectedNode"
+            :rating-enabled="!!modelValue.ratingEnabled"
             :nodes="modelValue.nodes"
             :config="config"
             :disabled="disabled"

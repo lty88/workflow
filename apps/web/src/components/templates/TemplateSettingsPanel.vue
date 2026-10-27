@@ -1,6 +1,6 @@
 <script setup lang="tsx">
   import { computed } from 'vue'
-  import { NAlert, NForm, NFormItem, NInput, NSelect } from 'naive-ui'
+  import { NAlert, NForm, NFormItem, NInput, NSelect, NSwitch } from 'naive-ui'
   import type { TemplateDefinition } from '@workflow/domain'
   import type { TemplateSettingsProps } from './types'
   import { clone } from '@/composables/format'
@@ -69,6 +69,12 @@
         placeholder="留空表示所有具备申请权限的角色"
         @update:value="update('roleIds', $event)"
       />
+    </NFormItem>
+    <NFormItem label="节点办理质量评分">
+      <div class="stack">
+        <NSwitch :value="!!modelValue.ratingEnabled" @update:value="update('ratingEnabled', $event)" />
+        <span class="help-text">开启后，在具体审批节点设置上游评分为选填或必填。评分不自动改变审批结论。</span>
+      </div>
     </NFormItem>
     <NFormItem label="保存的布局方向">
       <NSelect

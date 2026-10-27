@@ -135,7 +135,34 @@ export interface AssigneeRule {
   type: 'manager' | 'department_manager' | 'role' | 'user';
   value: string;
 }
+export interface NodeApprovalPolicy {
+  returnEnabled: boolean;
+  returnScope: 'previous' | 'selected';
+  returnNodeIds: string[];
+  returnToApplicant: boolean;
+  allowTerminate: boolean;
+  rating: 'off' | 'optional' | 'required';
+}
+export interface NodeRating {
+  nodeId: string;
+  generation: number;
+  score: number;
+}
+export interface DecisionTarget {
+  nodeId: string;
+  label: string;
+  generation: number;
+  affectedNodeIds: string[];
+}
+export interface DecisionCapabilities {
+  canReturnToApplicant: boolean;
+  canTerminate: boolean;
+  returnTargets: DecisionTarget[];
+  ratingRequirement: NodeApprovalPolicy['rating'];
+  ratingTargets: DecisionTarget[];
+}
 export interface NodeDefinition {
+  approvalPolicy?: NodeApprovalPolicy;
   access?: DataAccessRule;
   downloadAccess?: DataAccessRule;
   id: string;
@@ -154,7 +181,7 @@ export interface CompanyConfig {
   groups: MenuGroup[];
   pages: PageDefinition[];
   form: FormDefinition;
-  workflow: { name: string; nodes: NodeDefinition[] };
+  workflow: { name: string; nodes: NodeDefinition[]; ratingEnabled?: boolean };
 }
 export interface ConfigState {
   draft: CompanyConfig;
@@ -178,6 +205,8 @@ export type ActivityStatus =
   | 'cancelled';
 export type NodeStatus = 'waiting' | 'active' | 'completed' | 'invalidated' | 'skipped';
 export interface WorkflowNode {
+  approvalPolicy?: NodeApprovalPolicy;
+  rework?: { fromNodeId: string; targetNodeId: string; returnTaskId: string; at: string };
   access?: DataAccessRule;
   downloadAccess?: DataAccessRule;
   origin?: 'template' | 'instance';
@@ -193,6 +222,9 @@ export interface WorkflowNode {
   applicationRevision?: number;
 }
 export interface WorkflowTask {
+  ratings?: NodeRating[];
+  returnTargetId?: string;
+  returnAffectedNodeIds?: string[];
   publicComment?: string;
   id: string;
   activityId: string;
@@ -251,6 +283,7 @@ export interface ApplicationRevision {
   submittedAt: string;
 }
 export interface AuditEvent {
+  publicNote?: string;
   attachmentContextId?: string;
   nodeId?: string;
   fileId?: string;
@@ -313,6 +346,7 @@ export interface FileRecord extends FileAccessInput {
   createdAt: string;
 }
 export interface ActivityDetail {
+  decisionCapabilities?: Record<string, DecisionCapabilities>;
   access?: ActivityAccess;
   activity: Activity;
   files: FileRecord[];

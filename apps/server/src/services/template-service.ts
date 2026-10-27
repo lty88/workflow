@@ -321,6 +321,7 @@ export async function createTemplate(
     ensure(types[0], 422, 'TYPE_REQUIRED', '请先配置至少一个活动类型');
     const definition: TemplateDefinition = {
       name: '新活动流程',
+      ratingEnabled: false,
       activityTypeIds: [types[0]!.id],
       defaultForTypeIds: [],
       departmentIds: [],

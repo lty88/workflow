@@ -24,7 +24,7 @@
     return props.detail.access?.readableNodeIds.includes(id) || false
   }
   /**
-   * 检查服务端已过滤的附件，单独分享的文件可见性与节点内部说明分开。
+   * 检查服务端已过滤的节点附件，单独分享的文件按自身授权展示。
    * @param id 节点标识
    * @returns 是否存在当前用户有权查看的节点附件
    */
@@ -46,16 +46,16 @@
       <h2>节点资料</h2>
       <NCheckbox v-model:checked="history">显示历史节点资料</NCheckbox>
     </div>
-    <p class="materials-hint">公开结论面向活动相关人员；内部说明按节点授权查看。附件默认继承节点，单独选择“活动内共享”或“指定授权”后按该文件规则开放。</p>
+    <p class="materials-hint">审批意见面向活动相关人员。附件默认继承节点，单独选择“活动内共享”或“指定授权”后按该文件规则开放。</p>
     <article v-for="node in nodes" :key="node.id" class="material-node">
       <header>
         <strong>{{ node.label }}</strong>
         <NTag size="small" :type="readable(node.id) || hasFiles(node.id) ? 'info' : 'default'" :bordered="false">
-          {{ readable(node.id) ? '可查看内部说明' : hasFiles(node.id) ? '可查看已分享附件' : '仅查看公开进度' }}
+          {{ readable(node.id) ? '可查看节点附件' : hasFiles(node.id) ? '可查看已分享附件' : '仅查看公开进度' }}
         </NTag>
       </header>
       <NAlert v-if="!readable(node.id)" type="default" :bordered="false" class="material-access-note">
-        内部说明仅向节点授权人员开放；{{ hasFiles(node.id) ? '下方展示已向你授权的附件。' : '当前没有向你开放的附件。' }}
+        节点附件按授权范围开放；{{ hasFiles(node.id) ? '下方展示已向你授权的附件。' : '当前没有向你开放的附件。' }}
       </NAlert>
       <AttachmentList
         v-if="readable(node.id) || hasFiles(node.id)"

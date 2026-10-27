@@ -25,6 +25,7 @@
       <div class="history">
         <div v-for="item in [...detail.activity.audit].reverse()" :key="item.id" class="history-item">
           <strong>{{ ACTION_LABELS[item.action] || item.action }} · {{ item.actorName }}</strong>
+          <p v-if="item.publicNote">{{ item.publicNote }}</p>
           <p v-if="item.note">{{ item.note }}</p>
           <time>{{ formatTime(item.createdAt) }}</time>
           <BusinessAttachmentReceipt v-if="item.attachmentContextId" :detail="detail" :context-id="item.attachmentContextId" @uploaded="emit('uploaded')" />

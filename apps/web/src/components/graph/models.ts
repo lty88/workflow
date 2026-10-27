@@ -347,17 +347,19 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
   const edges: EdgeData[] = []
   const hasRealStatus = !!detail.activity.status
   for (const node of checked.order) {
-    const progress = nodeProgressStatus(node, detail.activity.tasks)
+    const progress = nodeProgressStatus(node, detail.activity.tasks, detail.activity.status)
     let tone: GraphTone =
-      progress === 'returned' || progress === 'rejected'
+      progress === 'rejected'
         ? 'error'
-        : node.status === 'active'
-          ? 'active'
-          : node.status === 'completed'
-            ? 'success'
-            : ['invalidated', 'skipped'].includes(node.status)
-              ? 'muted'
-              : 'normal'
+        : progress === 'returned' || progress === 'reworking'
+          ? 'warning'
+          : node.status === 'active'
+            ? 'active'
+            : node.status === 'completed'
+              ? 'success'
+              : ['invalidated', 'skipped'].includes(node.status)
+                ? 'muted'
+                : 'normal'
     for (const warning of detail.taskWarnings || []) {
       const task = findById(detail.activity.tasks, warning.taskId)
       if (task?.nodeId === node.id && tone !== 'error') tone = 'warning'

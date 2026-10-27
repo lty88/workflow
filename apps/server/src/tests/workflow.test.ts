@@ -272,7 +272,8 @@ function returnCase(): void {
   const marketing = structuredClone(pending(activity, 'u-zhao'));
   decideTask(config, 'u-zhou', activity, academic.id, {
     decision: 'return',
-    comment: '请补充具体教学议程',
+    comment: '',
+    publicComment: '请补充具体教学议程',
     expectedTaskVersion: 1,
     idempotencyKey: crypto.randomUUID(),
   });

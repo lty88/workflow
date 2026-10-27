@@ -97,7 +97,7 @@ export interface WorkflowValidationOptions {
 }
 
 /**
- * 按提交内容固定模板分支与来源标识，条件跳过时继承原前置。
+ * 按提交内容冻结模板分支、操作权限和评分开关，条件跳过时继承原前置。
  * @param config 提交时配置
  * @param payload 净化表单内容
  * @param applicant 申请人
@@ -147,6 +147,12 @@ export function instantiateWorkflow(
     nodes.push({
       access: def.access ? structuredClone(def.access) : undefined,
       downloadAccess: def.downloadAccess ? structuredClone(def.downloadAccess) : undefined,
+      approvalPolicy: def.approvalPolicy
+        ? {
+            ...structuredClone(def.approvalPolicy),
+            rating: config.workflow.ratingEnabled ? def.approvalPolicy.rating : 'off',
+          }
+        : undefined,
       origin: 'template',
       id: ids.get(def.id)!,
       key: def.id,
@@ -181,8 +187,27 @@ export function instantiateWorkflow(
   return { nodes, errors: [...new Set(errors)] };
 }
 
+/** 从最近一次实际办理轮次继承明确转交资格，兼容多次重开但尚未激活的轮次。
+ * @param activity 包含历史任务的实例
+ * @param node 正在生成待办的节点
+ * @param assignee 当前冻结受理人
+ * @returns 最近一次历史任务是否经明确转交，没有转交时省略标记
+ */
+function inheritedDelegation(activity: Activity, node: WorkflowNode, assignee: string): true | undefined {
+  let latest: WorkflowTask | undefined;
+  for (const task of activity.tasks)
+    if (
+      task.nodeId === node.id &&
+      task.assignee === assignee &&
+      task.generation < node.generation &&
+      (!latest || task.generation > latest.generation)
+    )
+      latest = task;
+  return latest?.delegated ? true : undefined;
+}
+
 /**
- * 激活前置满足的节点；审批与任务创建待办，知会自动完成并保留通知投递记录。
+ * 激活满足前置的节点并继承上一轮转交资格，创建待办；知会自动完成并保留投递记录。
  * @param activity 事务内活动实例
  * @returns 新创建的个人任务
  */
@@ -214,6 +239,7 @@ export function advanceWorkflow(activity: Activity): WorkflowTask[] {
         assignee,
         status: node.kind === 'notice' ? 'completed' : 'pending',
         version: 1,
+        delegated: inheritedDelegation(activity, node, assignee),
         comment: '',
         createdAt: new Date().toISOString(),
       };
@@ -252,6 +278,43 @@ export function settleNode(activity: Activity, nodeId: string): void {
       if (!['approved', 'completed'].includes(task.status)) all = false;
     }
   if (all && count === node.assignees.length && count > 0) node.status = 'completed';
+}
+
+/** 将退回目标和依赖后续重开为新轮次，保留已完成记录、取消受影响旧待办并重新推进。
+ * @param activity 事务内活动实例
+ * @param source 触发退回的个人任务
+ * @param targetId 已由服务端验证的退回目标
+ * @param affectedIds 服务端计算的重办范围
+ */
+export function reopenWorkflow(
+  activity: Activity,
+  source: WorkflowTask,
+  targetId: string,
+  affectedIds: string[],
+): void {
+  const affected = new Set(affectedIds);
+  for (const task of activity.tasks)
+    if (affected.has(task.nodeId) && task.status === 'pending') {
+      task.status = 'cancelled';
+      task.version += 1;
+    }
+  for (const node of activity.nodes)
+    if (affected.has(node.id)) {
+      node.generation += 1;
+      node.status = 'waiting';
+      node.rework = {
+        fromNodeId: source.nodeId,
+        targetNodeId: targetId,
+        returnTaskId: source.id,
+        at: source.actedAt!,
+      };
+    }
+  source.returnTargetId = targetId;
+  source.returnAffectedNodeIds = affectedIds;
+  delete activity.lastApprovalTaskId;
+  delete activity.workflowOwnerId;
+  delete activity.workflowOwnerNodeId;
+  advanceWorkflow(activity);
 }
 
 /**

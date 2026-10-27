@@ -4,6 +4,7 @@ import { configSchema } from './schemas';
 import { activeMember, findById, hasPermission, withinDepartment } from './permissions';
 import { validateConfig } from './config';
 import { instantiateWorkflow } from './workflow';
+import { defaultApprovalPolicy } from './approval-rules';
 
 export interface ActivityType {
   id: string;
@@ -17,6 +18,7 @@ export interface TemplateLayout {
   positions: Record<string, { x: number; y: number }>;
 }
 export interface TemplateDefinition {
+  ratingEnabled?: boolean;
   name: string;
   activityTypeIds: string[];
   defaultForTypeIds: string[];
@@ -62,6 +64,7 @@ const identifier = z.string().min(1).max(80);
 export const templateDefinitionSchema = z
   .object({
     name: z.string().trim().min(1, '请填写模板名称').max(80),
+    ratingEnabled: z.boolean().optional(),
     activityTypeIds: z.array(identifier).min(1).max(30),
     defaultForTypeIds: z.array(identifier).max(30),
     departmentIds: z.array(identifier).max(200),
@@ -114,18 +117,21 @@ export const templateVersionCommandSchema = z
 export const templateActiveSchema = templateVersionCommandSchema.extend({ active: z.boolean() });
 
 /**
- * 将旧模板定义转换为可自由编排的独立草稿，仅移除旧版默认必要审核标记。
+ * 将旧模板定义转换为独立编辑草稿，解除保护并补齐保守审批规则；历史发布版本保持原样。
  * @param definition 来源模板定义，可能来自旧草稿或发布版本
  * @returns 保留类型、依赖、受理与资料权限的可编辑副本，不修改来源快照
  */
 export function editableTemplateDefinition(definition: TemplateDefinition): TemplateDefinition {
   const next = structuredClone(definition);
-  for (const node of next.nodes) delete node.protected;
+  for (const node of next.nodes) {
+    delete node.protected;
+    if (node.kind === 'approval' && !node.approvalPolicy) node.approvalPolicy = defaultApprovalPolicy();
+  }
   return next;
 }
 
 /**
- * 按管理员选择生成可修改、可删除的首个业务节点。
+ * 按管理员选择生成首个业务节点，审批默认允许退回并关闭终止和评分。
  * @param kind 首个节点类型
  * @returns 使用对应默认受理规则的普通节点
  */
@@ -134,6 +140,7 @@ export function firstTemplateNode(kind: NodeDefinition['kind'] = 'approval'): No
     id: 'n-first',
     label: { approval: '活动事项审核', task: '活动准备任务', notice: '活动事项知会' }[kind],
     kind,
+    approvalPolicy: kind === 'approval' ? defaultApprovalPolicy() : undefined,
     deps: [],
     assignee: kind === 'approval' ? { type: 'manager', value: '' } : { type: 'role', value: 'coordinator' },
   };
@@ -190,7 +197,7 @@ export function canSelectTemplate(
 }
 
 /**
- * 将冻结表单与模板流程组合为现有引擎上下文，实时组织保持不变。
+ * 将冻结表单、原发布节点和评分总开关组合为引擎上下文，不应用编辑草稿的兼容转换。
  * @param config 当前公司配置
  * @param definition 模板定义
  * @param form 发布时冻结表单
@@ -204,7 +211,11 @@ export function templateContext(
   return {
     ...config,
     form,
-    workflow: { name: definition.name, nodes: editableTemplateDefinition(definition).nodes },
+    workflow: {
+      name: definition.name,
+      nodes: structuredClone(definition.nodes),
+      ratingEnabled: definition.ratingEnabled,
+    },
   };
 }
 

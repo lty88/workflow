@@ -8,13 +8,19 @@ export const WORKFLOW_NODE_THEMES: Record<NodeDefinition['kind'], WorkflowNodeTh
   notice: { label: '知会', fill: '#fff5df', stroke: '#d5ad62', accent: '#a9761c', text: '#77551d' },
 }
 
-/** 选中节点时保留业务类型或退回拒绝的强调色，边框加粗后仍能辨识。
+/** 选中节点时保留业务类型、退回橙色或终止红色，边框加粗后仍能辨识。
  * @param node 当前图节点
  * @returns G6选中态的边框及阴影，其他业务图保留通用选择色
  */
 export function workflowSelectionStyle(node: NodeData): { stroke: string; lineWidth: number; shadowColor: string; shadowBlur: number } {
   const kind = node.data?.kind === 'workflow' ? node.data.workflowKind : undefined
   const accent =
-    node.data?.tone === 'error' ? '#dc4c5b' : kind === 'approval' || kind === 'task' || kind === 'notice' ? WORKFLOW_NODE_THEMES[kind].accent : '#235de9'
+    node.data?.tone === 'error'
+      ? '#dc4c5b'
+      : node.data?.tone === 'warning'
+        ? '#d9a02d'
+        : kind === 'approval' || kind === 'task' || kind === 'notice'
+          ? WORKFLOW_NODE_THEMES[kind].accent
+          : '#235de9'
   return { stroke: accent, lineWidth: 3, shadowColor: accent + '33', shadowBlur: 12 }
 }

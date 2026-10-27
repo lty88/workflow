@@ -25,7 +25,7 @@
    * @returns 带展示状态的节点副本
    */
   function withProgress(node: WorkflowNode): WorkflowProgressNode {
-    return { ...node, displayStatus: nodeProgressStatus(node, props.detail.activity.tasks) }
+    return { ...node, displayStatus: nodeProgressStatus(node, props.detail.activity.tasks, props.detail.activity.status) }
   }
   /**
    * 按历史开关选择本次申请的节点，防止旧轮次和当前审批混杂。
@@ -67,6 +67,38 @@
        */ function match(task) {
         return task.nodeId === id
       }
+    )
+  }
+  /** 判断评分仍属于当前有效办理结果，源任务或被评节点重办后旧分数仅保留历史。
+   * @param task 评分任务
+   * @param nodeId 被评节点
+   * @param generation 被评轮次
+   * @returns 是否为有效评分
+   */
+  function ratingEffective(task: WorkflowTask, nodeId: string, generation: number): boolean {
+    const source = props.detail.activity.nodes.find(
+      /** 定位评分来源节点。
+       * @param node 当前节点
+       * @returns 是否匹配
+       */ function match(node) {
+        return node.id === task.nodeId
+      }
+    )
+    const target = props.detail.activity.nodes.find(
+      /** 定位被评节点。
+       * @param node 当前节点
+       * @returns 是否匹配
+       */ function match(node) {
+        return node.id === nodeId
+      }
+    )
+    return (
+      source?.generation === task.generation &&
+      source.status === 'completed' &&
+      task.status === 'approved' &&
+      target?.generation === generation &&
+      target.status === 'completed' &&
+      (source.applicationRevision || 1) === (props.detail.activity.revision || 1)
     )
   }
   /**
@@ -126,8 +158,9 @@
    * @param status 节点状态
    * @returns 标签类型
    */
-  function tagType(status: NodeProgressStatus): 'info' | 'success' | 'default' | 'error' {
-    if (status === 'returned' || status === 'rejected') return 'error'
+  function tagType(status: NodeProgressStatus): 'info' | 'success' | 'default' | 'error' | 'warning' {
+    if (status === 'rejected') return 'error'
+    if (status === 'returned' || status === 'reworking') return 'warning'
     if (status === 'active') return 'info'
     if (status === 'completed') return 'success'
     return 'default'
@@ -168,7 +201,7 @@
               v-for="task in tasksFor(node.id)"
               :key="task.id"
               class="task-line"
-              :class="{ 'is-negative': task.status === 'returned' || task.status === 'rejected' }"
+              :class="{ 'is-negative': task.status === 'rejected', 'is-returned': task.status === 'returned' }"
             >
               <div class="spread">
                 <span>
@@ -179,8 +212,14 @@
                 <NButton v-if="canDecide(task)" type="primary" size="tiny" @click="emit('decide', task)">办理</NButton>
               </div>
               <NAlert v-if="taskWarning(task.id)" type="warning" :bordered="false" style="margin: 10px 0">{{ taskWarning(task.id) }}</NAlert>
-              <div v-if="task.publicComment" class="task-comment">公开结论：{{ task.publicComment }}</div>
-              <div v-if="task.comment" class="task-comment">内部说明：{{ task.comment }}</div>
+              <div v-if="task.publicComment" class="task-comment">审批意见：{{ task.publicComment }}</div>
+              <div v-if="task.returnTargetId" class="task-comment returned-target">
+                退回至：{{ task.returnTargetId === 'applicant' ? '发起人修改申请' : nodeName(task.returnTargetId) }}
+              </div>
+              <div v-for="rating in task.ratings || []" :key="rating.nodeId" class="task-comment">
+                {{ nodeName(rating.nodeId) }}：{{ rating.score }}分 · 被评第{{ rating.generation }}轮
+                <span v-if="!ratingEffective(task, rating.nodeId, rating.generation)">（历史评分）</span>
+              </div>
               <small v-if="task.actedAt" class="muted">{{ formatTime(task.actedAt) }}</small>
             </div>
           </div>
@@ -211,6 +250,28 @@
     border-radius: 6px;
   }
   .task-line.is-negative > .spread > span {
+    font-weight: 600;
+  }
+</style>
+
+<style scoped>
+  .flow-step.returned .flow-dot,
+  .flow-step.reworking .flow-dot {
+    background: #d79a24;
+    box-shadow: 0 0 0 4px #d79a2418;
+  }
+  .flow-step.returned .flow-body > .spread strong,
+  .flow-step.reworking .flow-body > .spread strong,
+  .returned-target {
+    color: #a96c0f;
+  }
+  .flow-step.returned .flow-body {
+    background: linear-gradient(90deg, #fff8e9, transparent);
+  }
+</style>
+<style scoped>
+  .task-line.is-returned > .spread > span {
+    color: #a96c0f;
     font-weight: 600;
   }
 </style>

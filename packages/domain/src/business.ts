@@ -11,8 +11,16 @@ import type { z } from 'zod';
 import type { actionSchema, decisionSchema, TransferCommand } from './schemas';
 import { activeMember, canHandleTask, canReadActivity, findById, hasPermission } from './permissions';
 import { amountFen, isHttps } from './forms';
-import { advanceWorkflow, invalidatePending, resolveAssignees, settleNode, topological } from './workflow';
+import {
+  advanceWorkflow,
+  invalidatePending,
+  reopenWorkflow,
+  resolveAssignees,
+  settleNode,
+  topological,
+} from './workflow';
 import { canDeleteActivity } from './activity-deletion';
+import { decisionCapabilities, defaultApprovalPolicy } from './approval-rules';
 
 export class RuleViolation extends Error {
   /**
@@ -160,25 +168,76 @@ export function decideTask(
     findById(activity.nodes, task.nodeId)?.kind === 'approval' || command.decision === 'approve',
     '任务与知会节点只支持完成',
   );
-  if (command.decision !== 'approve')
-    requireRule(!!(command.publicComment || command.comment).trim(), '退回或拒绝请填写公开补充要求或原因');
-  task.comment = command.comment.trim();
-  task.publicComment =
-    command.publicComment?.trim() ||
-    (command.decision === 'return'
-      ? '申请已退回，请联系审核人确认补充要求'
-      : command.decision === 'reject'
-        ? '申请未通过，请联系审核人确认原因'
-        : '');
+  const node = findById(activity.nodes, task.nodeId)!;
+  const capabilities = decisionCapabilities(config, actor, activity, task);
+  requireRule(!command.comment?.trim(), '节点内部说明已移除，请填写审批意见');
+  const opinion = command.publicComment?.trim() || '';
+  if (command.decision !== 'approve') requireRule(!!opinion, '退回或终止申请请填写审批意见');
+  requireRule(
+    command.decision === 'return' ||
+      (!command.returnTargetId && command.expectedTargetGeneration === undefined),
+    '只有退回修改可以指定目标',
+  );
+  let target;
+  if (command.decision === 'return') {
+    if (command.returnTargetId === 'applicant' || !command.returnTargetId) {
+      requireRule(capabilities.canReturnToApplicant, '本节点未允许退回发起人', 'FORBIDDEN');
+    } else {
+      target = capabilities.returnTargets.find(
+        /** 核验目标属于实时可退回范围。
+         * @param item 服务端目标
+         * @returns 是否对应请求目标
+         */ function same(item) {
+          return item.nodeId === command.returnTargetId;
+        },
+      );
+      requireRule(target, '本节点未允许退回该节点，或目标已失效', 'FORBIDDEN');
+      requireRule(
+        target.generation === command.expectedTargetGeneration,
+        '退回目标轮次已变化，请刷新后办理',
+        'CONFLICT',
+      );
+    }
+  }
+  if (command.decision === 'reject')
+    requireRule(capabilities.canTerminate, '本节点未允许终止申请', 'FORBIDDEN');
+  const ratingIds = new Set<string>();
+  for (const rating of command.ratings || []) {
+    requireRule(
+      Number.isInteger(rating.score) && rating.score >= 0 && rating.score <= 100,
+      '评分需为0至100的整数',
+    );
+    const expected = capabilities.ratingTargets.find(
+      /** 匹配当前可评分的直接上游审批成果。
+       * @param item 服务端评分对象
+       * @returns 是否为请求对象
+       */ function same(item) {
+        return item.nodeId === rating.nodeId;
+      },
+    );
+    requireRule(expected, '存在未授权的评分对象', 'FORBIDDEN');
+    requireRule(expected.generation === rating.generation, '评分对象轮次已变化，请刷新后办理', 'CONFLICT');
+    requireRule(!ratingIds.has(rating.nodeId), '同一节点不能重复评分');
+    ratingIds.add(rating.nodeId);
+  }
+  if (command.decision === 'approve' && capabilities.ratingRequirement === 'required')
+    requireRule(ratingIds.size === capabilities.ratingTargets.length, '请完成全部上游审批节点的评分');
+  task.comment = '';
+  task.publicComment = opinion;
+  task.ratings = structuredClone(command.ratings || []);
   task.version += 1;
   task.actedAt = new Date().toISOString();
   if (command.decision === 'approve') {
-    task.status = findById(activity.nodes, task.nodeId)?.kind === 'approval' ? 'approved' : 'completed';
+    task.status = node.kind === 'approval' ? 'approved' : 'completed';
     if (task.status === 'approved') activity.lastApprovalTaskId = task.id;
     settleNode(activity, task.nodeId);
     advanceWorkflow(activity);
+  } else if (command.decision === 'return' && target) {
+    task.status = 'returned';
+    reopenWorkflow(activity, task, target.nodeId, target.affectedNodeIds);
   } else {
     task.status = command.decision === 'return' ? 'returned' : 'rejected';
+    if (command.decision === 'return') task.returnTargetId = 'applicant';
     activity.status = command.decision === 'return' ? 'needs_info' : 'rejected';
     invalidatePending(activity);
   }
@@ -186,10 +245,11 @@ export function decideTask(
     config,
     activity,
     actor,
-    `${findById(activity.nodes, task.nodeId)?.label}：${{ approve: '通过', return: '退回补充', reject: '拒绝' }[command.decision]}`,
-    command.comment,
+    `${node.label}：${command.decision === 'return' ? '退回至' + (target?.label || '发起人') : command.decision === 'reject' ? '终止申请' : '通过'}`,
+    '',
     task.nodeId,
   );
+  activity.audit.at(-1)!.publicNote = opinion;
   if (activity.status === 'ready_assign' && findById(activity.nodes, task.nodeId)?.kind === 'approval') {
     activity.workflowOwnerId = actor;
     activity.workflowOwnerNodeId = task.nodeId;
@@ -493,7 +553,7 @@ function allChecked(value: boolean): boolean {
 }
 
 /**
- * 在事务中的实例副本插入本场新增节点，失效受影响的旧待办并开启新轮次，不修改公共模板。
+ * 在事务中插入本场节点，审批采用保守操作策略，失效受影响待办并开启新轮次，不修改公共模板。
  * @param config 当前配置
  * @param actor 操作者
  * @param activity 实例
@@ -528,6 +588,7 @@ export function adjustWorkflow(
       anchor.access || { mode: 'restricted', roleIds: [], userIds: [], nodeAssignees: true },
     ),
     downloadAccess: anchor.downloadAccess ? structuredClone(anchor.downloadAccess) : undefined,
+    approvalPolicy: input.kind === 'approval' ? defaultApprovalPolicy() : undefined,
     origin: 'instance',
     id: createUuid(),
     key: `extra-${createUuid()}`,

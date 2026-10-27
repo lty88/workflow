@@ -38,6 +38,16 @@ export const fileAccessInputSchema = z
     downloadAccess: dataAccessRuleSchema.optional(),
   })
   .strict();
+export const nodeApprovalPolicySchema = z
+  .object({
+    returnEnabled: z.boolean(),
+    returnScope: z.enum(['previous', 'selected']),
+    returnNodeIds: z.array(id).max(80),
+    returnToApplicant: z.boolean(),
+    allowTerminate: z.boolean(),
+    rating: z.enum(['off', 'optional', 'required']),
+  })
+  .strict();
 export const configSchema = z
   .object({
     version: z.number().int().positive(),
@@ -165,6 +175,7 @@ export const configSchema = z
     workflow: z
       .object({
         name: z.string().trim().min(1).max(80),
+        ratingEnabled: z.boolean().optional(),
         nodes: z
           .array(
             z
@@ -174,6 +185,7 @@ export const configSchema = z
                 kind: z.enum(['approval', 'task', 'notice']),
                 deps: z.array(id).max(100),
                 assignee,
+                approvalPolicy: nodeApprovalPolicySchema.optional(),
                 condition: condition.optional(),
                 protected: z.boolean().optional(),
                 access: dataAccessRuleSchema.optional(),
@@ -214,12 +226,27 @@ export const decisionSchema = z
   .object({
     attachmentContextId: z.uuid().optional(),
     decision: z.enum(['approve', 'return', 'reject']),
+    returnTargetId: id.optional(),
+    expectedTargetGeneration: z.number().int().positive().optional(),
+    ratings: z
+      .array(
+        z
+          .object({
+            nodeId: id,
+            generation: z.number().int().positive(),
+            score: z.number().int().min(0).max(100),
+          })
+          .strict(),
+      )
+      .max(80)
+      .optional(),
     comment: z.string().trim().default(''),
     publicComment: z.string().trim().optional(),
     expectedTaskVersion: z.number().int().positive(),
     idempotencyKey: z.string().min(16).max(100),
   })
   .strict();
+export type DecisionCommand = Omit<z.infer<typeof decisionSchema>, 'idempotencyKey'>;
 export const transferSchema = z
   .object({
     attachmentContextId: z.uuid().optional(),

@@ -1,9 +1,9 @@
 <script setup lang="tsx">
-  import { computed, ref, watch } from 'vue'
+  import { computed, nextTick, ref, watch } from 'vue'
   import { useMediaQuery } from '@vueuse/core'
-  import { NDrawer, NDrawerContent, NForm, NFormItem, NInput, NSelect, NButton, NCheckbox, NAlert, NRadioGroup, NRadioButton } from 'naive-ui'
+  import { NDrawer, NDrawerContent, NForm, NFormItem, NInput, NSelect, NButton, NCheckbox, NAlert } from 'naive-ui'
   import type { FormRules } from 'naive-ui'
-  import type { FileRecord } from '@workflow/domain'
+  import type { FileRecord, NodeRating } from '@workflow/domain'
   import { createUuid, executionReportErrors, isHttps } from '@workflow/domain'
   import { useFormValidation } from '@/composables/use-form-validation'
   import { requiredRule } from '@/composables/form-validation'
@@ -13,7 +13,9 @@
   import { decisionApi } from '@/api/workflow'
   import { directoryApi } from '@/api/workspace'
   import type { Directory } from '@/typings/api'
-  import type { ActionProps } from './types'
+  import type { ActionProps, NegativeDecisionInput } from './types'
+  import ApprovalDecisionFields from './ApprovalDecisionFields.vue'
+  import ApprovalReturnDialog from './ApprovalReturnDialog.vue'
   import { ACTION_LABELS } from './types'
   import { useFeedback } from '@/composables/use-feedback'
   const props = defineProps<ActionProps>()
@@ -24,6 +26,14 @@
   const uploading = ref(false)
   const attachmentContextId = ref(createUuid())
   const attachmentVersion = ref(props.detail.activity.version)
+  const scores = ref<Record<string, number | null>>({})
+  const confirmationOpen = ref(false)
+  const negativeDecision = ref<'return' | 'reject'>('return')
+  const returnTargetId = ref<string>()
+  const expectedTargetGeneration = ref<number>()
+  const capabilities = computed(() => (props.task ? props.detail.decisionCapabilities?.[props.task.id] : undefined))
+  const canReturn = computed(() => !!capabilities.value && (capabilities.value.canReturnToApplicant || capabilities.value.returnTargets.length > 0))
+  const ratingRequired = computed(() => decision.value === 'approve' && capabilities.value?.ratingRequirement === 'required')
   const reportAction = computed(() => ['report', 'execution-complete'].includes(props.action))
   const attachmentStage = computed(() => (props.task ? 'node' : reportAction.value ? 'execution' : props.action === 'archive-submit' ? 'archive' : 'operation'))
   const { formRef, validate: validateBeforeSubmit, resetValidation } = useFormValidation()
@@ -36,6 +46,7 @@
     report: report.value,
     comment: comment.value,
     publicComment: publicComment.value,
+    scores: scores.value,
     disposal: disposal.value,
     checks: checks.value,
     url: url.value,
@@ -56,7 +67,21 @@
     ...(commentRequired.value
       ? { comment: requiredRule(props.action === 'assign' ? '执行安排' : props.action === 'archive-submit' ? '成果摘要' : '意见或原因') }
       : {}),
-    ...(props.task && decision.value !== 'approve' ? { publicComment: requiredRule('公开补充要求或原因') } : {}),
+    ...(props.task && decision.value !== 'approve' ? { publicComment: requiredRule('审批意见') } : {}),
+    ...(ratingRequired.value
+      ? {
+          scores: Object.fromEntries(
+            (capabilities.value?.ratingTargets || []).map(
+              /** 为每个必评上游成果建立独立必填校验，零分属于有效输入。
+               * @param target 服务端评分对象
+               * @returns 字段键和校验规则
+               */ function rule(target) {
+                return [target.nodeId, requiredRule(`${target.label}评分`)]
+              }
+            )
+          ),
+        }
+      : {}),
     ...(props.action === 'cancel-request' && props.detail.activity.status === 'executing' ? { disposal: requiredRule('已发生费用处置方式') } : {}),
     ...(props.action === 'archive-submit' && !hasArchiveFile.value ? { url: requiredRule('成果链接或上传成果附件') } : {}),
     ...(props.action === 'archive-approve'
@@ -115,13 +140,20 @@
    * @param open 是否打开
    */
   async function initialize(open: boolean): Promise<void> {
-    if (!open) return
+    if (!open) {
+      confirmationOpen.value = false
+      return
+    }
     attachmentContextId.value = createUuid()
     attachmentVersion.value = props.detail.activity.version
     resetValidation()
     updateAttachmentState(props.detail.activity.version, props.detail.files)
     comment.value = ''
     publicComment.value = ''
+    scores.value = {}
+    confirmationOpen.value = false
+    returnTargetId.value = undefined
+    expectedTargetGeneration.value = undefined
     decision.value = 'approve'
     executor.value = null
     url.value = props.detail.activity.archive?.url || ''
@@ -161,26 +193,40 @@
     )
   }
   /**
-   * 等待附件上传完成后提交任务或执行记录，使用上传刷新后的版本，由服务端核验实时权限。
+   * 锁定提交按钮并先校验表单，等待附件完成后请求接口；使用最新版本，由服务端核验实时权限。
    */
   async function submit(): Promise<void> {
-    if (busy.value || uploading.value || !(await validateBeforeSubmit())) return
-    if (reportAction.value) {
-      const issues = executionReportErrors(report.value, props.action === 'execution-complete')
-      if (issues.length) {
-        feedback.failure(new Error(issues.join('；')))
-        return
-      }
-    }
-    if (props.action === 'archive-submit' && url.value && !isHttps(url.value)) {
-      feedback.failure(new Error('成果链接必须使用HTTPS'))
-      return
-    }
+    if (busy.value || uploading.value) return
     busy.value = true
     try {
+      if (!(await validateBeforeSubmit())) return
+      if (reportAction.value) {
+        const issues = executionReportErrors(report.value, props.action === 'execution-complete')
+        if (issues.length) {
+          feedback.failure(new Error(issues.join('；')))
+          return
+        }
+      }
+      if (props.action === 'archive-submit' && url.value && !isHttps(url.value)) {
+        feedback.failure(new Error('成果链接必须使用HTTPS'))
+        return
+      }
       if (props.task) {
         if (nodeKind.value !== 'approval' && decision.value !== 'approve') throw new Error('任务节点只能完成')
-        await decisionApi(props.task.id, props.task.version, decision.value, comment.value, publicComment.value, attachmentContextId.value)
+        const ratings: NodeRating[] = []
+        for (const target of capabilities.value?.ratingTargets || []) {
+          const score = scores.value[target.nodeId]
+          if (score !== null && score !== undefined) ratings.push({ nodeId: target.nodeId, generation: target.generation, score })
+        }
+        await decisionApi(props.task.id, {
+          expectedTaskVersion: props.task.version,
+          decision: decision.value,
+          comment: '',
+          publicComment: publicComment.value,
+          attachmentContextId: attachmentContextId.value,
+          ratings,
+          ...(decision.value === 'return' ? { returnTargetId: returnTargetId.value, expectedTargetGeneration: expectedTargetGeneration.value } : {}),
+        })
       } else {
         await actionApi(props.detail.activity.id, {
           action: props.action as Parameters<typeof actionApi>[1]['action'],
@@ -195,6 +241,7 @@
         })
       }
       feedback.success(props.action === 'report' ? '执行记录已保存，可继续追加；执行结束后请手动完成执行' : '操作已完成')
+      confirmationOpen.value = false
       emit('update:show', false)
       emit('done')
     } catch (error) {
@@ -202,6 +249,33 @@
     } finally {
       busy.value = false
     }
+  }
+  /** 按按钮选择审批行为；退回与终止需先展示影响范围并填写原因。
+   * @param value 通过、退回或终止
+   */
+  async function chooseDecision(value: 'approve' | 'return' | 'reject'): Promise<void> {
+    if (busy.value || uploading.value) return
+    if (value !== 'approve') {
+      if (value === 'return' && !canReturn.value) return
+      if (value === 'reject' && !capabilities.value?.canTerminate) return
+      negativeDecision.value = value
+      confirmationOpen.value = true
+      return
+    }
+    decision.value = 'approve'
+    await nextTick()
+    await submit()
+  }
+  /** 确认退回目标或终止原因后提交；服务端最终复核权限与轮次。
+   * @param input 确认窗口中的决定、原因与目标
+   */
+  async function confirmNegative(input: NegativeDecisionInput): Promise<void> {
+    decision.value = input.decision
+    publicComment.value = input.publicComment
+    returnTargetId.value = input.returnTargetId
+    expectedTargetGeneration.value = input.expectedTargetGeneration
+    await nextTick()
+    await submit()
   }
 </script>
 <template>
@@ -215,13 +289,6 @@
     <NDrawerContent :title="title" :closable="!busy && !uploading">
       <NAlert type="info" :bordered="false" class="mb">{{ detail.activity.name || '未命名活动' }} · {{ detail.activity.code }}</NAlert>
       <NForm ref="formRef" :model="formModel" :rules="formRules" :disabled="busy || uploading" label-placement="top">
-        <NFormItem v-if="task && nodeKind === 'approval'" label="审批结论">
-          <NRadioGroup v-model:value="decision">
-            <NRadioButton value="approve">通过</NRadioButton>
-            <NRadioButton value="return">退回补充</NRadioButton>
-            <NRadioButton value="reject">拒绝</NRadioButton>
-          </NRadioGroup>
-        </NFormItem>
         <NAlert v-if="action === 'assign' && detail.activity.workflowOwnerId" type="info" :bordered="false" class="mb">
           本活动由最后审批人指派执行人，并由该审批人审核归档。为避免自审，执行人需另选他人。
         </NAlert>
@@ -242,31 +309,28 @@
             <NCheckbox v-model:checked="checks[2]">费用与异常情况已说明</NCheckbox>
           </div>
         </NFormItem>
-        <NFormItem v-if="task" label="公开结论 / 补充要求（活动内共享）" path="publicComment" :required="decision !== 'approve'">
-          <NInput
-            v-model:value="publicComment"
-            type="textarea"
-            :maxlength="500"
-            :autosize="{ minRows: 3 }"
-            placeholder="请填写可向活动相关人员公开的结论；退回时说明申请人需要补充什么"
-          />
-        </NFormItem>
-        <NAlert v-if="task" type="info" :bordered="false" class="mb">
-          内部说明是给节点授权人员的办理备注，同部门或活动发起人不会自动看到。需要申请人查看的意见请填“公开结论”；附件默认继承节点，需共享时单独设置文件权限。
-        </NAlert>
+        <ApprovalDecisionFields
+          v-if="task"
+          v-model:opinion="publicComment"
+          v-model:scores="scores"
+          :detail="detail"
+          :task="task"
+          :capabilities="capabilities"
+          :required="ratingRequired"
+        />
         <NFormItem
-          v-if="!reportAction"
+          v-if="!task && !reportAction"
           path="comment"
-          :label="task ? '节点内部说明（按节点授权可见）' : action === 'archive-submit' ? '成果摘要' : action === 'assign' ? '执行安排' : '意见 / 原因'"
+          :label="action === 'archive-submit' ? '成果摘要' : action === 'assign' ? '执行安排' : '意见 / 原因'"
           :required="commentRequired"
         >
           <NInput
             v-model:value="comment"
             type="textarea"
-            :maxlength="task ? 500 : 1000"
+            :maxlength="1000"
             show-count
             :autosize="{ minRows: 4 }"
-            :placeholder="task ? '仅向节点授权人员开放，可填写详细判断依据' : '请填写活动内共享的具体意见或说明'"
+            placeholder="请填写活动内共享的具体意见或说明"
           />
         </NFormItem>
         <BusinessFormAttachments
@@ -282,11 +346,47 @@
         />
       </NForm>
       <template #footer>
-        <div class="gap">
-          <NButton :disabled="busy || uploading" @click="emit('update:show', false)">取消</NButton>
-          <NButton type="primary" :loading="busy" :disabled="uploading" @click="submit">确认{{ title }}</NButton>
+        <div class="decision-footer">
+          <NButton v-if="task && capabilities?.canTerminate" type="error" ghost :disabled="busy || uploading" @click="chooseDecision('reject')">
+            终止申请
+          </NButton>
+          <div class="decision-primary">
+            <NButton :disabled="busy || uploading" @click="emit('update:show', false)">取消</NButton>
+            <NButton v-if="task && canReturn" type="warning" ghost :disabled="busy || uploading" @click="chooseDecision('return')">退回修改</NButton>
+            <NButton v-if="task" type="primary" :loading="busy" :disabled="uploading" @click="chooseDecision('approve')">
+              {{ nodeKind === 'approval' ? '通过审批' : '完成任务' }}
+            </NButton>
+            <NButton v-else type="primary" :loading="busy" :disabled="uploading" @click="submit">确认{{ title }}</NButton>
+          </div>
         </div>
       </template>
     </NDrawerContent>
   </NDrawer>
+  <ApprovalReturnDialog
+    v-if="task"
+    v-model:show="confirmationOpen"
+    :decision="negativeDecision"
+    :detail="detail"
+    :capabilities="capabilities"
+    :opinion="publicComment"
+    :busy="busy || uploading"
+    @confirm="confirmNegative"
+  />
 </template>
+<style scoped>
+  .decision-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .decision-primary {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+</style>
