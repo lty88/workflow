@@ -157,7 +157,7 @@
       </div>
       <div class="attachment-file-actions">
         <a v-if="file.canDownload" :href="'/api/files/' + file.id" target="_blank" rel="noopener">下载</a>
-        <NTag v-else size="small" :bordered="false">无下载授权</NTag>
+        <NTag v-else size="small" :bordered="false" :title="file.downloadHint">{{ file.downloadHint ? (file.downloadHint.includes('角色') ? '角色未授权下载' : '不在下载范围') : '无下载授权' }}</NTag>
         <NButton v-if="file.canManageAccess && activityVersion" size="small" secondary type="primary" :disabled="busy" @click="manage(file)">
           单文件权限
         </NButton>

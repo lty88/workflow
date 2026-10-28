@@ -45,6 +45,10 @@ export interface ActivityAccess {
   hiddenFieldKeys: string[];
   containsSensitive: boolean;
 }
+export interface AttachmentFieldBinding {
+  form: FormDefinition;
+  field: FormField;
+}
 export interface AttachmentOptions {
   maxCount: number;
   maxSizeMB: number;
@@ -349,6 +353,7 @@ export interface FileRecord extends FileAccessInput {
   uploaderId?: string;
   canManageAccess?: boolean;
   canDownload?: boolean;
+  downloadHint?: string;
   canPreview?: boolean;
   id: string;
   activityId: string;

@@ -3,17 +3,30 @@
   import { NAlert, NTag, NCheckbox } from 'naive-ui'
   import type { ActivityDetail, WorkflowNode } from '@workflow/domain'
   import AttachmentList from './AttachmentList.vue'
+  import { materialNodes } from './node-materials'
+  import { nodeProgressStatus } from './workflow-progress'
+  import { NODE_STATUSES } from './types'
   const props = defineProps<{ detail: ActivityDetail; readOnly?: boolean }>()
   const emit = defineEmits<{ uploaded: [] }>()
   const history = ref(false)
-  const nodes = computed(() => props.detail.activity.nodes.filter(current))
-  /**
-   * 根据历史开关显示申请节点，历史资料仍由服务端按原归属隔离。
-   * @param node 实例节点
-   * @returns 是否属于当前显示范围
+  const nodes = computed(() => materialNodes(props.detail.activity, props.detail.files, history.value))
+  /** 显示节点本轮的退回、终止或失效原因，避免把历史资料误判为权限丢失。
+   * @param node 流程实例节点
+   * @returns 人可读的办理状态
    */
-  function current(node: WorkflowNode): boolean {
-    return !node.businessStage && (history.value || ((node.applicationRevision || 1) === (props.detail.activity.revision || 1) && !['skipped', 'invalidated'].includes(node.status)))
+  function statusLabel(node: WorkflowNode): string {
+    return NODE_STATUSES[nodeProgressStatus(node, props.detail.activity.tasks, props.detail.activity.status)]
+  }
+  /** 用语义颜色区分终止源头、退回重办和已完成状态。
+   * @param node 实例节点
+   * @returns 状态标签颜色
+   */
+  function statusTone(node: WorkflowNode): 'error' | 'warning' | 'success' | 'info' | 'default' {
+    const status = nodeProgressStatus(node, props.detail.activity.tasks, props.detail.activity.status)
+    if (status === 'rejected') return 'error'
+    if (['returned', 'reworking', 'invalidated'].includes(status)) return 'warning'
+    if (status === 'completed') return 'success'
+    return status === 'active' ? 'info' : 'default'
   }
   /**
    * 根据服务端投影能力判断当前节点内部材料可见性。
@@ -44,14 +57,15 @@
   <section v-if="detail.activity.nodes.length" class="node-materials">
     <div class="spread">
       <h2>节点资料</h2>
-      <NCheckbox v-model:checked="history">显示历史节点资料</NCheckbox>
+      <NCheckbox v-model:checked="history">显示历次申请节点</NCheckbox>
     </div>
-    <p class="materials-hint">审批意见面向活动相关人员。附件默认继承节点，单独选择“活动内共享”或“指定授权”后按该文件规则开放。</p>
+    <p class="materials-hint">附件按本次申请提交时的节点权限判断，模板后续修改不会回写已有申请。单个文件可独立授权；历次申请资料请勾选右上方选项。</p>
     <article v-for="node in nodes" :key="node.id" class="material-node">
       <header>
         <strong>{{ node.label }}</strong>
+        <NTag size="small" :bordered="false" :type="statusTone(node)">{{ statusLabel(node) }}</NTag>
         <NTag size="small" :type="readable(node.id) || hasFiles(node.id) ? 'info' : 'default'" :bordered="false">
-          {{ readable(node.id) ? '可查看节点附件' : hasFiles(node.id) ? '可查看已分享附件' : '仅查看公开进度' }}
+          {{ readable(node.id) ? '具备节点查看权限' : hasFiles(node.id) ? '可查看已分享附件' : '仅查看公开进度' }}
         </NTag>
       </header>
       <NAlert v-if="!readable(node.id)" type="default" :bordered="false" class="material-access-note">

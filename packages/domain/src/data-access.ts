@@ -1,5 +1,5 @@
 import { attachmentContextCommitted } from './execution-records';
-import { attachmentFieldsForFile } from './attachments';
+import { attachmentFieldBindingsForFile } from './attachments';
 import type {
   Activity,
   CompanyConfig,
@@ -7,6 +7,7 @@ import type {
   FileRecord,
   FileAccessInput,
   FormField,
+  FormDefinition,
   Permission,
   Role,
   WorkflowNode,
@@ -177,13 +178,15 @@ export function canReadNodeContent(
 }
 
 /**
- * 获取冻结字段和当前同键字段的共同约束，当前收紧立即生效，放宽不改变旧快照。
+ * 仅合并同一活动表单的实时约束；独立通用表单及其他表单保留自身冻结规则。
  * @param config 当前配置
  * @param field 冻结字段
+ * @param form 字段所属表单，传入时防止跨表单同名字段串用权限
  * @returns 需要同时满足的字段定义
  */
-export function fieldConstraints(config: CompanyConfig, field: FormField): FormField[] {
-  const current = config.form.fields.find(
+export function fieldConstraints(config: CompanyConfig, field: FormField, form?: FormDefinition): FormField[] {
+  const sameForm = !form || (form.businessType !== 'general' && config.form.businessType !== 'general' && form.id === config.form.id);
+  const current = sameForm ? config.form.fields.find(
     /**
      * 按稳定字段键查找当前权限。
      * @param item 当前字段
@@ -192,7 +195,7 @@ export function fieldConstraints(config: CompanyConfig, field: FormField): FormF
     function same(item) {
       return item.key === field.key;
     },
-  );
+  ) : undefined;
   const constraints = current && current !== field ? [field, current] : [field];
   for (const access of field.accessConstraints || [])
     constraints.push({ ...field, access, accessConstraints: undefined });
@@ -203,10 +206,11 @@ export function fieldConstraints(config: CompanyConfig, field: FormField): FormF
  * 判断字段是否属于受限信息。
  * @param config 当前配置
  * @param field 冻结字段
+ * @param form 字段所属表单，隔离独立通用表单及其他表单
  * @returns 是否存在受限读取规则
  */
-export function isSensitiveField(config: CompanyConfig, field: FormField): boolean {
-  for (const item of fieldConstraints(config, field))
+export function isSensitiveField(config: CompanyConfig, field: FormField, form?: FormDefinition): boolean {
+  for (const item of fieldConstraints(config, field, form))
     if (item.access?.read.mode === 'restricted') return true;
   return false;
 }
@@ -218,6 +222,7 @@ export function isSensitiveField(config: CompanyConfig, field: FormField): boole
  * @param activity 活动
  * @param field 冻结字段
  * @param write 是否判断字段编辑
+ * @param form 实际所属表单，默认当前申请表单；历史附件需传入原快照表单
  * @returns 是否可以读取原文或写入
  */
 export function canAccessField(
@@ -226,10 +231,11 @@ export function canAccessField(
   activity: Activity,
   field: FormField,
   write = false,
+  form: FormDefinition = activity.schema,
 ): boolean {
   if (!canReadActivity(config, actor, activity)) return false;
   const full = hasScopedDataPermission(config, actor, activity, 'activity:sensitive:read');
-  for (const item of fieldConstraints(config, field)) {
+  for (const item of fieldConstraints(config, field, form)) {
     if (!full && !audienceAllows(config, actor, activity, item.access?.read || SHARED_ACCESS)) return false;
     if (write && !audienceAllows(config, actor, activity, item.access?.write || SHARED_ACCESS)) return false;
   }
@@ -254,9 +260,9 @@ export function canReadFile(
   if (file.contextId && !attachmentContextCommitted(activity, file.contextId) && file.uploaderId !== actor)
     return false;
   if (file.fieldKey) {
-    const fields = attachmentFieldsForFile(activity, file);
+    const fields = attachmentFieldBindingsForFile(activity, file);
     if (!fields.length) return false;
-    for (const field of fields) if (!canAccessField(config, actor, activity, field)) return false;
+    for (const { field, form } of fields) if (!canAccessField(config, actor, activity, field, false, form)) return false;
   }
   const node = file.nodeId ? findById(activity.nodes, file.nodeId) : undefined;
   if ((file.stage === 'node' || file.nodeId) && !node) return false;

@@ -1,6 +1,6 @@
 import type { Activity, ActivityDetail, CompanyConfig, FileRecord, FormDefinition, FormField } from './types';
 import { canHandleTask, canReadActivity, findById, hasPermission } from './permissions';
-import { attachmentFieldsForFile } from './attachments';
+import { attachmentFieldBindingsForFile } from './attachments';
 import { visibleFields } from './forms';
 import { decisionCapabilities } from './approval-rules';
 import {
@@ -57,13 +57,13 @@ export function projectFormData(
     ),
   );
   for (const field of form.fields) {
-    const read = canAccessField(config, actor, activity, field);
-    const sensitive = isSensitiveField(config, field);
+    const read = canAccessField(config, actor, activity, field, false, form);
+    const sensitive = isSensitiveField(config, field, form);
     const exportable =
       !exporting ||
       !sensitive ||
       hasScopedDataPermission(config, actor, activity, 'activity:sensitive:export');
-    const constraints = fieldConstraints(config, field);
+    const constraints = fieldConstraints(config, field, form);
     let partial = false;
     let hiddenMask = false;
     for (const item of constraints)
@@ -93,7 +93,7 @@ export function projectFormData(
     delete safe.access;
     delete safe.accessConstraints;
     safe.default = '';
-    safe.readOnly = !canAccessField(config, actor, activity, field, true);
+    safe.readOnly = !canAccessField(config, actor, activity, field, true, form);
     if (safe.visible) {
       const source = form.fields.find(
         /**
@@ -105,7 +105,7 @@ export function projectFormData(
           return item.key === safe.visible?.field;
         },
       );
-      if (!source || !canAccessField(config, actor, activity, source)) {
+      if (!source || !canAccessField(config, actor, activity, source, false, form)) {
         if (!visible.has(field.key)) continue;
         delete safe.visible;
       }
@@ -138,7 +138,7 @@ export function mergeWritablePayload(
     if (previous !== undefined) next[field.key] = previous;
     if (!Object.hasOwn(input, field.key)) continue;
     const value = input[field.key]!;
-    if (canAccessField(config, actor, activity, field, true)) next[field.key] = value;
+    if (canAccessField(config, actor, activity, field, true, form)) next[field.key] = value;
     else if (value !== previous && value !== maskSensitiveValue(previous || ''))
       throw Object.assign(new Error(`无权修改字段：${field.label}`), {
         statusCode: 403,
@@ -202,12 +202,12 @@ export function projectActivityDetail(
       exporting &&
       (((file.nodeId ||
         file.access?.mode === 'restricted' ||
-        attachmentFieldsForFile(source, file).some(
+        attachmentFieldBindingsForFile(source, file).some(
           /** 检查字段附件是否包含敏感原文，导出需额外授权。
-           * @param field 实际引用文件的字段
+           * @param binding 文件对应的实际表单和字段
            * @returns 是否受限
-           */ function sensitive(field) {
-            return isSensitiveField(config, field);
+           */ function sensitive(binding) {
+            return isSensitiveField(config, binding.field, binding.form);
           },
         )) &&
         !sensitiveExport) ||
@@ -217,6 +217,7 @@ export function projectActivityDetail(
     const projected: FileRecord = {
       ...file,
       canDownload: canDownloadFile(config, actor, source, file),
+      downloadHint: canDownloadFile(config, actor, source, file) ? undefined : !hasScopedDataPermission(config, actor, source, 'file:download') ? '当前角色未获得本申请的附件下载权限' : '你不在本文件的下载授权范围内',
       canPreview: ['application/pdf', 'image/jpeg', 'image/png'].includes(file.mime),
     };
     projected.canManageAccess = file.uploaderId === actor || hasPermission(config, actor, 'config:manage');
@@ -229,12 +230,12 @@ export function projectActivityDetail(
     if (
       file.nodeId ||
       file.access?.mode === 'restricted' ||
-      attachmentFieldsForFile(source, file).some(
+      attachmentFieldBindingsForFile(source, file).some(
         /** 汇总附件字段的数据敏感标识。
-         * @param field 字段定义
+         * @param binding 文件对应的实际表单和字段
          * @returns 是否受限
-         */ function sensitive(field) {
-          return isSensitiveField(config, field);
+         */ function sensitive(binding) {
+          return isSensitiveField(config, binding.field, binding.form);
         },
       )
     )
@@ -245,7 +246,7 @@ export function projectActivityDetail(
     snapshot.schema = projected.schema;
     snapshot.payload = projected.payload;
     for (const field of snapshot.schema.fields)
-      if (!field.redacted && isSensitiveField(config, field) && snapshot.payload[field.key])
+      if (!field.redacted && isSensitiveField(config, field, snapshot.schema) && snapshot.payload[field.key])
         containsSensitive = true;
     for (const node of snapshot.workflow) {
       delete node.condition;
@@ -277,19 +278,19 @@ export function projectActivityDetail(
     budget &&
     (!canAccessField(config, actor, source, budget) ||
       (exporting &&
-        isSensitiveField(config, budget) &&
+        isSensitiveField(config, budget, source.schema) &&
         !hasScopedDataPermission(config, actor, source, 'activity:sensitive:export')))
   )
     safe.activity.report.spend = '';
   if (
     budget &&
     (!canAccessField(config, actor, source, budget) ||
-      (exporting && isSensitiveField(config, budget) && !sensitiveExport))
+      (exporting && isSensitiveField(config, budget, source.schema) && !sensitiveExport))
   )
     for (const record of safe.activity.executionRecords || []) record.spend = '';
   for (const field of source.schema.fields)
     if (
-      isSensitiveField(config, field) &&
+      isSensitiveField(config, field, source.schema) &&
       canAccessField(config, actor, source, field) &&
       current.payload[field.key] &&
       !current.hidden.includes(field.key)

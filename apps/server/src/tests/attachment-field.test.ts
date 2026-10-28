@@ -1,4 +1,6 @@
 import { expect, test, vi } from 'vitest';
+import { defaultRequestForm, canAccessField, isSensitiveField } from '@workflow/domain';
+import { materialNodes } from '../../../web/src/components/activity/node-materials';
 import type { Pool, PoolConnection } from 'mysql2/promise';
 import {
   attachmentIds,
@@ -287,3 +289,97 @@ async function forbiddenUploadCase(): Promise<void> {
   expect(execute).not.toHaveBeenCalled();
 }
 test('伪造字段、错误阶段和隐藏字段上传在落盘前被拒绝', forbiddenUploadCase);
+
+
+/** 独立通用表单及其他ID表单的同名附件字段，不受活动公共表单权限串扰；自身限制仍严格生效。 */
+function independentFormAccessCase(): void {
+  for (const general of [true, false]) {
+    const { config, activity, field, file, detail } = fixture();
+    const local = structuredClone(field);
+    activity.schema = general ? { ...defaultRequestForm(), fields:[local] } : { id:'other-form',name:'其他表单',fields:[local] };
+    if (general) activity.lifecycle = {businessType:'general',afterApproval:'complete',version:1};
+    activity.payload[field.key] = JSON.stringify([file.id]);
+    file.access = {mode:'shared',roleIds:[],userIds:[]};
+    field.access = {read:{mode:'restricted',roleIds:[],userIds:[],applicant:true},mask:'hidden'};
+    expect(canAccessField(config,'u-chen',activity,local)).toBe(true);
+    expect(isSensitiveField(config,local,activity.schema)).toBe(false);
+    expect(canReadFile(config,'u-chen',activity,file)).toBe(true);
+    expect(projectActivityDetail(config,'u-chen',detail).files).toHaveLength(1);
+    local.access = {read:{mode:'restricted',roleIds:[],userIds:[],applicant:true},mask:'hidden'};
+    expect(canReadFile(config,'u-chen',activity,file)).toBe(false);
+    expect(projectActivityDetail(config,'u-chen',detail).files).toHaveLength(0);
+  }
+}
+test('不同表单同名字段隔离，通用及独立附件仍执行自己的冻结权限',independentFormAccessCase);
+
+/** 历史附件按原表单判断，不因当前申请换用另一个同名字段表单而误套权限。 */
+function historicalFormAccessCase(): void {
+  const { config, activity, field, file } = fixture();
+  activity.schema.id = 'historical-form';
+  activity.payload[field.key] = JSON.stringify([file.id]);
+  activity.snapshots.push({revision:1,schema:structuredClone(activity.schema),payload:structuredClone(activity.payload),workflow:[],configVersion:1,submittedAt:''});
+  field.access = {read:{mode:'restricted',roleIds:[],userIds:[],applicant:true},mask:'hidden'};
+  activity.schema = structuredClone(config.form);
+  activity.payload[field.key] = '';
+  expect(canReadFile(config,'u-chen',activity,file)).toBe(true);
+  activity.snapshots[0]!.schema.fields.find(
+    /** 收紧原历史表单的字段，核验文件共享无法绕过该字段约束。
+     * @param item 历史字段
+     * @returns 是否附件字段
+     */ function attachment(item) { return item.key === field.key; },
+  )!.access = {read:{mode:'restricted',roleIds:[],userIds:[],applicant:true},mask:'hidden'};
+  file.access = {mode:'shared',roleIds:[],userIds:[]};
+  expect(canReadFile(config,'u-chen',activity,file)).toBe(false);
+}
+test('历史附件保留原表单权限边界，显式共享也无法绕过其冻结限制',historicalFormAccessCase);
+
+/** 当前申请被退回或终止后仍展示已授权节点资料，历史申请由开关控制，不暴露受限文件。 */
+function invalidatedNodeMaterialsCase(): void {
+  const { config, activity, file, detail } = fixture();
+  activity.revision = 2;
+  activity.status = 'rejected';
+  const node = {id:'current-node',key:'current',label:'已终止审批',kind:'approval' as const,deps:[],status:'invalidated' as const,generation:1,applicationRevision:2,assignees:['u-chen'],assigneeRule:{type:'manager' as const,value:''}};
+  activity.nodes = [node,{...node,id:'old-node',applicationRevision:1},{...node,id:'skipped-node',status:'skipped'},{...node,id:'business-node',businessStage:'execution'}];
+  file.stage = 'node'; file.nodeId = node.id; delete file.fieldKey;
+  file.access = {mode:'shared',roleIds:[],userIds:[]};
+  const safe = projectActivityDetail(config,'u-lin',detail);
+  expect(safe.access!.readableNodeIds).not.toContain(node.id);
+  expect(safe.files).toHaveLength(1);
+  expect(safe.access!.uploadNodeIds).toEqual([]);
+  expect(materialNodes(safe.activity,safe.files).map(
+    /** 提取实际展示的节点。
+     * @param item 节点
+     * @returns 标识
+     */ function id(item) { return item.id; },
+  )).toEqual(['current-node']);
+  expect(materialNodes(safe.activity,safe.files,true)).toHaveLength(2);
+  safe.files.push({...safe.files[0]!,id:'shared-skipped',nodeId:'skipped-node'});
+  expect(materialNodes(safe.activity,safe.files)).toHaveLength(2);
+  delete file.access;
+  expect(projectActivityDetail(config,'u-lin',detail).files).toHaveLength(0);
+}
+test('退回终止的本轮节点资料保留、历史开关只控制旧申请，权限过滤不变',invalidatedNodeMaterialsCase);
+
+/** 对已能查看的附件区分缺少下载能力与文件受众不匹配，不以共享设置替代角色能力。 */
+function downloadHintsCase(): void {
+  const { config, activity, field, file, detail } = fixture();
+  activity.payload[field.key] = JSON.stringify([file.id]);
+  let projected = projectActivityDetail(config,'u-lin',detail).files[0]!;
+  expect(projected.canDownload).toBe(false);
+  expect(projected.downloadHint).toContain('角色');
+  config.roles.find(
+    /** 增加角色下载能力以隔离文件受众规则的影响。
+     * @param role 当前角色
+     * @returns 是否申请人角色
+     */ function applicant(role) { return role.id === 'applicant'; },
+  )!.permissions.push('file:download');
+  file.downloadAccess = {mode:'restricted',roleIds:[],userIds:[],departmentManager:true};
+  projected = projectActivityDetail(config,'u-lin',detail).files[0]!;
+  expect(projected.canDownload).toBe(false);
+  expect(projected.downloadHint).toContain('授权范围');
+  file.downloadAccess = {mode:'shared',roleIds:[],userIds:[]};
+  projected = projectActivityDetail(config,'u-lin',detail).files[0]!;
+  expect(projected.canDownload).toBe(true);
+  expect(projected.downloadHint).toBeUndefined();
+}
+test('下载受限原因区分角色能力和文件范围，授权通过后不残留错误提示',downloadHintsCase);

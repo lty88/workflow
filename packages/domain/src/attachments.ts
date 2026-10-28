@@ -1,4 +1,4 @@
-import type { Activity, AttachmentOptions, FileRecord, FormDefinition, FormField } from './types';
+import type { Activity, AttachmentFieldBinding, AttachmentOptions, FileRecord, FormDefinition, FormField } from './types';
 import { visibleFields } from './forms';
 export const ATTACHMENT_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx'] as const;
 /** 取得附件字段的数量、大小与格式规则，兼容未设置选项的历史定义。
@@ -79,21 +79,30 @@ export function validateAttachmentReferences(
   }
   return [...new Set(errors)];
 }
-/** 定位当前申请和历史快照中真实引用文件的可见字段，供直接下载与详情授权共同使用。
+/** 定位文件实际所属的表单和字段，保留历史表单边界，避免同名字段串用权限。
  * @param activity 活动及历史表单快照
  * @param file 需要读取的文件
- * @returns 实际引用该文件的可见附件字段
+ * @returns 实际引用文件的表单与可见字段
  */
-export function attachmentFieldsForFile(activity: Activity, file: FileRecord): FormField[] {
+export function attachmentFieldBindingsForFile(activity: Activity, file: FileRecord): AttachmentFieldBinding[] {
   if (!file.fieldKey || file.stage !== 'application' || file.activityId !== activity.id) return [];
-  const fields: FormField[] = [];
+  const bindings: AttachmentFieldBinding[] = [];
   for (const snapshot of [activity, ...activity.snapshots])
     for (const field of visibleFields(snapshot.schema, snapshot.payload))
-      if (
-        field.key === file.fieldKey &&
-        field.type === 'attachment' &&
-        attachmentIds(snapshot.payload[field.key])?.includes(file.id)
-      )
-        fields.push(field);
-  return fields;
+      if (field.key === file.fieldKey && field.type === 'attachment' && attachmentIds(snapshot.payload[field.key])?.includes(file.id))
+        bindings.push({ form: snapshot.schema, field });
+  return bindings;
+}
+/** 定位当前和历史申请中真实引用文件的可见字段，兼容仅需字段定义的调用方。
+ * @param activity 活动及历史表单快照
+ * @param file 需要读取的文件
+ * @returns 实际引用该文件的附件字段
+ */
+export function attachmentFieldsForFile(activity: Activity, file: FileRecord): FormField[] {
+  return attachmentFieldBindingsForFile(activity, file).map(
+    /** 提取附件所属字段，权限判定应使用完整表单绑定。
+     * @param binding 文件的真实引用
+     * @returns 附件字段
+     */ function field(binding) { return binding.field; },
+  );
 }

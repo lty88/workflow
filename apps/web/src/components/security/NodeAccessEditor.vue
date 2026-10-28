@@ -16,7 +16,7 @@
   }
 </script>
 <template>
-  <NAlert type="info" :bordered="false" class="mb">审批意见面向活动相关人员。以下只控制节点附件：默认仅节点授权人员可见，勾选申请人后可向发起人开放。</NAlert>
+  <NAlert type="info" :bordered="false" class="mb">审批意见面向活动相关人员。以下只控制节点附件：默认仅节点授权人员可见，勾选申请人后可向发起人开放。规则随申请提交版本冻结，修改模板只影响后续提交；已有附件需通过“单文件权限”调整。</NAlert>
   <AccessRuleEditor
     :model-value="modelValue.access"
     :fallback="NODE_PRIVATE_ACCESS"
@@ -37,7 +37,7 @@
     label="节点附件下载范围"
     @update:model-value="update('downloadAccess', $event)"
   />
-  <p class="permission-note">附件默认继承节点规则；单文件明确选择“活动内共享”或“指定授权”后单独生效，独立控制该文件。下载还需角色具备“下载活动附件”权限。</p>
+  <p class="permission-note">附件默认继承节点规则；单文件明确选择“活动内共享”或“指定授权”后单独生效，独立控制该文件。下载还需角色具备“下载申请附件”权限。</p>
 </template>
 <style scoped>
   .permission-note {

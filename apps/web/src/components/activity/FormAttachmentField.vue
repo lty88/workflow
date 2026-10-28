@@ -1,7 +1,7 @@
 <script setup lang="tsx">
   import AttachmentUploadPrompt from './AttachmentUploadPrompt.vue'
   import { computed, ref } from 'vue'
-  import { NAlert, NButton, NEmpty, NPopconfirm, NUpload } from 'naive-ui'
+  import { NAlert, NButton, NEmpty, NPopconfirm, NUpload, NTag } from 'naive-ui'
   import type { UploadCustomRequestOptions } from 'naive-ui'
   import { attachmentIds, attachmentOptions, attachmentFileErrors } from '@workflow/domain'
   import type { FileRecord } from '@workflow/domain'
@@ -105,6 +105,7 @@
         <small>{{ fileSize(file.size) }}</small>
       </div>
       <a v-if="file.canDownload" :href="'/api/files/' + file.id" target="_blank" rel="noopener">下载</a>
+      <NTag v-else-if="file.canDownload === false" size="small" :bordered="false" :title="file.downloadHint">{{ file.downloadHint?.includes('角色') ? '角色未授权下载' : '不在下载范围' }}</NTag>
       <NPopconfirm v-if="!disabled" @positive-click="remove(file.id)">
         <template #trigger><NButton text type="error" :disabled="pending">移除</NButton></template>
         从本次表单移除，保存后生效；历史申请附件保留。

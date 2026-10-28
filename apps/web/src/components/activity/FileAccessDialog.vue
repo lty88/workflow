@@ -60,7 +60,7 @@
 <template>
   <NModal :show="show" preset="card" title="单文件权限" style="width: min(560px, 95vw)" :mask-closable="!busy" @update:show="emit('update:show', $event)">
     <NAlert type="info" :bordered="false" class="mb">
-      这里修改当前文件。“继承所属节点或活动”沿用原范围；选择“活动内共享”会将本文件分享给有权访问该活动的人员，其他文件仍保持原权限。节点上传人在仍有该节点内部阅读资格时可分享自己的附件。
+      这里修改当前文件。“继承所属节点或活动”沿用原范围；选择“活动内共享”会将本文件分享给有权访问该活动的人员，其他文件仍保持原权限。节点上传人在仍有该节点内部阅读资格时可分享自己的附件。下载还需同时满足角色下载能力和本文件下载范围，选择共享不会自动授予角色下载权限。
     </NAlert>
     <p>{{ file?.name }}</p>
     <NSpin :show="loading">
