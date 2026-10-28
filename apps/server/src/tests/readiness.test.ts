@@ -33,10 +33,11 @@ async function readyDatabaseCase(): Promise<void> {
           { version: 5 },
           { version: 6 },
           { version: 7 },
-          { version: 8 },
+          { version: 8 }, { version: 9 },
         ],
         [],
       ];
+    if (sql.includes("TABLE_NAME IN ('requests'")) return [[{TABLE_NAME:'requests'},{TABLE_NAME:'request_nodes'},{TABLE_NAME:'request_tasks'},{TABLE_NAME:'request_edges'},{TABLE_NAME:'request_files'}],[]];
     if (sql.includes('information_schema.TABLES')) return [[{ TABLE_NAME: 'execution_records' }], []];
     if (sql.includes("('context_id','action_key')"))
       return [[{ COLUMN_NAME: 'context_id' }, { COLUMN_NAME: 'action_key' }], []];

@@ -8,6 +8,7 @@ import { validateDataAccessRule } from './data-access';
 export interface ConfigValidationOptions {
   /** 旧版公司流程默认需要必要审核，独立模板按自定义节点校验。 */
   requireProtectedApproval?: boolean;
+  requireActivityFields?: boolean;
 }
 
 /**
@@ -41,7 +42,7 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
       ...validateDataAccessRule(config, field.access?.read, `${field.label}查看`),
       ...validateDataAccessRule(config, field.access?.write, `${field.label}编辑`),
     );
-    if (field.key === 'activity_name' && field.access?.read.mode === 'restricted')
+    if (['activity_name', 'request_title'].includes(field.key) && field.access?.read.mode === 'restricted')
       errors.push('活动名称属于流程公共标识，请保持活动内共享');
     if (field.access?.read.nodeAssignees || field.access?.write?.nodeAssignees)
       errors.push(`${field.label}为申请字段，请使用指定角色、人员或申请人授权`);
@@ -96,7 +97,7 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
     if (field.type === 'datetime' && field.default && !Number.isFinite(Date.parse(field.default)))
       errors.push(`${field.label}默认时间无效`);
   }
-  for (const key of [
+  const requiredKeys = options.requireActivityFields === false ? ['request_title'] : [
     'activity_name',
     'budget',
     'start_at',
@@ -104,7 +105,8 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
     'expert_fee',
     'conference_fee',
     'travel_fee',
-  ]) {
+  ];
+  for (const key of requiredKeys) {
     let field;
     for (const item of config.form.fields) if (item.key === key) field = item;
     if (!field || !field.required || field.visible) errors.push(`必须保留始终可见的必填字段：${key}`);
@@ -190,7 +192,7 @@ export function validateConfig(config: CompanyConfig, options: ConfigValidationO
   }
   for (const page of config.pages) {
     if (!findById(config.groups, page.group)) errors.push(`${page.name}菜单分组不存在`);
-    if (page.component === 'activity_form' && page.formId !== config.form.id)
+    if (options.requireActivityFields !== false && page.component === 'activity_form' && page.formId !== config.form.id)
       errors.push(`${page.name}表单绑定无效`);
   }
   for (const role of config.roles) {

@@ -1,0 +1,41 @@
+{
+  "generatedAt": "2026-10-27T06:09:18.413Z",
+  "results": [
+    {
+      "code": "latest-test-01-basic",
+      "id": "27468995-7d7e-4299-b0e5-a34b2e164cd0",
+      "name": "最新测试01｜单级审批基础操作",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 1
+    },
+    {
+      "code": "latest-test-02-serial-rating",
+      "id": "1ad89a3c-fce6-49ce-883d-e7911a44140e",
+      "name": "最新测试02｜串行审批与逐级评分",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 5
+    },
+    {
+      "code": "latest-test-03-parallel-return",
+      "id": "c67ed8c0-a5a4-4918-8d51-6dad29a951a7",
+      "name": "最新测试03｜并行会审与分支重办",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 4
+    },
+    {
+      "code": "latest-test-04-complex-security",
+      "id": "5a9484a8-bcb4-419e-aba2-15c41cf9ac5f",
+      "name": "最新测试04｜复杂协作与敏感资料",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 12
+    }
+  ]
+}

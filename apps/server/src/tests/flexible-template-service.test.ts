@@ -10,14 +10,15 @@ import type {
 } from '@workflow/domain';
 import { defaultValues, seedConfig } from '@workflow/domain';
 import { INITIAL_ACTIVITY_TYPES } from '../db/template-migration';
-import { createTemplate, publishTemplate } from '../services/template-service';
-import { submitActivity } from '../services/activity-service';
+import { createTemplate, publishTemplate, availableTemplates } from '../services/template-service';
+import { submitActivity, createDraft, handleDecision, getDetail } from '../services/activity-service';
 
 /**
  * 构造只用于模板创建、发布、提交的内存事务连接，未知SQL直接失败。
+ * @param generalOnly 是否使用无活动类型的纯通用申请环境
  * @returns 连接池替身、申请准备、保存结果和通知查询能力
  */
-function memoryPool() {
+function memoryPool(generalOnly = false) {
   const config = seedConfig();
   let template: Record<string, unknown> | null = null;
   let release: Record<string, unknown> | null = null;
@@ -32,11 +33,11 @@ function memoryPool() {
    * @returns MySQL驱动形状的查询或更新结果
    */
   async function execute(sql: string, values: unknown[] = []): Promise<[unknown, unknown[]]> {
-    if (sql.includes('FROM execution_records') || sql.includes('FROM files')) return [[], []];
+    if (sql.includes('FROM execution_records') || sql.includes('FROM files') || sql.includes('FROM request_files')) return [[], []];
     if (sql.includes('FROM configuration'))
       return [[{ published: config, draft: config, revision: 1, draft_revision: 1 }], []];
     if (sql.includes('FROM template_catalog_lock')) return [[{ id: 'catalog' }], []];
-    if (sql.includes('FROM activity_types')) return [structuredClone(INITIAL_ACTIVITY_TYPES), []];
+    if (sql.includes('FROM activity_types')) return [generalOnly ? [] : structuredClone(INITIAL_ACTIVITY_TYPES), []];
     if (sql.includes('FROM workflow_templates')) return [template ? [template] : [], []];
     if (sql.includes('FROM workflow_template_releases')) return [release ? [release] : [], []];
     if (sql.startsWith('INSERT INTO workflow_templates')) {
@@ -62,18 +63,27 @@ function memoryPool() {
       template!.current_version = values[1];
       template!.draft_revision = Number(template!.draft_revision) + 1;
     } else if (sql.includes('SELECT data FROM activities')) {
+      return [activity && activity.lifecycle?.businessType !== 'general' ? [{ data: structuredClone(activity) }] : [], []];
+    } else if (sql.includes('SELECT data FROM requests')) {
       return [activity ? [{ data: structuredClone(activity) }] : [], []];
-    } else if (sql.includes('SELECT data FROM workflow_nodes')) {
+    } else if (sql.startsWith('SELECT activity_id FROM workflow_tasks')) {
+      return [[], []];
+    } else if (sql.startsWith('SELECT activity_id FROM request_tasks')) {
+      const task = tasks.get(String(values[0]));
+      return [task && task.assignee === values[1] ? [{activity_id: task.activityId}] : [], []];
+    } else if (/SELECT data FROM (workflow_nodes|request_nodes)/.test(sql)) {
       return [[...nodes.values()].map((data) => ({ data: structuredClone(data) })), []];
-    } else if (sql.includes('SELECT data FROM workflow_tasks')) {
+    } else if (/SELECT data FROM (workflow_tasks|request_tasks)/.test(sql)) {
       return [[...tasks.values()].map((data) => ({ data: structuredClone(data) })), []];
     } else if (sql.includes('SELECT data FROM audit_events')) {
       return [[], []];
+    } else if (sql.startsWith('INSERT INTO requests(') || sql.startsWith('UPDATE requests SET')) {
+      activity = JSON.parse(String(values[8]));
     } else if (sql.startsWith('UPDATE activities SET')) {
       activity = JSON.parse(String(values[3]));
-    } else if (sql.startsWith('INSERT INTO workflow_nodes')) {
+    } else if (/^INSERT INTO (workflow_nodes|request_nodes)/.test(sql)) {
       nodes.set(String(values[0]), JSON.parse(String(values[5])));
-    } else if (sql.startsWith('INSERT INTO workflow_tasks')) {
+    } else if (/^INSERT INTO (workflow_tasks|request_tasks)/.test(sql)) {
       tasks.set(String(values[0]), JSON.parse(String(values[7])));
     } else if (sql.startsWith('INSERT IGNORE INTO outbox_events')) {
       events.push(values);
@@ -87,6 +97,8 @@ function memoryPool() {
         'INSERT INTO activity_type_templates',
         'DELETE FROM workflow_edges',
         'INSERT INTO workflow_edges',
+        'DELETE FROM request_edges',
+        'INSERT INTO request_edges',
       ].some((prefix) => sql.startsWith(prefix))
     )
       throw new Error('未声明SQL：' + sql);
@@ -179,7 +191,7 @@ function memoryPool() {
       published: template?.published as TemplateDefinition,
     };
   }
-  return { pool: { getConnection } as unknown as Pool, prepare, result };
+  return { pool: { getConnection, execute } as unknown as Pool, prepare, result };
 }
 
 /** 核对真实创建、发布、提交服务接受三种首节点，知会写入可靠投递并通知流程负责人。 */
@@ -202,7 +214,7 @@ async function lifecycleCase(): Promise<void> {
     const saved = memory.result();
     expect(saved.activity!.status).toBe(kind === 'notice' ? 'ready_assign' : 'approving');
     expect(saved.tasks.length).toBeGreaterThan(0);
-    expect(saved.tasks.every((task) => task.status === (kind === 'notice' ? 'completed' : 'pending'))).toBe(
+    expect(saved.tasks.filter((task) => !saved.nodes.some((node) => node.id === task.nodeId && node.businessStage)).every((task) => task.status === (kind === 'notice' ? 'completed' : 'pending'))).toBe(
       true,
     );
     expect(
@@ -249,3 +261,44 @@ async function lenientSubmissionCase(): Promise<void> {
   }
 }
 test('真实提交服务允许填表耗时及历史补录，预算超过原上限仍按明细保存', lenientSubmissionCase);
+
+
+/** 验证无活动类型的OA环境，可发布、选取独立表单并贯通创建、提交、审批和详情查询。 */
+async function generalServiceCase(): Promise<void> {
+  const memory = memoryPool(true);
+  const created = await createTemplate(memory.pool, 'u-admin', {
+    code: 'general-purchase', businessType: 'general', firstNodeKind: 'approval', idempotencyKey: crypto.randomUUID(),
+  });
+  const published = await publishTemplate(memory.pool, 'u-admin', created.id, {
+    expectedDraftRevision: created.draftRevision, idempotencyKey: crypto.randomUUID(),
+  });
+  const available = await availableTemplates(memory.pool, seedConfig(), 'u-lin', 'general', 'general');
+  expect(available).toHaveLength(1);
+  expect(available[0]!.form.businessType).toBe('general');
+  const draft = await createDraft(memory.pool, 'u-lin', {
+    payload: { request_title: '采购教学演示器材', request_reason: '公开课教学需要采购演示器材。' },
+    activityTypeId: 'general', templateId: published.id, expectedTemplateVersion: published.currentVersion,
+  }, crypto.randomUUID());
+  expect(memory.result().activity!.code).toMatch(/^OA-/);
+  expect(memory.result().activity).not.toHaveProperty('executor');
+  const submitted = await submitActivity(memory.pool, 'u-lin', draft.id, draft.version, crypto.randomUUID(), published.currentVersion);
+  const task = memory.result().tasks[0]!;
+  expect(submitted.version).toBe(2);
+  expect(task.assignee).toBe('u-chen');
+  const decided = await handleDecision(memory.pool, 'u-chen', task.id, {
+    decision: 'approve', comment: '', publicComment: '同意采购', expectedTaskVersion: task.version, idempotencyKey: crypto.randomUUID(),
+  });
+  expect(decided.version).toBe(3);
+  const detail = await getDetail(memory.pool, 'u-lin', draft.id);
+  expect(detail.activity.status).toBe('completed');
+  expect(detail.activity.completedAt).toBeTruthy();
+  expect(detail.activity.payload).toEqual({ request_title: '采购教学演示器材', request_reason: '公开课教学需要采购演示器材。', request_files: '' });
+  expect(detail.activity.snapshots[0]!.lifecycle!.afterApproval).toBe('complete');
+  expect(detail.activity.nodes).toHaveLength(1);
+  expect(detail.actions).not.toContain('assign');
+  expect(memory.result().events.length).toBeGreaterThan(0);
+  const copy = await createTemplate(memory.pool, 'u-admin', { code: 'general-purchase-copy', sourceId: published.id, idempotencyKey: crypto.randomUUID() });
+  expect(copy.draft.lifecycle!.businessType).toBe('general');
+  expect(copy.draft.form!.fields).toEqual(published.published!.form!.fields);
+}
+test('通用申请贯通真实创建、发布、选择、提交、审批与详情服务，无活动类型也能复制模板', generalServiceCase);

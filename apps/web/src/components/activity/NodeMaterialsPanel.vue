@@ -13,7 +13,7 @@
    * @returns 是否属于当前显示范围
    */
   function current(node: WorkflowNode): boolean {
-    return history.value || ((node.applicationRevision || 1) === (props.detail.activity.revision || 1) && !['skipped', 'invalidated'].includes(node.status))
+    return !node.businessStage && (history.value || ((node.applicationRevision || 1) === (props.detail.activity.revision || 1) && !['skipped', 'invalidated'].includes(node.status)))
   }
   /**
    * 根据服务端投影能力判断当前节点内部材料可见性。

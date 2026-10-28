@@ -48,6 +48,7 @@ export interface EditorCanvasToolbarProps {
   canRemove: boolean
 }
 export interface TemplateSettingsProps {
+  typeLocked?: boolean;
   modelValue: TemplateDefinition
   config: CompanyConfig
   types: ActivityType[]
@@ -102,6 +103,7 @@ export interface TemplateSystemInspectorProps {
   disabled: boolean
 }
 export interface TemplateFlowGuideProps {
+  lifecycle?: import('@workflow/domain').LifecycleDefinition;
   nodes: NodeDefinition[]
 }
 

@@ -98,7 +98,7 @@
       <strong>{{ activity.name || '未命名草稿' }}</strong>
       <span>{{ activity.code }}</span>
     </div>
-    <NAlert type="warning" :bordered="false">删除后活动将从列表、待办和看板中移除，未完成任务停止，评价链接失效。审批、附件和评价历史会保留。</NAlert>
+    <NAlert type="warning" :bordered="false">删除后记录将从工单、待办和看板中隐藏，底层审批、附件和历史数据保留。若只是结束本次申请，应使用终止、撤回或取消流程。管理员删除在办记录还会停止未完成任务，并关闭活动评价链接。</NAlert>
     <NForm ref="formRef" :model="formModel" :rules="formRules" label-placement="top" style="margin-top: 20px">
       <NFormItem label="删除原因" path="reason" required>
         <NInput

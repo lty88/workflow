@@ -40,6 +40,7 @@ export function formatAmountFen(value: number): string {
  * @returns 是否可以从三项费用自动计算预算
  */
 export function hasBudgetBreakdown(form: FormDefinition): boolean {
+  if (form.businessType === 'general') return false;
   const keys = new Set<string>();
   for (const field of form.fields) if (field.type === 'number' && !field.redacted) keys.add(field.key);
   return (
@@ -164,7 +165,8 @@ export function validateForm(
   }
   const payload: Record<string, string> = {};
   input = { ...input };
-  const autoBudget = hasBudgetBreakdown(form);
+  const activityForm = form.businessType !== 'general';
+  const autoBudget = activityForm && hasBudgetBreakdown(form);
   if (autoBudget) input.budget = budgetTotal(input);
   for (const field of visibleFields(form, input)) {
     const value = (input[field.key] ?? '').trim();
@@ -213,6 +215,7 @@ export function validateForm(
         if (!field.options.includes(option)) report(field.key, `${field.label}包含无效选项`);
     }
   }
+  if (activityForm) {
   if (payload.start_at && payload.end_at && Date.parse(payload.end_at) <= Date.parse(payload.start_at))
     report('end_at', '结束时间必须晚于开始时间');
   if (payload.service_type === '收费课题培训' && !payload.training?.trim())
@@ -227,6 +230,7 @@ export function validateForm(
   for (const key of ['contact_info', 'arranger_info', 'receiver_info'])
     if (payload[key] && !/^1\d{10}$|^\+?[\d -]{7,20}$|^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload[key]!))
       report(key, '联系方式需为手机、座机或邮箱');
+  }
   return { errors: [...new Set(errors)], issues, payload };
 }
 

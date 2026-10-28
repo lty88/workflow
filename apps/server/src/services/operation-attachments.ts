@@ -1,3 +1,4 @@
+import { lifecycleOf } from '@workflow/domain';
 import { attachmentContextCommitted } from '@workflow/domain';
 import type { FileRecord } from '@workflow/domain';
 import type { MutationContext } from './activity-service';
@@ -29,7 +30,7 @@ export async function validateOperationAttachments(
     'ATTACHMENTS_COMMITTED',
     '本次记录或附件已提交，请刷新后查看',
   );
-  const files = (await activityFiles(context.connection, activity.id)).filter(
+  const files = (await activityFiles(context.connection, activity.id, lifecycleOf(activity).businessType)).filter(
     (file) => file.contextId === contextId,
   );
   ensure(

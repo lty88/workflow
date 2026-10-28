@@ -59,6 +59,7 @@ export function activityListDestination(pages: PageDefinition[]): string {
  */
 export function navigationTitle(path: string, pages: PageDefinition[]): string {
   if (isModulePath(path, APP_PATHS.settings)) return '配置中心';
+  if (isModulePath(path, APP_PATHS.requests)) return path === APP_PATHS.requestCreate ? '发起通用审批' : '申请中心';
   if (path === APP_PATHS.activityCreate) return '发起活动';
   if (isModulePath(path, '/activities')) return '活动详情';
   if (path === APP_PATHS.account) return '账号安全';

@@ -9,6 +9,7 @@ import type { ActivityStepValidation } from './types';
  */
 export function isBasicField(key: string): boolean {
   return [
+    'request_title',
     'activity_name',
     'delivery_mode',
     'start_at',

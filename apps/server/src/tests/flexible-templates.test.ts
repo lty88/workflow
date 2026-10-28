@@ -118,7 +118,8 @@ function taskCase(): void {
   expect(
     activity.tasks.some((task) => task.nodeId === activity.nodes[1]!.id && task.status === 'completed'),
   ).toBe(true);
-  expect(activity.tasks.some((task) => task.status === 'pending')).toBe(false);
+  expect(activity.tasks.some((task) => task.status === 'pending' && activity.nodes.some((node) => node.id === task.nodeId && !node.businessStage))).toBe(false);
+  expect(activity.nodes.some((node) => node.businessStage === 'assign' && node.status === 'active')).toBe(true);
 }
 test('任务流程等待完成，后置知会自动完成并进入待指派', taskCase);
 /** 核对纯知会立即进入待指派，知会首节点不会阻断后续审批。 */
@@ -174,8 +175,8 @@ function graphCase(): void {
   value.nodes.push({ ...firstTemplateNode('notice'), id: 'notice', deps: [value.nodes[0]!.id] });
   const before = JSON.stringify(value);
   const model = templateEditorGraph(templateContext(config, value, config.form));
-  expect(model.data.nodes).toHaveLength(4);
-  expect(model.data.nodes?.filter((node) => node.data?.boundary)).toHaveLength(2);
+  expect(model.data.nodes).toHaveLength(9);
+  expect(model.data.nodes?.filter((node) => node.data?.boundary)).toHaveLength(7);
   expect(
     model.data.edges?.some((edge) => edge.source === 'workflow:n-first' && edge.target === 'stage:approved'),
   ).toBe(true);
@@ -184,7 +185,7 @@ function graphCase(): void {
   ).toBe(false);
   expect(JSON.stringify(value)).toBe(before);
   value.nodes = [];
-  expect(templateEditorGraph(templateContext(config, value, config.form)).data.nodes).toHaveLength(2);
+  expect(templateEditorGraph(templateContext(config, value, config.form)).data.nodes).toHaveLength(7);
 }
 test('展示起止边界且不写入业务定义，知会不阻断完成', graphCase);
 /** 核对真实仓储读取时解锁旧草稿，原始发布版本保持不变。 */
@@ -232,7 +233,7 @@ function boundaryPositionsCase(): void {
   expect(validateTemplate(config, restored, INITIAL_ACTIVITY_TYPES)).toEqual([]);
   const graph = templateEditorGraph(templateContext(config, restored, config.form));
   const keys = graph.data.nodes!.map(templatePositionKey);
-  expect(keys).toEqual(['stage:apply', 'n-first', 'stage:approved']);
+  expect(keys).toEqual(['stage:apply', 'n-first', 'stage:approved', 'stage:business:assign', 'stage:business:execution', 'stage:business:archive_submit', 'stage:business:archive_review', 'stage:case-end']);
   expect(templatePositionKey({ id: 'stage:execute', data: { kind: 'stage', boundary: true } })).toBe('');
   expect(templatePositionKey({ id: 'stage:apply', data: { kind: 'stage' } })).toBe('');
   expect(

@@ -35,6 +35,7 @@
   const createOpen = ref(false)
   const code = ref('')
   const sourceId = ref<string>()
+  const businessType = ref<'activity' | 'general'>('activity')
   const firstNodeKind = ref<NodeDefinition['kind']>('approval')
   const versions = ref<TemplateRelease[]>([])
   const historyOpen = ref(false)
@@ -98,7 +99,7 @@
     }
     busy.value = true
     try {
-      apply(await createTemplateApi(code.value, sourceId.value, firstNodeKind.value), true)
+      apply(await createTemplateApi(code.value, sourceId.value, firstNodeKind.value, businessType.value), true)
       createOpen.value = false
       feedback.success('模板草稿已创建')
     } catch (error) {
@@ -303,6 +304,7 @@
       </NFormItem>
       <p v-if="!sourceId" class="help-text">这里只是起步选择，进入设计器后仍可修改类型、受理人或删除重建。</p>
       <p class="help-text">发布后编码固定；名称、适用类型和受理规则在设计器中配置。</p>
+      <NFormItem v-if="!sourceId" label="业务类型"><NSelect v-model:value="businessType" :options="[{label:'活动申请',value:'activity'},{label:'通用 OA 申请',value:'general'}]" /></NFormItem>
       <NButton type="primary" :loading="busy" @click="create">创建草稿并设计</NButton>
     </NForm>
   </NModal>

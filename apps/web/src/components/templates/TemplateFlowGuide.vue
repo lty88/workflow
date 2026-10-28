@@ -3,7 +3,7 @@
   import type { TemplateFlowGuideProps } from './types'
   import { templateExecutionSummary } from '@workflow/domain'
   const props = defineProps<TemplateFlowGuideProps>()
-  const execution = computed(() => templateExecutionSummary(props.nodes))
+  const execution = computed(() => templateExecutionSummary(props.nodes, props.lifecycle))
 </script>
 <template>
   <div class="flow-guide" :class="{ attention: !execution.approvals }" role="note">

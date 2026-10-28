@@ -164,6 +164,7 @@
           :disabled="disabled || field.readOnly || field.redacted"
           :options="optionsFor(field.options)"
           clearable
+          filterable
           @update:value="update(field.key, $event)"
         />
         <NDatePicker

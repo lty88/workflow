@@ -38,6 +38,26 @@ export async function memberReferences(db: PoolConnection, id: string): Promise<
       params: [id, pattern, pattern],
     },
     {
+      label: '通用申请及历史记录',
+      sql: "SELECT 1 FROM requests WHERE applicant_id=? OR JSON_SEARCH(data,'one',?) IS NOT NULL LIMIT 1",
+      params: [id, pattern],
+    },
+    {
+      label: '通用申请节点与受理记录',
+      sql: "SELECT 1 FROM request_nodes WHERE JSON_SEARCH(data,'one',?) IS NOT NULL LIMIT 1",
+      params: [pattern],
+    },
+    {
+      label: '通用申请办理任务',
+      sql: "SELECT 1 FROM request_tasks WHERE assignee_id=? OR JSON_SEARCH(data,'one',?) IS NOT NULL LIMIT 1",
+      params: [id, pattern],
+    },
+    {
+      label: '通用申请附件上传或授权',
+      sql: "SELECT 1 FROM request_files WHERE uploader_id=? OR JSON_SEARCH(access_rule,'one',?) IS NOT NULL OR JSON_SEARCH(download_rule,'one',?) IS NOT NULL LIMIT 1",
+      params: [id, pattern, pattern],
+    },
+    {
       label: '流程模板设置',
       sql: "SELECT 1 FROM workflow_templates WHERE created_by=? OR JSON_SEARCH(draft,'one',?) IS NOT NULL OR JSON_SEARCH(published,'one',?) IS NOT NULL LIMIT 1",
       params: [id, pattern, pattern],

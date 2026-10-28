@@ -1,4 +1,4 @@
-import { activeMember, hasPermission, topological } from '@workflow/domain';
+import { activeMember, defaultApprovalPolicy, hasPermission, topological } from '@workflow/domain';
 import type {
   ActivityType,
   AssigneeRule,
@@ -448,4 +448,184 @@ export function buildTestTemplateCatalog(config: CompanyConfig, types: ActivityT
     ],
   );
   return catalog;
+}
+
+/** 使用历史测试目录生成四套最新模板配置测试方案，覆盖审批操作、评分、并行退回与资料权限。
+ * @param config 当前组织、权限和表单
+ * @param types 已维护的活动类型
+ * @returns 两套简单流程与两套复杂流程组成的最新测试目录
+ */
+export function buildLatestTestTemplateCatalog(config: CompanyConfig, types: ActivityType[]): TestTemplatePlan[] {
+  const source = buildTestTemplateCatalog(config, types);
+  const basic = structuredClone(source[0]!);
+  const serial = structuredClone(source[1]!);
+  const parallel = structuredClone(source[3]!);
+  const complex = structuredClone(source[5]!);
+
+  basic.code = 'latest-test-01-basic';
+  basic.definition.name = '最新测试01｜单级审批基础操作';
+  basic.definition.ratingEnabled = false;
+  basic.purpose = '验证单节点审批、退回发起人、终止申请和默认关闭评分';
+  basic.definition.nodes[0]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    allowTerminate: true,
+  };
+  basic.cases = [
+    {
+      name: '通过、退回与终止',
+      payload: {},
+      checks: [
+        '审批抽屉显示通过审批、退回修改和终止申请三个操作',
+        '退回修改仅能退给发起人，补充后可重新提交',
+        '终止申请必须填写原因，终止后不进入执行阶段',
+        '模板评分总开关关闭，不显示上游评分项',
+      ],
+    },
+  ];
+
+  serial.code = 'latest-test-02-serial-rating';
+  serial.definition.name = '最新测试02｜串行审批与逐级评分';
+  serial.definition.ratingEnabled = true;
+  serial.purpose = '验证串行审批、可选评分、必填评分和指定上游退回范围';
+  for (const node of serial.definition.nodes)
+    if (node.kind === 'approval') node.approvalPolicy = defaultApprovalPolicy();
+  serial.definition.nodes[1]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    rating: 'optional',
+  };
+  serial.definition.nodes[2]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    returnScope: 'selected',
+    returnNodeIds: ['review', 'research'],
+    returnToApplicant: false,
+    allowTerminate: true,
+    rating: 'required',
+  };
+  serial.definition.nodes[3]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    rating: 'required',
+  };
+  serial.cases = [
+    {
+      name: '串行评分与指定退回',
+      payload: {},
+      checks: [
+        '教研审批可选填评价部门初审分数，0分仍是有效评分',
+        '财务审批必须评价教研成果，未评分不能通过',
+        '财务可退回部门初审或教研审核，但不能直接退给发起人',
+        '领导终审必须评价财务审核成果，办理进度展示评分人与分数',
+        '审批全部完成后知会协调人，知会不产生办理按钮',
+      ],
+    },
+  ];
+
+  parallel.code = 'latest-test-03-parallel-return';
+  parallel.definition.name = '最新测试03｜并行会审与分支重办';
+  parallel.definition.ratingEnabled = true;
+  parallel.purpose = '验证并行审批、汇合评分、指定分支退回和独立分支结果保留';
+  for (const node of parallel.definition.nodes)
+    if (node.kind === 'approval') node.approvalPolicy = defaultApprovalPolicy();
+  parallel.definition.nodes[1]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    rating: 'optional',
+  };
+  parallel.definition.nodes[2]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    rating: 'optional',
+  };
+  parallel.definition.nodes[3]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    returnScope: 'selected',
+    returnNodeIds: ['review', 'research', 'finance'],
+    returnToApplicant: false,
+    allowTerminate: true,
+    rating: 'required',
+  };
+  parallel.cases = [
+    {
+      name: '并行通过与汇合评分',
+      payload: {},
+      checks: [
+        '初审后教研和财务同时收到待办，任一分支完成都不会提前激活终审',
+        '领导终审需要分别评价教研与财务两个直接前置审批成果',
+        '两项评分均填写后才可通过，进度中分别展示评分结果',
+      ],
+    },
+    {
+      name: '退回单一并行分支',
+      payload: {},
+      checks: [
+        '领导选择退回教研分支时，教研及领导进入新轮次',
+        '已完成的财务独立分支保持有效，不重复生成财务待办',
+        '教研重新通过后领导再次获得待办，旧评分显示为历史评分',
+      ],
+    },
+  ];
+
+  complex.code = 'latest-test-04-complex-security';
+  complex.definition.name = '最新测试04｜复杂协作与敏感资料';
+  complex.definition.ratingEnabled = true;
+  complex.purpose = '验证审批、任务、知会、多次汇合、深层退回、评分与节点附件权限的组合行为';
+  for (const node of complex.definition.nodes)
+    if (node.kind === 'approval') node.approvalPolicy = defaultApprovalPolicy();
+  complex.definition.nodes[1]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    rating: 'required',
+  };
+  complex.definition.nodes[2]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    rating: 'optional',
+  };
+  complex.definition.nodes[4]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    rating: 'required',
+  };
+  complex.definition.nodes[7]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    returnScope: 'selected',
+    returnNodeIds: ['review', 'research', 'marketing', 'tech'],
+    returnToApplicant: false,
+    allowTerminate: true,
+    rating: 'required',
+  };
+  complex.definition.nodes[9]!.approvalPolicy = {
+    ...defaultApprovalPolicy(),
+    returnScope: 'selected',
+    returnNodeIds: ['review', 'research', 'finance', 'design', 'marketing', 'tech', 'printing', 'quality'],
+    returnToApplicant: false,
+    allowTerminate: true,
+    rating: 'required',
+  };
+  complex.definition.nodes[2]!.access = {
+    mode: 'restricted',
+    roleIds: ['director'],
+    userIds: [],
+    nodeAssignees: true,
+  };
+  complex.definition.nodes[2]!.downloadAccess = structuredClone(complex.definition.nodes[2]!.access);
+  complex.cases = [
+    {
+      name: '复杂路线完整通过',
+      payload: {},
+      checks: [
+        '教研与财务并行后，设计、营销、技术、印制按依赖逐步激活',
+        '审批节点按配置要求评价直接前置审批，任务和知会不显示评分',
+        '财务节点新上传附件默认仅财务办理人与领导可查看和下载',
+        '单文件改为活动内共享后，有活动查看权的人员可以查看，但下载仍校验下载权限',
+        '知会自动发送站内通知，不阻塞后续节点',
+      ],
+    },
+    {
+      name: '深层退回与终止',
+      payload: {},
+      checks: [
+        '质量复核可按白名单退回教研、营销或技术节点',
+        '领导终审可退回任一已流经的上游审批或任务节点',
+        '退回目标及其后续进入新轮次，未受影响的独立分支保持有效',
+        '质量复核或领导终审可终止整个申请，原因必填且剩余待办取消',
+      ],
+    },
+  ];
+
+  return [basic, serial, parallel, complex];
 }

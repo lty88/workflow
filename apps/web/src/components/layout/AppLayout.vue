@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useMediaQuery } from '@vueuse/core';
 import { NButton, NDrawer, NDrawerContent, NTag } from 'naive-ui';
+import CreateRequestMenu from '@/components/workspace/creation/CreateRequestMenu.vue';
 import NotificationCenter from '@/components/notifications/NotificationCenter.vue';
 import type { PageDefinition } from '@workflow/domain';
 import {
@@ -89,13 +90,14 @@ async function signOut(): Promise<void> {
         ><span class="brand-symbol">流</span
         ><span>活动流程<span class="brand-sub">WORKFLOW · ERP</span></span></RouterLink
       >
-      <nav class="navigation">
+      <nav class="navigation"><RouterLink v-if="auth.can('activity:read')" to="/requests" class="nav-item" :class="{ selected: isModulePath(route.path, '/requests') }"><span class="nav-dot" />申请中心</RouterLink>
         <template v-for="group in auth.profile?.groups" :key="group.id"
           ><template v-if="group.active && groupVisible(group.id)"
             ><div class="nav-group">{{ group.name }}</div>
             <template v-for="page in navigationMenus" :key="page.id"
-              ><RouterLink
-                v-if="page.group === group.id"
+              ><CreateRequestMenu v-if="page.group === group.id && page.component === 'activity_form'" appearance="sidebar" :activity-path="menuDestination(page)" :selected="matchesPage(page)" />
+              <RouterLink
+                v-else-if="page.group === group.id"
                 :to="menuDestination(page)"
                 class="nav-item"
                 :class="{ selected: matchesPage(page) }"
@@ -137,11 +139,8 @@ async function signOut(): Promise<void> {
   </div>
   <NDrawer v-model:show="menuOpen" placement="left" :width="280"
     ><NDrawerContent title="活动流程" closable
-      ><nav class="mobile-nav">
-        <RouterLink v-for="page in navigationMenus" :key="page.id" :to="menuDestination(page)">{{
-          page.name
-        }}</RouterLink
-        ><RouterLink v-if="configurationFallback" :to="APP_PATHS.settings">配置中心</RouterLink>
+      ><nav class="mobile-nav"><RouterLink v-if="auth.can('activity:read')" to="/requests" class="nav-item">申请中心</RouterLink>
+        <template v-for="page in navigationMenus" :key="page.id"><CreateRequestMenu v-if="page.component === 'activity_form'" appearance="mobile" :activity-path="menuDestination(page)" @navigate="closeMenu" /><RouterLink v-else :to="menuDestination(page)">{{ page.name }}</RouterLink></template><RouterLink v-if="configurationFallback" :to="APP_PATHS.settings">配置中心</RouterLink>
       </nav></NDrawerContent
     ></NDrawer
   >

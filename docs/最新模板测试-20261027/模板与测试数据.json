@@ -1,0 +1,1470 @@
+{
+  "generatedAt": "2026-10-27T06:09:18.433Z",
+  "applicant": {
+    "username": "sichuan1",
+    "id": "u-org-sichuan1"
+  },
+  "samplePayload": {
+    "activity_name": "流程测试活动",
+    "delivery_mode": "线下",
+    "start_at": "2026-10-27T06:39:00.000Z",
+    "end_at": "2026-10-27T09:39:00.000Z",
+    "location": "测试会议室",
+    "meeting_url": "https://example.com/meeting/test",
+    "nature": "校园立体阅读课程项目",
+    "service_type": "免费课题服务",
+    "background": "验证公司内部活动协作流程",
+    "agenda": "09:00签到；09:30案例交流；11:00总结",
+    "content_forms": "专题讲座",
+    "forum": "否",
+    "people": "30",
+    "composition": "一线教师",
+    "training": "测试填写：培训内容、形式与时长",
+    "personnel": "",
+    "contact": "测试联系人",
+    "contact_info": "13800000001",
+    "arranger": "测试安排人",
+    "arranger_info": "13800000002",
+    "receiver": "测试接收人",
+    "receiver_info": "13800000003",
+    "expert_fee": "1000",
+    "conference_fee": "500",
+    "travel_fee": "300",
+    "budget": "1800",
+    "testfiled": "测试流程模板填写数据",
+    "test": "111"
+  },
+  "formWarnings": [],
+  "plans": [
+    {
+      "code": "latest-test-01-basic",
+      "purpose": "验证单节点审批、退回发起人、终止申请和默认关闭评分",
+      "cases": [
+        {
+          "name": "通过、退回与终止",
+          "payload": {},
+          "checks": [
+            "审批抽屉显示通过审批、退回修改和终止申请三个操作",
+            "退回修改仅能退给发起人，补充后可重新提交",
+            "终止申请必须填写原因，终止后不进入执行阶段",
+            "模板评分总开关关闭，不显示上游评分项"
+          ]
+        }
+      ],
+      "definition": {
+        "name": "最新测试01｜单级审批基础操作",
+        "activityTypeIds": [
+          "teaching",
+          "reading",
+          "online",
+          "training",
+          "internal"
+        ],
+        "defaultForTypeIds": [],
+        "departmentIds": [],
+        "roleIds": [
+          "applicant"
+        ],
+        "nodes": [
+          {
+            "id": "review",
+            "label": "申请人部门负责人审批",
+            "kind": "approval",
+            "assignee": {
+              "type": "manager",
+              "value": ""
+            },
+            "deps": [],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": true,
+              "rating": "off"
+            }
+          }
+        ],
+        "layout": {
+          "direction": "TB",
+          "positions": {
+            "review": {
+              "x": 0,
+              "y": 160
+            }
+          }
+        },
+        "ratingEnabled": false
+      }
+    },
+    {
+      "code": "latest-test-02-serial-rating",
+      "purpose": "验证串行审批、可选评分、必填评分和指定上游退回范围",
+      "cases": [
+        {
+          "name": "串行评分与指定退回",
+          "payload": {},
+          "checks": [
+            "教研审批可选填评价部门初审分数，0分仍是有效评分",
+            "财务审批必须评价教研成果，未评分不能通过",
+            "财务可退回部门初审或教研审核，但不能直接退给发起人",
+            "领导终审必须评价财务审核成果，办理进度展示评分人与分数",
+            "审批全部完成后知会协调人，知会不产生办理按钮"
+          ]
+        }
+      ],
+      "definition": {
+        "name": "最新测试02｜串行审批与逐级评分",
+        "activityTypeIds": [
+          "teaching",
+          "reading",
+          "online",
+          "training",
+          "internal"
+        ],
+        "defaultForTypeIds": [],
+        "departmentIds": [],
+        "roleIds": [
+          "applicant"
+        ],
+        "nodes": [
+          {
+            "id": "review",
+            "label": "申请人部门初审",
+            "kind": "approval",
+            "assignee": {
+              "type": "manager",
+              "value": ""
+            },
+            "deps": [],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "off"
+            }
+          },
+          {
+            "id": "research",
+            "label": "教研方案审核",
+            "kind": "approval",
+            "assignee": {
+              "type": "department_manager",
+              "value": "org-jiaoyan"
+            },
+            "deps": [
+              "review"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "optional"
+            }
+          },
+          {
+            "id": "finance",
+            "label": "财务预算审核",
+            "kind": "approval",
+            "assignee": {
+              "type": "department_manager",
+              "value": "org-caiwu"
+            },
+            "deps": [
+              "research"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "selected",
+              "returnNodeIds": [
+                "review",
+                "research"
+              ],
+              "returnToApplicant": false,
+              "allowTerminate": true,
+              "rating": "required"
+            }
+          },
+          {
+            "id": "leader",
+            "label": "院领导终审",
+            "kind": "approval",
+            "assignee": {
+              "type": "role",
+              "value": "director"
+            },
+            "deps": [
+              "finance"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "required"
+            }
+          },
+          {
+            "id": "notice",
+            "label": "知会流程协调人",
+            "kind": "notice",
+            "assignee": {
+              "type": "role",
+              "value": "coordinator"
+            },
+            "deps": [
+              "leader"
+            ]
+          }
+        ],
+        "layout": {
+          "direction": "TB",
+          "positions": {
+            "review": {
+              "x": 0,
+              "y": 160
+            },
+            "research": {
+              "x": 0,
+              "y": 340
+            },
+            "finance": {
+              "x": 0,
+              "y": 520
+            },
+            "leader": {
+              "x": 0,
+              "y": 700
+            },
+            "notice": {
+              "x": 0,
+              "y": 880
+            }
+          }
+        },
+        "ratingEnabled": true
+      }
+    },
+    {
+      "code": "latest-test-03-parallel-return",
+      "purpose": "验证并行审批、汇合评分、指定分支退回和独立分支结果保留",
+      "cases": [
+        {
+          "name": "并行通过与汇合评分",
+          "payload": {},
+          "checks": [
+            "初审后教研和财务同时收到待办，任一分支完成都不会提前激活终审",
+            "领导终审需要分别评价教研与财务两个直接前置审批成果",
+            "两项评分均填写后才可通过，进度中分别展示评分结果"
+          ]
+        },
+        {
+          "name": "退回单一并行分支",
+          "payload": {},
+          "checks": [
+            "领导选择退回教研分支时，教研及领导进入新轮次",
+            "已完成的财务独立分支保持有效，不重复生成财务待办",
+            "教研重新通过后领导再次获得待办，旧评分显示为历史评分"
+          ]
+        }
+      ],
+      "definition": {
+        "name": "最新测试03｜并行会审与分支重办",
+        "activityTypeIds": [
+          "teaching",
+          "reading",
+          "online",
+          "training",
+          "internal"
+        ],
+        "defaultForTypeIds": [],
+        "departmentIds": [],
+        "roleIds": [
+          "applicant"
+        ],
+        "nodes": [
+          {
+            "id": "review",
+            "label": "申请人部门初审",
+            "kind": "approval",
+            "assignee": {
+              "type": "manager",
+              "value": ""
+            },
+            "deps": [],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "off"
+            }
+          },
+          {
+            "id": "research",
+            "label": "教研方案并审",
+            "kind": "approval",
+            "assignee": {
+              "type": "department_manager",
+              "value": "org-jiaoyan"
+            },
+            "deps": [
+              "review"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "optional"
+            }
+          },
+          {
+            "id": "finance",
+            "label": "财务预算并审",
+            "kind": "approval",
+            "assignee": {
+              "type": "department_manager",
+              "value": "org-caiwu"
+            },
+            "deps": [
+              "review"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "optional"
+            }
+          },
+          {
+            "id": "leader",
+            "label": "双分支完成后领导终审",
+            "kind": "approval",
+            "assignee": {
+              "type": "role",
+              "value": "director"
+            },
+            "deps": [
+              "research",
+              "finance"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "selected",
+              "returnNodeIds": [
+                "review",
+                "research",
+                "finance"
+              ],
+              "returnToApplicant": false,
+              "allowTerminate": true,
+              "rating": "required"
+            }
+          }
+        ],
+        "layout": {
+          "direction": "TB",
+          "positions": {
+            "review": {
+              "x": 0,
+              "y": 160
+            },
+            "research": {
+              "x": -220,
+              "y": 340
+            },
+            "finance": {
+              "x": 220,
+              "y": 340
+            },
+            "leader": {
+              "x": 0,
+              "y": 520
+            }
+          }
+        },
+        "ratingEnabled": true
+      }
+    },
+    {
+      "code": "latest-test-04-complex-security",
+      "purpose": "验证审批、任务、知会、多次汇合、深层退回、评分与节点附件权限的组合行为",
+      "cases": [
+        {
+          "name": "复杂路线完整通过",
+          "payload": {},
+          "checks": [
+            "教研与财务并行后，设计、营销、技术、印制按依赖逐步激活",
+            "审批节点按配置要求评价直接前置审批，任务和知会不显示评分",
+            "财务节点新上传附件默认仅财务办理人与领导可查看和下载",
+            "单文件改为活动内共享后，有活动查看权的人员可以查看，但下载仍校验下载权限",
+            "知会自动发送站内通知，不阻塞后续节点"
+          ]
+        },
+        {
+          "name": "深层退回与终止",
+          "payload": {},
+          "checks": [
+            "质量复核可按白名单退回教研、营销或技术节点",
+            "领导终审可退回任一已流经的上游审批或任务节点",
+            "退回目标及其后续进入新轮次，未受影响的独立分支保持有效",
+            "质量复核或领导终审可终止整个申请，原因必填且剩余待办取消"
+          ]
+        }
+      ],
+      "definition": {
+        "name": "最新测试04｜复杂协作与敏感资料",
+        "activityTypeIds": [
+          "teaching",
+          "reading",
+          "online",
+          "training",
+          "internal"
+        ],
+        "defaultForTypeIds": [],
+        "departmentIds": [],
+        "roleIds": [
+          "applicant"
+        ],
+        "nodes": [
+          {
+            "id": "review",
+            "label": "申请人部门初审",
+            "kind": "approval",
+            "assignee": {
+              "type": "manager",
+              "value": ""
+            },
+            "deps": [],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "off"
+            }
+          },
+          {
+            "id": "research",
+            "label": "教研方案审核",
+            "kind": "approval",
+            "assignee": {
+              "type": "department_manager",
+              "value": "org-jiaoyan"
+            },
+            "deps": [
+              "review"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "required"
+            }
+          },
+          {
+            "id": "finance",
+            "label": "财务预算审核",
+            "kind": "approval",
+            "assignee": {
+              "type": "department_manager",
+              "value": "org-caiwu"
+            },
+            "deps": [
+              "review"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "optional"
+            },
+            "access": {
+              "mode": "restricted",
+              "roleIds": [
+                "director"
+              ],
+              "userIds": [],
+              "nodeAssignees": true
+            },
+            "downloadAccess": {
+              "mode": "restricted",
+              "roleIds": [
+                "director"
+              ],
+              "userIds": [],
+              "nodeAssignees": true
+            }
+          },
+          {
+            "id": "design",
+            "label": "制作活动视觉方案",
+            "kind": "task",
+            "assignee": {
+              "type": "user",
+              "value": "u-org-sheji1"
+            },
+            "deps": [
+              "research"
+            ]
+          },
+          {
+            "id": "marketing",
+            "label": "营销与校方确认",
+            "kind": "approval",
+            "assignee": {
+              "type": "department_manager",
+              "value": "org-yingxiao"
+            },
+            "deps": [
+              "research"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "previous",
+              "returnNodeIds": [],
+              "returnToApplicant": true,
+              "allowTerminate": false,
+              "rating": "required"
+            }
+          },
+          {
+            "id": "tech",
+            "label": "技术方案联调",
+            "kind": "task",
+            "assignee": {
+              "type": "user",
+              "value": "u-org-jishuyanfa1"
+            },
+            "deps": [
+              "research",
+              "finance"
+            ]
+          },
+          {
+            "id": "printing",
+            "label": "印制活动材料",
+            "kind": "task",
+            "assignee": {
+              "type": "user",
+              "value": "u-org-yinzhi1"
+            },
+            "deps": [
+              "design",
+              "finance"
+            ]
+          },
+          {
+            "id": "quality",
+            "label": "教学质量复核",
+            "kind": "approval",
+            "assignee": {
+              "type": "department_manager",
+              "value": "org-jiaoxuezhiliang"
+            },
+            "deps": [
+              "tech",
+              "marketing"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "selected",
+              "returnNodeIds": [
+                "review",
+                "research",
+                "marketing",
+                "tech"
+              ],
+              "returnToApplicant": false,
+              "allowTerminate": true,
+              "rating": "required"
+            }
+          },
+          {
+            "id": "notice",
+            "label": "预算确认后知会协调人",
+            "kind": "notice",
+            "assignee": {
+              "type": "role",
+              "value": "coordinator"
+            },
+            "deps": [
+              "finance"
+            ]
+          },
+          {
+            "id": "leader",
+            "label": "质量与印制汇合终审",
+            "kind": "approval",
+            "assignee": {
+              "type": "role",
+              "value": "director"
+            },
+            "deps": [
+              "quality",
+              "printing"
+            ],
+            "approvalPolicy": {
+              "returnEnabled": true,
+              "returnScope": "selected",
+              "returnNodeIds": [
+                "review",
+                "research",
+                "finance",
+                "design",
+                "marketing",
+                "tech",
+                "printing",
+                "quality"
+              ],
+              "returnToApplicant": false,
+              "allowTerminate": true,
+              "rating": "required"
+            }
+          },
+          {
+            "id": "arrange",
+            "label": "落实活动资源",
+            "kind": "task",
+            "assignee": {
+              "type": "user",
+              "value": "u-org-yingxiao1"
+            },
+            "deps": [
+              "leader"
+            ]
+          },
+          {
+            "id": "archive-notice",
+            "label": "准备归档知会",
+            "kind": "notice",
+            "assignee": {
+              "type": "role",
+              "value": "archivist"
+            },
+            "deps": [
+              "arrange"
+            ]
+          }
+        ],
+        "layout": {
+          "direction": "TB",
+          "positions": {
+            "review": {
+              "x": 0,
+              "y": 160
+            },
+            "research": {
+              "x": -220,
+              "y": 340
+            },
+            "finance": {
+              "x": 220,
+              "y": 340
+            },
+            "design": {
+              "x": -660,
+              "y": 520
+            },
+            "marketing": {
+              "x": -220,
+              "y": 520
+            },
+            "tech": {
+              "x": 220,
+              "y": 520
+            },
+            "notice": {
+              "x": 660,
+              "y": 520
+            },
+            "printing": {
+              "x": -220,
+              "y": 700
+            },
+            "quality": {
+              "x": 220,
+              "y": 700
+            },
+            "leader": {
+              "x": 0,
+              "y": 880
+            },
+            "arrange": {
+              "x": 0,
+              "y": 1060
+            },
+            "archive-notice": {
+              "x": 0,
+              "y": 1240
+            }
+          }
+        },
+        "ratingEnabled": true
+      }
+    }
+  ],
+  "variants": [
+    {
+      "code": "latest-test-01-basic",
+      "name": "通过、退回与终止",
+      "checks": [
+        "审批抽屉显示通过审批、退回修改和终止申请三个操作",
+        "退回修改仅能退给发起人，补充后可重新提交",
+        "终止申请必须填写原因，终止后不进入执行阶段",
+        "模板评分总开关关闭，不显示上游评分项"
+      ],
+      "payload": {
+        "activity_name": "流程测试活动",
+        "delivery_mode": "线下",
+        "start_at": "2026-10-27T06:39:00.000Z",
+        "end_at": "2026-10-27T09:39:00.000Z",
+        "location": "测试会议室",
+        "nature": "校园立体阅读课程项目",
+        "service_type": "免费课题服务",
+        "background": "验证公司内部活动协作流程",
+        "agenda": "09:00签到；09:30案例交流；11:00总结",
+        "content_forms": "专题讲座",
+        "forum": "否",
+        "people": "30",
+        "composition": "一线教师",
+        "personnel": "",
+        "contact": "测试联系人",
+        "contact_info": "13800000001",
+        "arranger": "测试安排人",
+        "arranger_info": "13800000002",
+        "receiver": "测试接收人",
+        "receiver_info": "13800000003",
+        "expert_fee": "1000",
+        "conference_fee": "500",
+        "travel_fee": "300",
+        "budget": "1800.00",
+        "testfiled": "测试流程模板填写数据",
+        "test": "111"
+      },
+      "formErrors": [],
+      "nodes": [
+        {
+          "key": "review",
+          "label": "申请人部门负责人审批",
+          "kind": "approval",
+          "deps": [],
+          "skipped": false,
+          "accounts": [
+            "sichuan"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "latest-test-02-serial-rating",
+      "name": "串行评分与指定退回",
+      "checks": [
+        "教研审批可选填评价部门初审分数，0分仍是有效评分",
+        "财务审批必须评价教研成果，未评分不能通过",
+        "财务可退回部门初审或教研审核，但不能直接退给发起人",
+        "领导终审必须评价财务审核成果，办理进度展示评分人与分数",
+        "审批全部完成后知会协调人，知会不产生办理按钮"
+      ],
+      "payload": {
+        "activity_name": "流程测试活动",
+        "delivery_mode": "线下",
+        "start_at": "2026-10-27T06:39:00.000Z",
+        "end_at": "2026-10-27T09:39:00.000Z",
+        "location": "测试会议室",
+        "nature": "校园立体阅读课程项目",
+        "service_type": "免费课题服务",
+        "background": "验证公司内部活动协作流程",
+        "agenda": "09:00签到；09:30案例交流；11:00总结",
+        "content_forms": "专题讲座",
+        "forum": "否",
+        "people": "30",
+        "composition": "一线教师",
+        "personnel": "",
+        "contact": "测试联系人",
+        "contact_info": "13800000001",
+        "arranger": "测试安排人",
+        "arranger_info": "13800000002",
+        "receiver": "测试接收人",
+        "receiver_info": "13800000003",
+        "expert_fee": "1000",
+        "conference_fee": "500",
+        "travel_fee": "300",
+        "budget": "1800.00",
+        "testfiled": "测试流程模板填写数据",
+        "test": "111"
+      },
+      "formErrors": [],
+      "nodes": [
+        {
+          "key": "review",
+          "label": "申请人部门初审",
+          "kind": "approval",
+          "deps": [],
+          "skipped": false,
+          "accounts": [
+            "sichuan"
+          ]
+        },
+        {
+          "key": "research",
+          "label": "教研方案审核",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jiaoyan"
+          ]
+        },
+        {
+          "key": "finance",
+          "label": "财务预算审核",
+          "kind": "approval",
+          "deps": [
+            "research"
+          ],
+          "skipped": false,
+          "accounts": [
+            "caiwu"
+          ]
+        },
+        {
+          "key": "leader",
+          "label": "院领导终审",
+          "kind": "approval",
+          "deps": [
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yuanlingdao"
+          ]
+        },
+        {
+          "key": "notice",
+          "label": "知会流程协调人",
+          "kind": "notice",
+          "deps": [
+            "leader"
+          ],
+          "skipped": false,
+          "accounts": [
+            "xingzhengrenshi"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "latest-test-03-parallel-return",
+      "name": "并行通过与汇合评分",
+      "checks": [
+        "初审后教研和财务同时收到待办，任一分支完成都不会提前激活终审",
+        "领导终审需要分别评价教研与财务两个直接前置审批成果",
+        "两项评分均填写后才可通过，进度中分别展示评分结果"
+      ],
+      "payload": {
+        "activity_name": "流程测试活动",
+        "delivery_mode": "线下",
+        "start_at": "2026-10-27T06:39:00.000Z",
+        "end_at": "2026-10-27T09:39:00.000Z",
+        "location": "测试会议室",
+        "nature": "校园立体阅读课程项目",
+        "service_type": "免费课题服务",
+        "background": "验证公司内部活动协作流程",
+        "agenda": "09:00签到；09:30案例交流；11:00总结",
+        "content_forms": "专题讲座",
+        "forum": "否",
+        "people": "30",
+        "composition": "一线教师",
+        "personnel": "",
+        "contact": "测试联系人",
+        "contact_info": "13800000001",
+        "arranger": "测试安排人",
+        "arranger_info": "13800000002",
+        "receiver": "测试接收人",
+        "receiver_info": "13800000003",
+        "expert_fee": "1000",
+        "conference_fee": "500",
+        "travel_fee": "300",
+        "budget": "1800.00",
+        "testfiled": "测试流程模板填写数据",
+        "test": "111"
+      },
+      "formErrors": [],
+      "nodes": [
+        {
+          "key": "review",
+          "label": "申请人部门初审",
+          "kind": "approval",
+          "deps": [],
+          "skipped": false,
+          "accounts": [
+            "sichuan"
+          ]
+        },
+        {
+          "key": "research",
+          "label": "教研方案并审",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jiaoyan"
+          ]
+        },
+        {
+          "key": "finance",
+          "label": "财务预算并审",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "caiwu"
+          ]
+        },
+        {
+          "key": "leader",
+          "label": "双分支完成后领导终审",
+          "kind": "approval",
+          "deps": [
+            "research",
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yuanlingdao"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "latest-test-03-parallel-return",
+      "name": "退回单一并行分支",
+      "checks": [
+        "领导选择退回教研分支时，教研及领导进入新轮次",
+        "已完成的财务独立分支保持有效，不重复生成财务待办",
+        "教研重新通过后领导再次获得待办，旧评分显示为历史评分"
+      ],
+      "payload": {
+        "activity_name": "流程测试活动",
+        "delivery_mode": "线下",
+        "start_at": "2026-10-27T06:39:00.000Z",
+        "end_at": "2026-10-27T09:39:00.000Z",
+        "location": "测试会议室",
+        "nature": "校园立体阅读课程项目",
+        "service_type": "免费课题服务",
+        "background": "验证公司内部活动协作流程",
+        "agenda": "09:00签到；09:30案例交流；11:00总结",
+        "content_forms": "专题讲座",
+        "forum": "否",
+        "people": "30",
+        "composition": "一线教师",
+        "personnel": "",
+        "contact": "测试联系人",
+        "contact_info": "13800000001",
+        "arranger": "测试安排人",
+        "arranger_info": "13800000002",
+        "receiver": "测试接收人",
+        "receiver_info": "13800000003",
+        "expert_fee": "1000",
+        "conference_fee": "500",
+        "travel_fee": "300",
+        "budget": "1800.00",
+        "testfiled": "测试流程模板填写数据",
+        "test": "111"
+      },
+      "formErrors": [],
+      "nodes": [
+        {
+          "key": "review",
+          "label": "申请人部门初审",
+          "kind": "approval",
+          "deps": [],
+          "skipped": false,
+          "accounts": [
+            "sichuan"
+          ]
+        },
+        {
+          "key": "research",
+          "label": "教研方案并审",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jiaoyan"
+          ]
+        },
+        {
+          "key": "finance",
+          "label": "财务预算并审",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "caiwu"
+          ]
+        },
+        {
+          "key": "leader",
+          "label": "双分支完成后领导终审",
+          "kind": "approval",
+          "deps": [
+            "research",
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yuanlingdao"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "latest-test-04-complex-security",
+      "name": "复杂路线完整通过",
+      "checks": [
+        "教研与财务并行后，设计、营销、技术、印制按依赖逐步激活",
+        "审批节点按配置要求评价直接前置审批，任务和知会不显示评分",
+        "财务节点新上传附件默认仅财务办理人与领导可查看和下载",
+        "单文件改为活动内共享后，有活动查看权的人员可以查看，但下载仍校验下载权限",
+        "知会自动发送站内通知，不阻塞后续节点"
+      ],
+      "payload": {
+        "activity_name": "流程测试活动",
+        "delivery_mode": "线下",
+        "start_at": "2026-10-27T06:39:00.000Z",
+        "end_at": "2026-10-27T09:39:00.000Z",
+        "location": "测试会议室",
+        "nature": "校园立体阅读课程项目",
+        "service_type": "免费课题服务",
+        "background": "验证公司内部活动协作流程",
+        "agenda": "09:00签到；09:30案例交流；11:00总结",
+        "content_forms": "专题讲座",
+        "forum": "否",
+        "people": "30",
+        "composition": "一线教师",
+        "personnel": "",
+        "contact": "测试联系人",
+        "contact_info": "13800000001",
+        "arranger": "测试安排人",
+        "arranger_info": "13800000002",
+        "receiver": "测试接收人",
+        "receiver_info": "13800000003",
+        "expert_fee": "1000",
+        "conference_fee": "500",
+        "travel_fee": "300",
+        "budget": "1800.00",
+        "testfiled": "测试流程模板填写数据",
+        "test": "111"
+      },
+      "formErrors": [],
+      "nodes": [
+        {
+          "key": "review",
+          "label": "申请人部门初审",
+          "kind": "approval",
+          "deps": [],
+          "skipped": false,
+          "accounts": [
+            "sichuan"
+          ]
+        },
+        {
+          "key": "research",
+          "label": "教研方案审核",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jiaoyan"
+          ]
+        },
+        {
+          "key": "finance",
+          "label": "财务预算审核",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "caiwu"
+          ]
+        },
+        {
+          "key": "design",
+          "label": "制作活动视觉方案",
+          "kind": "task",
+          "deps": [
+            "research"
+          ],
+          "skipped": false,
+          "accounts": [
+            "sheji1"
+          ]
+        },
+        {
+          "key": "marketing",
+          "label": "营销与校方确认",
+          "kind": "approval",
+          "deps": [
+            "research"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yingxiao"
+          ]
+        },
+        {
+          "key": "tech",
+          "label": "技术方案联调",
+          "kind": "task",
+          "deps": [
+            "research",
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jishuyanfa1"
+          ]
+        },
+        {
+          "key": "printing",
+          "label": "印制活动材料",
+          "kind": "task",
+          "deps": [
+            "design",
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yinzhi1"
+          ]
+        },
+        {
+          "key": "quality",
+          "label": "教学质量复核",
+          "kind": "approval",
+          "deps": [
+            "tech",
+            "marketing"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jiaoxuezhiliang"
+          ]
+        },
+        {
+          "key": "notice",
+          "label": "预算确认后知会协调人",
+          "kind": "notice",
+          "deps": [
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "xingzhengrenshi"
+          ]
+        },
+        {
+          "key": "leader",
+          "label": "质量与印制汇合终审",
+          "kind": "approval",
+          "deps": [
+            "quality",
+            "printing"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yuanlingdao"
+          ]
+        },
+        {
+          "key": "arrange",
+          "label": "落实活动资源",
+          "kind": "task",
+          "deps": [
+            "leader"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yingxiao1"
+          ]
+        },
+        {
+          "key": "archive-notice",
+          "label": "准备归档知会",
+          "kind": "notice",
+          "deps": [
+            "arrange"
+          ],
+          "skipped": false,
+          "accounts": [
+            "xingzhengrenshi"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "latest-test-04-complex-security",
+      "name": "深层退回与终止",
+      "checks": [
+        "质量复核可按白名单退回教研、营销或技术节点",
+        "领导终审可退回任一已流经的上游审批或任务节点",
+        "退回目标及其后续进入新轮次，未受影响的独立分支保持有效",
+        "质量复核或领导终审可终止整个申请，原因必填且剩余待办取消"
+      ],
+      "payload": {
+        "activity_name": "流程测试活动",
+        "delivery_mode": "线下",
+        "start_at": "2026-10-27T06:39:00.000Z",
+        "end_at": "2026-10-27T09:39:00.000Z",
+        "location": "测试会议室",
+        "nature": "校园立体阅读课程项目",
+        "service_type": "免费课题服务",
+        "background": "验证公司内部活动协作流程",
+        "agenda": "09:00签到；09:30案例交流；11:00总结",
+        "content_forms": "专题讲座",
+        "forum": "否",
+        "people": "30",
+        "composition": "一线教师",
+        "personnel": "",
+        "contact": "测试联系人",
+        "contact_info": "13800000001",
+        "arranger": "测试安排人",
+        "arranger_info": "13800000002",
+        "receiver": "测试接收人",
+        "receiver_info": "13800000003",
+        "expert_fee": "1000",
+        "conference_fee": "500",
+        "travel_fee": "300",
+        "budget": "1800.00",
+        "testfiled": "测试流程模板填写数据",
+        "test": "111"
+      },
+      "formErrors": [],
+      "nodes": [
+        {
+          "key": "review",
+          "label": "申请人部门初审",
+          "kind": "approval",
+          "deps": [],
+          "skipped": false,
+          "accounts": [
+            "sichuan"
+          ]
+        },
+        {
+          "key": "research",
+          "label": "教研方案审核",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jiaoyan"
+          ]
+        },
+        {
+          "key": "finance",
+          "label": "财务预算审核",
+          "kind": "approval",
+          "deps": [
+            "review"
+          ],
+          "skipped": false,
+          "accounts": [
+            "caiwu"
+          ]
+        },
+        {
+          "key": "design",
+          "label": "制作活动视觉方案",
+          "kind": "task",
+          "deps": [
+            "research"
+          ],
+          "skipped": false,
+          "accounts": [
+            "sheji1"
+          ]
+        },
+        {
+          "key": "marketing",
+          "label": "营销与校方确认",
+          "kind": "approval",
+          "deps": [
+            "research"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yingxiao"
+          ]
+        },
+        {
+          "key": "tech",
+          "label": "技术方案联调",
+          "kind": "task",
+          "deps": [
+            "research",
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jishuyanfa1"
+          ]
+        },
+        {
+          "key": "printing",
+          "label": "印制活动材料",
+          "kind": "task",
+          "deps": [
+            "design",
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yinzhi1"
+          ]
+        },
+        {
+          "key": "quality",
+          "label": "教学质量复核",
+          "kind": "approval",
+          "deps": [
+            "tech",
+            "marketing"
+          ],
+          "skipped": false,
+          "accounts": [
+            "jiaoxuezhiliang"
+          ]
+        },
+        {
+          "key": "notice",
+          "label": "预算确认后知会协调人",
+          "kind": "notice",
+          "deps": [
+            "finance"
+          ],
+          "skipped": false,
+          "accounts": [
+            "xingzhengrenshi"
+          ]
+        },
+        {
+          "key": "leader",
+          "label": "质量与印制汇合终审",
+          "kind": "approval",
+          "deps": [
+            "quality",
+            "printing"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yuanlingdao"
+          ]
+        },
+        {
+          "key": "arrange",
+          "label": "落实活动资源",
+          "kind": "task",
+          "deps": [
+            "leader"
+          ],
+          "skipped": false,
+          "accounts": [
+            "yingxiao1"
+          ]
+        },
+        {
+          "key": "archive-notice",
+          "label": "准备归档知会",
+          "kind": "notice",
+          "deps": [
+            "arrange"
+          ],
+          "skipped": false,
+          "accounts": [
+            "xingzhengrenshi"
+          ]
+        }
+      ]
+    }
+  ],
+  "results": [
+    {
+      "code": "latest-test-01-basic",
+      "id": "27468995-7d7e-4299-b0e5-a34b2e164cd0",
+      "name": "最新测试01｜单级审批基础操作",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 1
+    },
+    {
+      "code": "latest-test-02-serial-rating",
+      "id": "1ad89a3c-fce6-49ce-883d-e7911a44140e",
+      "name": "最新测试02｜串行审批与逐级评分",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 5
+    },
+    {
+      "code": "latest-test-03-parallel-return",
+      "id": "c67ed8c0-a5a4-4918-8d51-6dad29a951a7",
+      "name": "最新测试03｜并行会审与分支重办",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 4
+    },
+    {
+      "code": "latest-test-04-complex-security",
+      "id": "5a9484a8-bcb4-419e-aba2-15c41cf9ac5f",
+      "name": "最新测试04｜复杂协作与敏感资料",
+      "version": 1,
+      "active": true,
+      "status": "created",
+      "nodes": 12
+    }
+  ],
+  "counts": [
+    {
+      "activities": 20,
+      "roles": 9,
+      "departments": 30,
+      "members": 121
+    }
+  ]
+}

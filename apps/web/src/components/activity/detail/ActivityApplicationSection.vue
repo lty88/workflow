@@ -46,7 +46,7 @@
     </div>
   </dl>
   <div v-if="textFields.length" class="detail-section">
-    <h2>方案说明</h2>
+    <h2>{{ detail.activity.lifecycle?.businessType === 'general' ? '申请内容' : '方案说明' }}</h2>
     <template v-for="field in textFields" :key="field.id">
       <p class="sub-label">{{ field.label }}</p>
       <p>{{ viewData?.payload[field.key] || '未填写' }}</p>

@@ -1,4 +1,5 @@
 import { createUuid } from './ids';
+import { lifecycleOf } from './lifecycle';
 import type {
   Activity,
   AssigneeRule,
@@ -215,7 +216,7 @@ export function advanceWorkflow(activity: Activity): WorkflowTask[] {
   const created: WorkflowTask[] = [];
   if (activity.status !== 'approving') return created;
   for (const node of activity.nodes) {
-    if (node.status !== 'waiting') continue;
+    if (node.businessStage || node.status !== 'waiting') continue;
     let ready = true;
     for (const id of node.deps) if (findById(activity.nodes, id)?.status !== 'completed') ready = false;
     if (!ready) continue;
@@ -249,10 +250,11 @@ export function advanceWorkflow(activity: Activity): WorkflowTask[] {
   }
   let complete = true;
   for (const node of activity.nodes)
-    if (node.kind !== 'notice' && !['completed', 'skipped', 'invalidated'].includes(node.status))
+    if (!node.businessStage && node.kind !== 'notice' && !['completed', 'skipped', 'invalidated'].includes(node.status))
       complete = false;
   if (complete) {
-    activity.status = 'ready_assign';
+    activity.status = lifecycleOf(activity).afterApproval === 'complete' ? 'completed' : 'ready_assign';
+    if (activity.status === 'completed') activity.completedAt = new Date().toISOString();
     for (const task of activity.tasks)
       if (task.status === 'pending') {
         task.status = 'cancelled';

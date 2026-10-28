@@ -19,7 +19,8 @@
     "db:migrate": "pnpm --filter @workflow/server db:migrate",
     "db:seed-organization": "pnpm --filter @workflow/server db:seed-organization",
     "db:recover-members": "pnpm --filter @workflow/server db:recover-members",
-    "db:seed-test-templates": "pnpm --filter @workflow/server db:seed-test-templates"
+    "db:seed-test-templates": "pnpm --filter @workflow/server db:seed-test-templates",
+    "db:seed-latest-test-templates": "pnpm --filter @workflow/server db:seed-test-templates --latest"
   },
   "devDependencies": {
     "prettier": "3.9.10"

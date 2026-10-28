@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { activityDestination, menuDestination } from '@/navigation';
 import { NAlert, NButton, NCard, NEmpty, NSpin, NTag } from 'naive-ui';
+import CreateRequestMenu from '@/components/workspace/creation/CreateRequestMenu.vue';
 import { STATUSES } from '@workflow/domain';
 import type { ActivityListItem } from '@/typings/api';
 import { activitiesApi } from '@/api/activities';
@@ -23,7 +24,7 @@ const links = computed(() => auth.profile?.menus.filter(quickPage) || []);
  * @returns 是否快捷页
  */
 function quickPage(page: { component: string }): boolean {
-  return ['activity_form', 'task_list', 'archive_list'].includes(page.component);
+  return ['task_list', 'archive_list'].includes(page.component);
 }
 /**
  * 并发读取授权统计及近期工单，失败时保留明确错误状态。
@@ -93,14 +94,14 @@ onMounted(load);
         /></NCard>
         <div class="stack">
           <NCard title="快捷入口"
-            ><RouterLink v-for="link in links" :key="link.id" :to="menuDestination(link)" class="quick-link"
+            ><CreateRequestMenu appearance="shortcut" /><RouterLink v-for="link in links" :key="link.id" :to="menuDestination(link)" class="quick-link"
               ><span>{{
-                link.component === 'activity_form' ? '＋' : link.component === 'task_list' ? '✓' : '▤'
+                link.component === 'task_list' ? '✓' : '▤'
               }}</span>
               <div>
                 {{ link.name }}<small>进入{{ link.name }}</small>
               </div></RouterLink
-            ><NEmpty v-if="!links.length" size="small" description="暂无快捷入口" /></NCard
+            ><NEmpty v-if="!links.length && !(auth.can('activity:create') && auth.can('activity:read'))" size="small" description="暂无快捷入口" /></NCard
           ><NCard title="协作流程"
             ><div class="help-text">
               活动申请 → 部门初审<br />教研与营销并行确认<br />按预算触发负责人复核<br />指派 → 执行汇报 →

@@ -1,3 +1,4 @@
+import { appendLifecycleGraph } from '@/components/graph/lifecycle-model'
 import type { EdgeData, NodeData } from '@antv/g6'
 import { topological } from '@workflow/domain'
 import type { CompanyConfig } from '@workflow/domain'
@@ -30,9 +31,9 @@ export function templateEditorGraph(config: CompanyConfig): BusinessGraphModel {
   const workflowNodes = config.workflow.nodes
   const source = templateGraph(config)
   const nodes: NodeData[] = [
-    boundaryNode('stage:apply', '开始 · 提交活动申请', '系统触发，没有前置的节点同时进入'),
+    boundaryNode('stage:apply', '开始 · 提交申请', '系统触发，没有前置的节点同时进入'),
     ...(source.data.nodes || []).filter((node) => node.data?.kind === 'workflow'),
-    boundaryNode('stage:approved', '流程办理完成', workflowNodes.length ? '必办节点完成后进入指派执行' : '请先添加业务节点'),
+    boundaryNode('stage:approved', '审批段完成', workflowNodes.length ? '按模板配置继续办理或办结' : '请先添加业务节点'),
   ]
   const edges: EdgeData[] = []
   const cache = new Map<string, string[]>()
@@ -72,5 +73,6 @@ export function templateEditorGraph(config: CompanyConfig): BusinessGraphModel {
     if (!hasChild) connect('workflow:' + node.id, 'stage:approved')
   }
   if (!workflowNodes.some((node) => node.kind !== 'notice')) connect('stage:apply', 'stage:approved', !workflowNodes.length)
+  appendLifecycleGraph(nodes, edges, 'stage:approved', config.workflow.lifecycle)
   return { data: { nodes, edges } }
 }

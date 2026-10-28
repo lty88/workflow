@@ -11,7 +11,9 @@
   const router = useRouter()
   const route = useRoute()
   const feedback = useFeedback()
-  const form = ref({ username: '', password: '' })
+  //是否是 dev 环境
+  const isDev = import.meta.env.DEV || import.meta.env.VITE_ENV === 'dev'
+  const form = ref({ username: isDev ? 'admin' : '', password: isDev ? '123456' : '' })
   const busy = ref(false)
   const { formRef, validate: validateBeforeSubmit } = useFormValidation()
   const formRules = { username: requiredRule('账号'), password: requiredRule('密码') }

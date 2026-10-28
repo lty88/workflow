@@ -184,6 +184,7 @@ export function canHandleTask(
   const node = findById(activity.nodes, task.nodeId);
   if (
     !node ||
+    !!node.businessStage ||
     node.status !== 'active' ||
     node.generation !== task.generation ||
     (node.kind === 'approval' && activity.applicant === userId)

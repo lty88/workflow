@@ -4,16 +4,19 @@ export const APP_PATHS = {
   login: '/login',
   account: '/account',
   activityCreate: '/activities/new',
+  requests: '/requests',
+  requestCreate: '/requests/new',
   settings: '/settings',
 } as const;
 
 /**
  * 创建活动详情链接，对业务标识进行路径编码。
  * @param id 活动标识
- * @returns 活动详情地址
+ * @param businessType 业务类型，旧活动默认保持原地址
+ * @returns 申请或活动详情地址
  */
-export function activityDestination(id: string): string {
-  return `/activities/${encodeURIComponent(id)}`;
+export function activityDestination(id: string, businessType: 'activity' | 'general' = 'activity'): string {
+  return `/${businessType === 'general' ? 'requests' : 'activities'}/${encodeURIComponent(id)}`;
 }
 
 /**

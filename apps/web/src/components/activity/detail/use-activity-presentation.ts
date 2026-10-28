@@ -25,6 +25,7 @@ export function useActivityPresentation(detail: ComputedRef<ActivityDetail>, rev
     archive_draft: 'warning',
     archive_review: 'info',
     archived: 'success',
+    completed: 'success',
     cancel_review: 'warning',
     cancelled: 'default',
   }
@@ -119,6 +120,7 @@ export function useActivityPresentation(detail: ComputedRef<ActivityDetail>, rev
         owner: item.archive ? nameFor(detail.value, item.archive.reviewer) : '—',
         text: '核查执行结果与成果后归档',
       },
+      completed: { owner: '—', text: '申请已办结，审批与附件记录已留存' },
       archived: { owner: '—', text: '活动闭环完成，档案只读' },
       rejected: { owner: '—', text: '查看终止原因，可复制为新申请' },
       cancelled: { owner: '—', text: '活动已取消，可复制为新申请' },

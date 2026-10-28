@@ -1,6 +1,7 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import type { ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
+import { lifecycleOf } from '@workflow/domain'
 import type { FileRecord, WorkflowTask } from '@workflow/domain'
 import type { ActivityDetail } from '@/typings/api'
 import { activityApi } from '@/api/activities'
@@ -31,7 +32,7 @@ export function useActivityDetail(activityId: ComputedRef<string>) {
   let requestId = 0
   const actions = computed(() => (detail.value?.actions || []).filter((value) => value !== 'export' && value !== 'delete'))
   const isOld = computed(() => revision.value !== 'current')
-  const listDestination = computed(() => activityListDestination(auth.profile?.menus || []))
+  const listDestination = computed(() => detail.value && lifecycleOf(detail.value.activity).businessType === 'general' ? APP_PATHS.requests : activityListDestination(auth.profile?.menus || []))
   const applicationUpload = computed(() => uploadAllowed('application') && !isOld.value)
   const executionUpload = computed(() => uploadAllowed('execution') && !isOld.value)
   const archiveUpload = computed(() => uploadAllowed('archive') && !isOld.value)
@@ -89,7 +90,7 @@ export function useActivityDetail(activityId: ComputedRef<string>) {
   async function handleAction(value: string): Promise<void> {
     if (loading.value || isOld.value || !detail.value?.actions.includes(value)) return
     if (value === 'copy') {
-      await router.push({ path: APP_PATHS.activityCreate, query: { copyId: detail.value.activity.id } })
+      await router.push({ path: lifecycleOf(detail.value.activity).businessType === 'general' ? APP_PATHS.requestCreate : APP_PATHS.activityCreate, query: { copyId: detail.value.activity.id } })
       return
     }
     if (value === 'edit' || value === 'submit') {

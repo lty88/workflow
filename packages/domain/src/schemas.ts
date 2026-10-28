@@ -48,6 +48,11 @@ export const nodeApprovalPolicySchema = z
     rating: z.enum(['off', 'optional', 'required']),
   })
   .strict();
+export const lifecycleSchema = z.object({
+  businessType: z.enum(['activity', 'general']),
+  afterApproval: z.enum(['complete', 'activity_standard']),
+  version: z.literal(1),
+}).strict();
 export const configSchema = z
   .object({
     version: z.number().int().positive(),
@@ -124,6 +129,7 @@ export const configSchema = z
     form: z
       .object({
         id,
+        businessType: z.enum(['activity', 'general']).optional(),
         name: z.string().trim().min(1).max(80),
         fields: z
           .array(
@@ -176,6 +182,7 @@ export const configSchema = z
       .object({
         name: z.string().trim().min(1).max(80),
         ratingEnabled: z.boolean().optional(),
+        lifecycle: lifecycleSchema.optional(),
         nodes: z
           .array(
             z
@@ -311,6 +318,7 @@ export const actionSchema = z
 export type ActionCommand = Omit<z.infer<typeof actionSchema>, 'idempotencyKey'>;
 export const passwordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(200) }).strict();
 export const listQuerySchema = z.object({
+  businessType: z.enum(['activity', 'general']).optional(),
   q: z.string().max(100).default(''),
   status: z.string().max(40).default(''),
   scope: z.enum(['all', 'mine', 'tasks', 'archives']).default('all'),

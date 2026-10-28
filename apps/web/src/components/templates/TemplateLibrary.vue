@@ -2,6 +2,7 @@
   import { computed, ref } from 'vue'
   import { NButton, NCard, NEmpty, NInput, NPopconfirm, NSelect, NTag } from 'naive-ui'
   import type { TemplateLibraryProps } from './types'
+  import { lifecycleOf } from '@workflow/domain'
   import type { TemplateDefinition, WorkflowTemplate } from '@workflow/domain'
   const props = defineProps<TemplateLibraryProps>()
   const emit = defineEmits<{
@@ -73,7 +74,7 @@
     <div class="spread">
       <div>
         <h2>流程模板库</h2>
-        <p class="help-text">按活动配置常用模板，发布新版本后用于后续申请。</p>
+        <p class="help-text">按业务配置审批模板及可选接续流程，启用版本后用于后续申请。</p>
       </div>
       <NButton type="primary" :disabled="busy" @click="emit('create')">＋ 新建模板</NButton>
     </div>
@@ -99,7 +100,8 @@
           <NTag :bordered="false">{{ item.currentVersion ? 'V' + item.currentVersion : '尚未发布' }}</NTag>
           <NTag v-if="unpublished(item)" type="warning" :bordered="false">有草稿</NTag>
         </div>
-        <p>适用：{{ typeNames(definition(item).activityTypeIds) }}</p>
+        <p>{{ lifecycleOf(definition(item)).businessType === 'general' ? '通用 OA 申请 · 独立表单' : '活动申请 · ' + typeNames(definition(item).activityTypeIds) }}</p>
+        <p class="help-text">审批通过后：{{ lifecycleOf(definition(item)).afterApproval === 'complete' ? '直接办结' : '接续执行与归档' }}</p>
         <p class="help-text">编码 {{ item.code }} · {{ definition(item).nodes.length }}个节点</p>
         <p v-if="definition(item).defaultForTypeIds.length" class="help-text">默认推荐：{{ typeNames(definition(item).defaultForTypeIds) }}</p>
         <div class="gap">
@@ -110,7 +112,7 @@
             <template #trigger>
               <NButton :disabled="busy">{{ item.active ? '停用' : '启用' }}</NButton>
             </template>
-            {{ item.active ? '停用后新申请无法选择，在途活动继续按原快照办理；此类型可能暂无可用模板。' : '启用后授权人员可以选择已发布版本。' }}
+            {{ item.active ? '停用后新申请无法选择，在途申请继续按原快照办理；此类型可能暂无可用模板。' : '启用后授权人员可以选择已发布版本。' }}
           </NPopconfirm>
           <!-- 删除草稿按钮 ，仅在未发布时显示 -->
           <NPopconfirm v-if="!item.currentVersion" @positive-click="emit('remove', item)">

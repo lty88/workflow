@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue';
-import { defaultValues } from '@workflow/domain';
+import { defaultValues, lifecycleOf } from '@workflow/domain';
 import type { Activity, ActivityType, FormField, TemplateSelection, TemplateSummary } from '@workflow/domain';
 import { activityTypesApi, templatesApi } from '@/api/templates';
 import { ApiError } from '@/api/http';
@@ -59,16 +59,16 @@ export function useActivityTemplate(options: ActivityTemplateOptions) {
   }
   /** 从接口刷新当前身份可选模板，已发布版本变化后要求重新预览。 */
   async function refreshTemplates(): Promise<void> {
-    const [available, types] = await Promise.all([templatesApi(), activityTypesApi()]);
+    const [available, types] = await Promise.all([templatesApi(undefined, options.businessType?.value || 'activity'), activityTypesApi()]);
     templates.value = available;
-    activityTypes.value = types;
+    activityTypes.value = options.businessType?.value === 'general' ? [{id:'general',code:'general',name:'通用申请',active:true,sort:0}] : types;
     if (!selection.value) return;
     const previous = selection.value;
     let next: TemplateSummary | undefined;
     for (const item of available)
       if (
         item.id === previous.templateId &&
-        item.definition.activityTypeIds.includes(previous.activityTypeId)
+        (lifecycleOf(item.definition).businessType === 'general' ? previous.activityTypeId === 'general' : item.definition.activityTypeIds.includes(previous.activityTypeId))
       )
         next = item;
     selection.value = next ? { ...previous, expectedTemplateVersion: next.version } : null;
@@ -101,7 +101,7 @@ export function useActivityTemplate(options: ActivityTemplateOptions) {
     if (
       matching &&
       activity.activityTypeId &&
-      matching.definition.activityTypeIds.includes(activity.activityTypeId)
+      (lifecycleOf(matching.definition).businessType === 'general' ? activity.activityTypeId === 'general' : matching.definition.activityTypeIds.includes(activity.activityTypeId))
     ) {
       selection.value = {
         activityTypeId: activity.activityTypeId,

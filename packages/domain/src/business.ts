@@ -1,4 +1,6 @@
 import { createUuid } from './ids';
+import { lifecycleOf } from './lifecycle';
+import { synchronizeBusinessSubprocess } from './business-subprocess';
 import {
   canCoordinateExecution,
   finalApproval,
@@ -70,7 +72,7 @@ export function activityActions(config: CompanyConfig, userId: string, activity:
     actions.push('withdraw');
   if (activity.status === 'approving' && hasPermission(config, userId, 'workflow:adjust'))
     actions.push('adjust');
-  if (activity.status === 'ready_assign' && canCoordinateExecution(config, userId, activity))
+  if (lifecycleOf(activity).afterApproval !== 'complete' && activity.status === 'ready_assign' && canCoordinateExecution(config, userId, activity))
     actions.push('assign');
   if (activity.executor === userId && hasPermission(config, userId, 'execution:report')) {
     if (activity.status === 'ready_execute') actions.push('start');
@@ -110,11 +112,16 @@ export function activityActions(config: CompanyConfig, userId: string, activity:
   }
   if (hasPermission(config, userId, 'activity:export')) actions.push('export');
   if (
-    ['rejected', 'cancelled', 'archived'].includes(activity.status) &&
+    ['rejected', 'cancelled', 'archived', 'completed'].includes(activity.status) &&
     hasPermission(config, userId, 'activity:create')
   )
     actions.push('copy');
-  return actions;
+  return lifecycleOf(activity).afterApproval === 'complete' ? actions.filter(
+    /** 通用申请仅保留审批和基础申请动作。
+     * @param action 候选动作
+     * @returns 是否属于通用能力
+     */ function common(action) { return !['assign', 'start', 'report', 'execution-complete', 'archive-submit', 'archive-approve', 'archive-return', 'cancel-request'].includes(action); },
+  ) : actions;
 }
 
 /**
@@ -255,6 +262,7 @@ export function decideTask(
     activity.workflowOwnerNodeId = task.nodeId;
   }
   synchronizeWorkflowOwner(activity);
+  synchronizeBusinessSubprocess(config, activity, actor);
 }
 
 /**
@@ -540,6 +548,7 @@ export function applyActivityAction(
       break;
   }
   synchronizeWorkflowOwner(activity);
+  synchronizeBusinessSubprocess(config, activity, actor);
   auditActivity(config, activity, actor, title, note || command.report?.summary || '');
 }
 

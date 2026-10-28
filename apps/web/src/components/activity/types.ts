@@ -7,6 +7,7 @@ export interface DeleteActivityProps {
   disabled?: boolean
 }
 export interface ActivityTemplateOptions {
+  businessType?: ComputedRef<'activity' | 'general'>
   existingDetail?: ComputedRef<ActivityDetail | null>
   payload: Ref<Record<string, string>>
   fallbackForm: ComputedRef<FormDefinition>
@@ -91,7 +92,7 @@ export interface AdjustmentProps {
 }
 export interface WorkflowViewDetail {
   activity: Pick<ActivityDetail['activity'], 'nodes' | 'tasks'> &
-    Partial<Pick<ActivityDetail['activity'], 'status' | 'revision' | 'cancellation' | 'applicant' | 'executor' | 'archive' | 'workflowOwnerId'>>
+    Partial<Pick<ActivityDetail['activity'], 'status' | 'revision' | 'cancellation' | 'applicant' | 'executor' | 'archive' | 'workflowOwnerId' | 'lifecycle'>>
   participants: ActivityDetail['participants']
   actions?: string[]
   taskWarnings?: ActivityDetail['taskWarnings']

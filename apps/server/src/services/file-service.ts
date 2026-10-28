@@ -1,3 +1,5 @@
+import { requestTables, findRequestFile } from '../db/request-store';
+import { lifecycleOf } from '@workflow/domain';
 import { basename } from 'node:path';
 import { createLocalAttachmentStorage } from '../storage/attachments';
 import type { AttachmentStorage } from '../storage/types';
@@ -92,6 +94,7 @@ export async function uploadFile(
   const id = digest(`${actor}:${activityId}:${key}`);
   let storageKey = id;
   let created = false;
+  let fileTable = 'files';
   try {
     await mutateActivity(
       pool,
@@ -106,6 +109,7 @@ export async function uploadFile(
        */
       async function store(context) {
         const activity = context.activity!;
+        fileTable = requestTables(activity).files;
         const node = access.nodeId ? findById(activity.nodes, access.nodeId) : undefined;
         ensure(
           !access.contextId || !attachmentContextCommitted(activity, access.contextId),
@@ -213,7 +217,7 @@ export async function uploadFile(
         if (!field) {
           const existing = await query<{ total: number }>(
             context.connection,
-            'SELECT COUNT(*) AS total FROM files WHERE activity_id=? AND stage=? AND node_id <=> ? AND context_id <=> ? AND field_key IS NULL',
+            `SELECT COUNT(*) AS total FROM ${fileTable} WHERE activity_id=? AND stage=? AND node_id <=> ? AND context_id <=> ? AND field_key IS NULL`,
             [activityId, stage, access.nodeId || null, access.contextId || null],
           );
           ensure(Number(existing[0]?.total || 0) < 10, 422, 'FILE_LIMIT', '每个表单或记录最多上传10个文件');
@@ -221,7 +225,7 @@ export async function uploadFile(
         storageKey = await storage.put(id, buffer, mime);
         created = true;
         await context.connection.execute(
-          'INSERT INTO files(id,activity_id,uploader_id,name,storage_key,mime,size,stage,node_id,field_key,context_id,action_key,access_rule,download_rule) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+          `INSERT INTO ${fileTable}(id,activity_id,uploader_id,name,storage_key,mime,size,stage,node_id,field_key,context_id,action_key,access_rule,download_rule) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           [
             id,
             activityId,
@@ -260,7 +264,7 @@ export async function uploadFile(
     if (created) {
       // 提交结果不明时保留对象，避免删除已经成功登记的附件。
       try {
-        const registered = await query(pool, 'SELECT id FROM files WHERE id=?', [id]);
+        const registered = await query(pool, `SELECT id FROM ${fileTable} WHERE id=?`, [id]);
         if (!registered.length) await storage.remove(storageKey).catch(ignoreCleanupError);
       } catch {
         /* 数据库不可用时保留对象，等待后续核查。 */
@@ -309,11 +313,7 @@ export async function authorizeFileRead(
    */
   async function authorize(connection: import('mysql2/promise').PoolConnection) {
     const config = (await loadConfig(connection, 'share')).published;
-    const rows = await query<{ activity_id: string; storage_key: string }>(
-      connection,
-      'SELECT activity_id,storage_key FROM files WHERE id=?',
-      [id],
-    );
+    const rows = await findRequestFile(connection, id);
     ensure(
       rows[0] && /^(?:[a-f0-9]{64}|oss:[a-zA-Z0-9_-]{1,60}\/[a-f0-9]{64})$/.test(rows[0].storage_key),
       404,
@@ -321,7 +321,8 @@ export async function authorizeFileRead(
       '文件不存在或无访问权限',
     );
     const activity = await loadActivity(connection, rows[0].activity_id);
-    const files = await activityFiles(connection, rows[0].activity_id);
+    ensure(activity, 404, 'NOT_FOUND', '申请不存在或已删除');
+    const files = await activityFiles(connection, rows[0].activity_id, lifecycleOf(activity).businessType);
     const file = findById(files, id);
     ensure(
       activity && file && canReadFile(config, actor, activity, file),
@@ -370,7 +371,7 @@ export async function updateFileAccess(
   id: string,
   command: import('zod').z.infer<typeof fileAccessWriteSchema>,
 ): Promise<{ id: string; version: number }> {
-  const rows = await query<{ activity_id: string }>(pool, 'SELECT activity_id FROM files WHERE id=?', [id]);
+  const rows = await findRequestFile(pool, id);
   ensure(rows[0], 404, 'NOT_FOUND', '附件不存在或无访问权限');
   /**
    * 锁定活动后检查旧权限与新规则，再原子更新附件和权限变更记录。
@@ -385,7 +386,7 @@ export async function updateFileAccess(
       'VERSION_CONFLICT',
       '活动资料已更新，请刷新后重试',
     );
-    const file = findById(await activityFiles(context.connection, activity.id), id);
+    const file = findById(await activityFiles(context.connection, activity.id, lifecycleOf(activity).businessType), id);
     ensure(
       file && canReadFile(context.config, actor, activity, file),
       404,
@@ -417,7 +418,7 @@ export async function updateFileAccess(
       '分享节点附件需上传人仍有该节点内部阅读资格；其他上传人只能收紧授权，或由授权管理员调整',
     );
     await context.connection.execute(
-      'UPDATE files SET access_rule=?,download_rule=? WHERE id=? AND activity_id=?',
+      `UPDATE ${requestTables(activity).files} SET access_rule=?,download_rule=? WHERE id=? AND activity_id=?`,
       [
         command.access ? JSON.stringify(command.access) : null,
         command.downloadAccess ? JSON.stringify(command.downloadAccess) : null,

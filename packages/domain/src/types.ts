@@ -84,6 +84,7 @@ export interface FormValidationResult {
   payload: Record<string, string>;
 }
 export interface FormDefinition {
+  businessType?: 'activity' | 'general';
   id: string;
   name: string;
   fields: FormField[];
@@ -161,6 +162,12 @@ export interface DecisionCapabilities {
   ratingRequirement: NodeApprovalPolicy['rating'];
   ratingTargets: DecisionTarget[];
 }
+export interface LifecycleDefinition {
+  businessType: 'activity' | 'general';
+  afterApproval: 'complete' | 'activity_standard';
+  version: 1;
+}
+export type BusinessStage = 'assign' | 'execution' | 'archive_submit' | 'archive_review';
 export interface NodeDefinition {
   approvalPolicy?: NodeApprovalPolicy;
   access?: DataAccessRule;
@@ -181,7 +188,7 @@ export interface CompanyConfig {
   groups: MenuGroup[];
   pages: PageDefinition[];
   form: FormDefinition;
-  workflow: { name: string; nodes: NodeDefinition[]; ratingEnabled?: boolean };
+  workflow: { name: string; nodes: NodeDefinition[]; ratingEnabled?: boolean; lifecycle?: LifecycleDefinition };
 }
 export interface ConfigState {
   draft: CompanyConfig;
@@ -200,16 +207,18 @@ export type ActivityStatus =
   | 'executing'
   | 'archive_draft'
   | 'archive_review'
+  | 'completed'
   | 'archived'
   | 'cancel_review'
   | 'cancelled';
 export type NodeStatus = 'waiting' | 'active' | 'completed' | 'invalidated' | 'skipped';
 export interface WorkflowNode {
+  businessStage?: BusinessStage;
   approvalPolicy?: NodeApprovalPolicy;
   rework?: { fromNodeId: string; targetNodeId: string; returnTaskId: string; at: string };
   access?: DataAccessRule;
   downloadAccess?: DataAccessRule;
-  origin?: 'template' | 'instance';
+  origin?: 'template' | 'instance' | 'business';
   id: string;
   key: string;
   label: string;
@@ -270,6 +279,7 @@ export interface Cancellation {
   disposal: string;
 }
 export interface ApplicationRevision {
+  lifecycle?: LifecycleDefinition;
   activityTypeId?: string;
   templateId?: string;
   templateVersion?: number;
@@ -294,7 +304,10 @@ export interface AuditEvent {
   note: string;
   createdAt: string;
 }
+/** 通用申请运行模型；活动专属字段由存储适配器填充，旧接口保留兼容。 */
 export interface Activity {
+  lifecycle?: LifecycleDefinition;
+  completedAt?: string;
   lastApprovalTaskId?: string;
   workflowOwnerId?: string;
   workflowOwnerNodeId?: string;

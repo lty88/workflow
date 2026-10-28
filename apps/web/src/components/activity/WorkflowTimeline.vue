@@ -1,7 +1,7 @@
 <script setup lang="tsx">
   import { computed, ref } from 'vue'
   import { useMediaQuery } from '@vueuse/core'
-  import { NButton, NTag, NEmpty, NAlert, NCheckbox, NModal } from 'naive-ui'
+  import { NButton, NTag, NEmpty, NAlert, NCheckbox, NModal, NPopover } from 'naive-ui'
   import { topological } from '@workflow/domain'
   import type { WorkflowNode, WorkflowTask } from '@workflow/domain'
   import { NODE_STATUSES, TASK_STATUSES } from './types'
@@ -15,6 +15,8 @@
   const props = defineProps<{ detail: WorkflowViewDetail; readOnly?: boolean }>()
   const emit = defineEmits<{ decide: [task: WorkflowTask]; transfer: [task: WorkflowTask] }>()
   const auth = useAuthStore()
+  /** 超过该人数时折叠办理人明细，避免大规模会签撑高时间线。 */
+  const CROWDED_TASK_THRESHOLD = 6
   const mobile = useMediaQuery('(max-width: 850px)')
   const showHistory = ref(false)
   const graphOpen = ref(false)
@@ -33,7 +35,7 @@
    * @returns 是否展示
    */
   function inCurrentRevision(node: WorkflowNode): boolean {
-    return showHistory.value || (node.applicationRevision || 1) === (props.detail.activity.revision || 1)
+    return !node.businessStage && (showHistory.value || (node.applicationRevision || 1) === (props.detail.activity.revision || 1))
   }
   /**
    * 查找参与人显示名。
@@ -68,6 +70,50 @@
         return task.nodeId === id
       }
     )
+  }
+  /**
+   * 获取节点当前轮次的个人任务，排除历史轮次对会签进度的干扰。
+   * @param node 当前流程节点
+   * @returns 当前轮次个人任务
+   */
+  function currentTasksFor(node: WorkflowNode): WorkflowTask[] {
+    return tasksFor(node.id).filter(
+      /**
+       * 只保留与节点当前轮次一致的个人任务。
+       * @param task 当前个人任务
+       * @returns 是否属于当前轮次
+       */
+      function current(task) {
+        return task.generation === node.generation
+      }
+    )
+  }
+  /**
+   * 统计节点当前轮次指定状态的个人任务数量。
+   * @param node 当前流程节点
+   * @param statuses 需要纳入统计的任务状态
+   * @returns 符合状态条件的任务数量
+   */
+  function taskCount(node: WorkflowNode, statuses: WorkflowTask['status'][]): number {
+    let count = 0
+    for (const task of currentTasksFor(node)) if (statuses.includes(task.status)) count++
+    return count
+  }
+  /**
+   * 统计当前轮次已经产生明确办理动作的人数，取消任务不计入已操作。
+   * @param node 当前流程节点
+   * @returns 已通过、已完成、已退回或已终止的人数
+   */
+  function handledTaskCount(node: WorkflowNode): number {
+    return taskCount(node, ['approved', 'completed', 'returned', 'rejected'])
+  }
+  /**
+   * 判断当前节点是否需要折叠多人办理明细。
+   * @param node 当前流程节点
+   * @returns 当前轮次任务数是否超过普通展示阈值
+   */
+  function isCrowdedNode(node: WorkflowNode): boolean {
+    return currentTasksFor(node).length > CROWDED_TASK_THRESHOLD
   }
   /** 判断评分仍属于当前有效办理结果，源任务或被评节点重办后旧分数仅保留历史。
    * @param task 评分任务
@@ -165,6 +211,18 @@
     if (status === 'completed') return 'success'
     return 'default'
   }
+  /**
+   * 按个人任务状态返回弹层标签色调。
+   * @param status 个人任务状态
+   * @returns Naive UI 标签类型
+   */
+  function taskTagType(status: WorkflowTask['status']): 'info' | 'success' | 'default' | 'error' | 'warning' {
+    if (status === 'approved' || status === 'completed') return 'success'
+    if (status === 'returned') return 'warning'
+    if (status === 'rejected') return 'error'
+    if (status === 'pending') return 'info'
+    return 'default'
+  }
 </script>
 <template>
   <div>
@@ -189,38 +247,98 @@
               {{ { approval: '审批 · 全员通过', task: '任务 · 全员完成', notice: '知会 · 不阻断流转' }[node.kind] }}
               · V{{ node.applicationRevision || detail.activity.revision || 1 }} · 第{{ node.generation }}轮
             </div>
-            <div class="help-text">
-              受理人：
-              <span v-for="(person, index) in node.assignees" :key="person">{{ index ? '、' : '' }}{{ nameFor(person) }}</span>
+            <div v-if="node.assignees.length" class="assignee-line help-text">
+              <template v-if="!isCrowdedNode(node)">
+                受理人：
+                <span v-for="(person, index) in node.assignees" :key="person">{{ index ? '、' : '' }}{{ nameFor(person) }}</span>
+              </template>
+              <template v-else>
+                <span>受理人：共 {{ currentTasksFor(node).length }} 人</span>
+                <span class="assignee-summary">已处理 {{ handledTaskCount(node) }} · 待办理 {{ taskCount(node, ['pending']) }}</span>
+                <NPopover trigger="click" placement="bottom-start" :show-arrow="false">
+                  <template #trigger>
+                    <NButton text type="primary" size="small">查看办理情况</NButton>
+                  </template>
+                  <div class="assignee-popover">
+                    <div class="assignee-popover-header">
+                      <div>
+                        <strong>{{ node.label }}</strong>
+                        <p>本轮共 {{ currentTasksFor(node).length }} 人，已处理 {{ handledTaskCount(node) }} 人</p>
+                      </div>
+                      <div class="task-status-counts" aria-label="人员办理状态统计">
+                        <NTag v-if="taskCount(node, ['approved', 'completed'])" size="small" type="success" :bordered="false">
+                          已通过 {{ taskCount(node, ['approved', 'completed']) }}
+                        </NTag>
+                        <NTag v-if="taskCount(node, ['returned'])" size="small" type="warning" :bordered="false">
+                          已退回 {{ taskCount(node, ['returned']) }}
+                        </NTag>
+                        <NTag v-if="taskCount(node, ['rejected'])" size="small" type="error" :bordered="false">已终止 {{ taskCount(node, ['rejected']) }}</NTag>
+                        <NTag v-if="taskCount(node, ['pending'])" size="small" type="info" :bordered="false">待办理 {{ taskCount(node, ['pending']) }}</NTag>
+                        <NTag v-if="taskCount(node, ['cancelled'])" size="small" :bordered="false">已取消 {{ taskCount(node, ['cancelled']) }}</NTag>
+                      </div>
+                    </div>
+                    <div class="popover-task-list">
+                      <div
+                        v-for="task in tasksFor(node.id)"
+                        :key="task.id"
+                        class="popover-task-item"
+                        :class="{ 'is-history': task.generation !== node.generation }"
+                      >
+                        <div class="popover-task-main">
+                          <span class="popover-person">{{ nameFor(task.assignee) }}</span>
+                          <NTag size="small" :type="taskTagType(task.status)" :bordered="false">{{ TASK_STATUSES[task.status] }}</NTag>
+                          <span v-if="task.generation !== node.generation" class="task-history-label">历史第{{ task.generation }}轮</span>
+                          <span class="task-actions">
+                            <NButton v-if="canTransfer(task)" size="tiny" @click="emit('transfer', task)">转交</NButton>
+                            <NButton v-if="canDecide(task)" type="primary" size="tiny" @click="emit('decide', task)">办理</NButton>
+                          </span>
+                        </div>
+                        <NAlert v-if="taskWarning(task.id)" type="warning" :bordered="false" style="margin: 8px 0">
+                          {{ taskWarning(task.id) }}
+                        </NAlert>
+                        <div v-if="task.publicComment" class="task-comment">审批意见：{{ task.publicComment }}</div>
+                        <div v-if="task.returnTargetId" class="task-comment returned-target">
+                          退回至：{{ task.returnTargetId === 'applicant' ? '发起人修改申请' : nodeName(task.returnTargetId) }}
+                        </div>
+                        <div v-for="rating in task.ratings || []" :key="rating.nodeId" class="task-comment">
+                          {{ nodeName(rating.nodeId) }}：{{ rating.score }}分
+                          <span v-if="!ratingEffective(task, rating.nodeId, rating.generation)">（历史评分）</span>
+                        </div>
+                        <small v-if="task.actedAt" class="muted">{{ formatTime(task.actedAt) }}</small>
+                      </div>
+                    </div>
+                  </div>
+                </NPopover>
+              </template>
             </div>
             <div v-if="node.deps.length" class="help-text">
               前置：
               <template v-for="(dep, index) in node.deps" :key="dep">{{ index ? '、' : '' }}{{ nodeName(dep) }}</template>
             </div>
-            <div
-              v-for="task in tasksFor(node.id)"
-              :key="task.id"
-              class="task-line"
-              :class="{ 'is-negative': task.status === 'rejected', 'is-returned': task.status === 'returned' }"
-            >
-              <div class="spread">
-                <span>
-                  {{ nameFor(task.assignee) }} · {{ TASK_STATUSES[task.status] }}
-                  <span v-if="task.generation !== node.generation">（历史轮次）</span>
-                </span>
-                <NButton v-if="canTransfer(task)" size="tiny" @click="emit('transfer', task)">转交</NButton>
-                <NButton v-if="canDecide(task)" type="primary" size="tiny" @click="emit('decide', task)">办理</NButton>
+            <div v-if="!isCrowdedNode(node) && tasksFor(node.id).length" class="task-list">
+              <div v-for="task in tasksFor(node.id)" :key="task.id" class="task-line" :class="{ 'is-history': task.generation !== node.generation }">
+                <div class="spread">
+                  <span>
+                    {{ nameFor(task.assignee) }} ·
+                    <strong class="task-status-text" :class="task.status">{{ TASK_STATUSES[task.status] }}</strong>
+                    <span v-if="task.generation !== node.generation">（历史第{{ task.generation }}轮）</span>
+                  </span>
+                  <span class="task-actions">
+                    <NButton v-if="canTransfer(task)" size="tiny" @click="emit('transfer', task)">转交</NButton>
+                    <NButton v-if="canDecide(task)" type="primary" size="tiny" @click="emit('decide', task)">办理</NButton>
+                  </span>
+                </div>
+                <NAlert v-if="taskWarning(task.id)" type="warning" :bordered="false" style="margin: 10px 0">{{ taskWarning(task.id) }}</NAlert>
+                <div v-if="task.publicComment" class="task-comment">审批意见：{{ task.publicComment }}</div>
+                <div v-if="task.returnTargetId" class="task-comment returned-target">
+                  退回至：{{ task.returnTargetId === 'applicant' ? '发起人修改申请' : nodeName(task.returnTargetId) }}
+                </div>
+                <div v-for="rating in task.ratings || []" :key="rating.nodeId" class="task-comment">
+                  {{ nodeName(rating.nodeId) }}：{{ rating.score }}分 · 被评第{{ rating.generation }}轮
+                  <span v-if="!ratingEffective(task, rating.nodeId, rating.generation)">（历史评分）</span>
+                </div>
+                <small v-if="task.actedAt" class="muted">{{ formatTime(task.actedAt) }}</small>
               </div>
-              <NAlert v-if="taskWarning(task.id)" type="warning" :bordered="false" style="margin: 10px 0">{{ taskWarning(task.id) }}</NAlert>
-              <div v-if="task.publicComment" class="task-comment">审批意见：{{ task.publicComment }}</div>
-              <div v-if="task.returnTargetId" class="task-comment returned-target">
-                退回至：{{ task.returnTargetId === 'applicant' ? '发起人修改申请' : nodeName(task.returnTargetId) }}
-              </div>
-              <div v-for="rating in task.ratings || []" :key="rating.nodeId" class="task-comment">
-                {{ nodeName(rating.nodeId) }}：{{ rating.score }}分 · 被评第{{ rating.generation }}轮
-                <span v-if="!ratingEffective(task, rating.nodeId, rating.generation)">（历史评分）</span>
-              </div>
-              <small v-if="task.actedAt" class="muted">{{ formatTime(task.actedAt) }}</small>
             </div>
           </div>
         </div>
@@ -235,27 +353,6 @@
 
 <style scoped>
   .flow-step.returned .flow-dot,
-  .flow-step.rejected .flow-dot {
-    background: #dc4c5b;
-    box-shadow: 0 0 0 4px #dc4c5b18;
-  }
-  .flow-step.returned .flow-body > .spread strong,
-  .flow-step.rejected .flow-body > .spread strong,
-  .task-line.is-negative > .spread > span {
-    color: #c93547;
-  }
-  .flow-step.returned .flow-body,
-  .flow-step.rejected .flow-body {
-    background: linear-gradient(90deg, #fff2f3, transparent);
-    border-radius: 6px;
-  }
-  .task-line.is-negative > .spread > span {
-    font-weight: 600;
-  }
-</style>
-
-<style scoped>
-  .flow-step.returned .flow-dot,
   .flow-step.reworking .flow-dot {
     background: #d79a24;
     box-shadow: 0 0 0 4px #d79a2418;
@@ -263,15 +360,118 @@
   .flow-step.returned .flow-body > .spread strong,
   .flow-step.reworking .flow-body > .spread strong,
   .returned-target {
-    color: #a96c0f;
+    color: #9a620c;
   }
   .flow-step.returned .flow-body {
-    background: linear-gradient(90deg, #fff8e9, transparent);
+    border-radius: 6px;
+    background: #fff9ed;
   }
-</style>
-<style scoped>
-  .task-line.is-returned > .spread > span {
-    color: #a96c0f;
+  .flow-step.rejected .flow-dot {
+    background: #dc4c5b;
+    box-shadow: 0 0 0 4px #dc4c5b18;
+  }
+  .flow-step.rejected .flow-body > .spread strong {
+    color: #c93547;
+  }
+  .flow-step.rejected .flow-body {
+    border-radius: 6px;
+    background: #fff3f5;
+  }
+  .assignee-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px 10px;
+    margin: 6px 0 4px;
+  }
+  .assignee-summary {
+    color: #66758b;
+  }
+  .task-list .task-line.is-history {
+    opacity: 0.68;
+  }
+  .task-status-text {
     font-weight: 600;
+  }
+  .task-status-text.pending {
+    color: #2d64c8;
+  }
+  .task-status-text.approved,
+  .task-status-text.completed {
+    color: #18815d;
+  }
+  .task-status-text.returned {
+    color: #a76b10;
+  }
+  .task-status-text.rejected {
+    color: #c73a50;
+  }
+  .task-status-text.cancelled {
+    color: #7d8797;
+  }
+  .task-actions {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .task-history-label {
+    color: #7b8698;
+    font-size: 11px;
+  }
+  .assignee-popover {
+    width: min(440px, calc(100vw - 40px));
+  }
+  .assignee-popover-header {
+    padding: 2px 2px 12px;
+    border-bottom: 1px solid #e8ecf2;
+  }
+  .assignee-popover-header strong {
+    color: #26354d;
+    font-size: 14px;
+  }
+  .assignee-popover-header p {
+    margin: 3px 0 9px;
+    color: #7c8799;
+    font-size: 12px;
+  }
+  .task-status-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .popover-task-list {
+    max-height: 360px;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .popover-task-item {
+    padding: 10px 2px;
+    border-bottom: 1px solid #edf0f5;
+  }
+  .popover-task-item:last-child {
+    border-bottom: 0;
+  }
+  .popover-task-item.is-history {
+    opacity: 0.64;
+  }
+  .popover-task-main {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+  }
+  .popover-person {
+    min-width: 0;
+    color: #2e3b50;
+    font-size: 13px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .popover-task-item .task-comment {
+    margin-top: 5px;
+  }
+  .popover-task-item .muted {
+    display: block;
+    margin-top: 3px;
   }
 </style>

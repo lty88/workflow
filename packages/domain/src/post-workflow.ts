@@ -1,3 +1,4 @@
+import { lifecycleOf } from './lifecycle';
 import type { Activity, CompanyConfig, WorkflowNode, WorkflowTask } from './types';
 import { canReadActivity, hasPermission } from './permissions';
 
@@ -80,6 +81,11 @@ export function canCoordinateExecution(config: CompanyConfig, actor: string, act
  * @param activity 将更新负责人字段及待审核档案的事务内活动
  */
 export function synchronizeWorkflowOwner(activity: Activity): void {
+  if (lifecycleOf(activity).afterApproval === 'complete') {
+    delete activity.workflowOwnerId;
+    delete activity.workflowOwnerNodeId;
+    return;
+  }
   if (['draft', 'needs_info', 'withdrawn', 'rejected'].includes(activity.status))
     delete activity.lastApprovalTaskId;
   if (['draft', 'approving', 'needs_info', 'withdrawn', 'rejected'].includes(activity.status)) {

@@ -14,7 +14,7 @@ export async function requireDatabaseReady(pool: Pool): Promise<void> {
   }
   const versions = await query<{ version: number }>(
     pool,
-    'SELECT version FROM schema_migrations WHERE version IN (2,3,4,5,6,7,8)',
+    'SELECT version FROM schema_migrations WHERE version IN (2,3,4,5,6,7,8,9)',
   );
   if (
     !versions.some(
@@ -121,4 +121,13 @@ export async function requireDatabaseReady(pool: Pool): Promise<void> {
   );
   if (!versions.some((row) => row.version === 8) || executionColumns.length !== 2)
     throw new Error('数据库需升级执行记录与业务表单附件，请先运行 pnpm db:migrate，再启动服务。');
+  if (!versions.some(
+    /** 核对新增通用申请表，避免普通申请写入缺失结构。
+     * @param row 已安装版本
+     * @returns 是否安装第九版
+     */ function requestApplied(row) { return row.version === 9; },
+  )) throw new Error('数据库需新增通用申请表，请运行 pnpm db:migrate；原活动数据和外键保持不变。');
+  const requestTables = await query(pool, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('requests','request_nodes','request_tasks','request_edges','request_files')");
+  if (requestTables.length !== 5) throw new Error('通用申请表不完整，请运行 pnpm db:migrate 修复后再启动服务。');
+
 }

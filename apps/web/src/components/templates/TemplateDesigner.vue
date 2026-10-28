@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+  import { templateContext } from '@workflow/domain'
   import { computed, nextTick, onMounted, ref, watch } from 'vue'
   import { useElementBounding, useEventListener, useMediaQuery, useWindowSize } from '@vueuse/core'
   import { NAlert, NButton, NDrawer, NDrawerContent } from 'naive-ui'
@@ -309,7 +310,7 @@
         <NAlert v-if="errors?.length" type="warning" :bordered="false" title="请修正流程后再发布" class="designer-errors">
           <div v-for="error in errors" :key="error">{{ error }}</div>
         </NAlert>
-        <TemplateFlowGuide :nodes="modelValue.nodes" />
+        <TemplateFlowGuide :lifecycle="modelValue.lifecycle" :nodes="modelValue.nodes" />
         <div class="designer-columns">
           <TemplateNodePalette
             :nodes="modelValue.nodes"
@@ -344,7 +345,7 @@
             :node="selectedNode"
             :rating-enabled="!!modelValue.ratingEnabled"
             :nodes="modelValue.nodes"
-            :config="config"
+            :config="templateContext(config, modelValue, config.form)"
             :disabled="disabled"
             @apply="applyNode"
             @remove="remove"
@@ -356,7 +357,7 @@
     </Teleport>
     <NDrawer v-model:show="settingsOpen" :width="480" :z-index="2100" style="max-width: 100vw" display-directive="show">
       <NDrawerContent title="模板设置" closable>
-        <TemplateSettingsPanel :model-value="modelValue" :config="config" :types="types" :disabled="disabled" @update:model-value="apply" />
+        <TemplateSettingsPanel :model-value="modelValue" :config="config" :types="types" :disabled="disabled" :type-locked="template.currentVersion > 0" @update:model-value="apply" />
         <template #footer>
           <div class="stack">
             <span class="drawer-hint">保存会立即提交服务器。新规则供新申请使用前，再启用版本；已有活动保持原快照。</span>

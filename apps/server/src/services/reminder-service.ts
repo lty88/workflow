@@ -1,3 +1,4 @@
+import { REQUEST_CATALOG, REQUEST_TASK_CATALOG } from '../db/request-store';
 import type { Pool, PoolConnection } from 'mysql2/promise';
 import type { Activity } from '@workflow/domain';
 import { canHandleTask, canReadActivity, findById, hasPermission } from '@workflow/domain';
@@ -17,7 +18,7 @@ export async function scheduleReminders(pool: Pool): Promise<void> {
     const config = (await loadConfig(connection, 'share')).published;
     const rows = await query<{ id: string }>(
       connection,
-      "SELECT DISTINCT a.id FROM activities a JOIN workflow_tasks t ON t.activity_id=a.id WHERE a.deleted_at IS NULL AND a.status='approving' AND a.id>? AND t.status='pending' AND CAST(JSON_UNQUOTE(JSON_EXTRACT(t.data,'$.createdAt')) AS CHAR) < ? ORDER BY a.id LIMIT 100",
+      `SELECT DISTINCT a.id FROM ${REQUEST_CATALOG} a JOIN ${REQUEST_TASK_CATALOG} t ON t.activity_id=a.id WHERE a.deleted_at IS NULL AND a.status='approving' AND a.id>? AND t.status='pending' AND CAST(JSON_UNQUOTE(JSON_EXTRACT(t.data,'$.createdAt')) AS CHAR) < ? ORDER BY a.id LIMIT 100`,
       [after, new Date(Date.now() - 24 * 3600000).toISOString()],
     );
     after = rows.at(-1)?.id || '';

@@ -90,8 +90,8 @@ export function registerTemplateRoutes(app: FastifyInstance, pool: Pool): void {
    * @returns 模板摘要与冻结表单
    */
   async function list(request: FastifyRequest) {
-    const input = z.object({ activityTypeId: z.string().max(80).optional() }).parse(request.query);
-    return availableTemplates(pool, (await loadConfig(pool)).published, actor(request), input.activityTypeId);
+    const input = z.object({ activityTypeId: z.string().max(80).optional(), businessType: z.enum(['activity','general']).optional() }).parse(request.query);
+    return availableTemplates(pool, (await loadConfig(pool)).published, actor(request), input.activityTypeId, input.businessType);
   }
   app.get('/api/workflow-templates', list);
 
@@ -286,7 +286,7 @@ export function registerTemplateRoutes(app: FastifyInstance, pool: Pool): void {
     const config = (await loadConfig(pool)).published;
     const plan = instantiateWorkflow(
       templateContext(config, body.definition, config.form),
-      { ...defaultValues(config.form), ...body.payload },
+      { ...defaultValues(templateContext(config, body.definition, config.form).form), ...body.payload },
       body.applicant,
       { requireApproval: false },
     );

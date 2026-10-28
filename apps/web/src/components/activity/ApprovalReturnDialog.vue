@@ -109,7 +109,7 @@
       </NFormItem>
       <NAlert :type="decision === 'return' ? 'warning' : 'error'" :bordered="false" style="margin-bottom: 18px">
         <template v-if="decision === 'reject'">
-          将终止整个申请并取消剩余{{ pendingCount }}个待办。后续审批、执行指派和归档流转停止；再次申请需复制后重新提交。
+          将终止整个申请并取消剩余{{ pendingCount }}个待办。后续审批、执行指派和归档流转停止；记录仍保留在工单中可查询。再次申请需复制后重新提交。
         </template>
         <template v-else-if="targetId === 'applicant'">将退给发起人修改申请，取消本轮剩余待办；重新提交后生成新的申请版本，全部生效节点重新办理。</template>
         <template v-else>需要重新办理：{{ impact || '请选择目标' }}。独立并行分支保留结果，历史意见保留。</template>

@@ -1,3 +1,5 @@
+import { REQUEST_CATALOG, REQUEST_NODE_CATALOG, REQUEST_TASK_CATALOG } from '../db/request-store';
+import { lifecycleOf } from '@workflow/domain';
 import type { Database } from '../db/repository';
 import {
   projectFormData,
@@ -27,6 +29,7 @@ const NO_APPROVAL_SQL = `NOT EXISTS(SELECT 1 FROM workflow_nodes n WHERE n.activ
   AND COALESCE(JSON_EXTRACT(n.data,'$.applicationRevision'),1)=COALESCE(JSON_EXTRACT(a.data,'$.revision'),1))`;
 
 export interface ActivityListItem {
+  businessType?: 'activity' | 'general';
   canDelete: boolean;
   restrictedFields?: string[];
   id: string;
@@ -151,11 +154,12 @@ function taskWhere(config: CompanyConfig, actor: string): { sql: string; params:
 }
 
 /**
- * 分页查询授权范围内未删除活动，返回列表字段及服务端计算的删除资格。
+ * 分页查询授权范围内未删除申请；全部工单保留终止、取消和办结记录，待办与档案再按用途收窄。
  * @param pool 连接池
  * @param actor 当前员工
  * @param input 查询条件
  * @param exporting 是否用于导出，敏感字段另需导出授权
+ * @param common 是否查询跨业务申请，待办列表自动包含两类申请
  * @returns 已过滤敏感内容的记录和分页总数
  */
 export async function listActivities(
@@ -163,18 +167,27 @@ export async function listActivities(
   actor: string,
   input: z.infer<typeof listQuerySchema>,
   exporting = false,
+  common = false,
 ): Promise<{
   items: ActivityListItem[];
   total: number;
   page: number;
   pageSize: number;
 }> {
+  const unified = common || input.scope === 'tasks';
+  const source = unified ? REQUEST_CATALOG : 'activities';
+  const nodeSource = unified ? REQUEST_NODE_CATALOG : 'workflow_nodes';
   const config = (await loadConfig(pool)).published;
   ensure(hasPermission(config, actor, 'activity:read'), 403, 'FORBIDDEN', '无活动读取权限');
   if (exporting) ensure(hasPermission(config, actor, 'activity:export'), 403, 'FORBIDDEN', '无导出权限');
   const scope = activityScopeWhere(config, actor);
-  const clauses = [scope.sql, 'a.deleted_at IS NULL'];
+  const scopeSql = unified ? scope.sql.replaceAll('workflow_tasks', REQUEST_TASK_CATALOG).replaceAll('workflow_nodes', REQUEST_NODE_CATALOG) : scope.sql;
+  const clauses = [scopeSql, 'a.deleted_at IS NULL'];
   const params = [...scope.params];
+  if (input.businessType) {
+    clauses.push("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.lifecycle.businessType')),'activity')=?");
+    params.push(input.businessType);
+  }
   if (input.q) {
     clauses.push("(JSON_UNQUOTE(JSON_EXTRACT(a.data,'$.name')) LIKE ? OR a.code LIKE ?)");
     params.push(`%${input.q}%`, `%${input.q}%`);
@@ -190,18 +203,18 @@ export async function listActivities(
   if (input.scope === 'archives') clauses.push("a.status='archived'");
   if (input.scope === 'tasks') {
     const tasks = taskWhere(config, actor);
-    clauses.push(tasks.sql);
+    clauses.push(unified ? tasks.sql.replaceAll('workflow_tasks', REQUEST_TASK_CATALOG).replaceAll('workflow_nodes', REQUEST_NODE_CATALOG) : tasks.sql);
     params.push(...tasks.params);
   }
   const where = clauses.join(' AND ');
   const count = await query<{ total: number }>(
     pool,
-    `SELECT COUNT(*) AS total FROM activities a WHERE ${where}`,
+    `SELECT COUNT(*) AS total FROM ${source} a WHERE ${where}`,
     params,
   );
   const rows = await query<{ data: unknown }>(
     pool,
-    `SELECT a.data FROM activities a WHERE ${where} ORDER BY a.updated_at DESC,a.id DESC LIMIT ${input.pageSize} OFFSET ${(input.page - 1) * input.pageSize}`,
+    `SELECT a.data FROM ${source} a WHERE ${where} ORDER BY a.updated_at DESC,a.id DESC LIMIT ${input.pageSize} OFFSET ${(input.page - 1) * input.pageSize}`,
     params,
   );
   const items: ActivityListItem[] = [];
@@ -214,7 +227,7 @@ export async function listActivities(
   if (activities.size) {
     const nodes = await query<{ activity_id: string; data: unknown }>(
       pool,
-      `SELECT activity_id,data FROM workflow_nodes WHERE activity_id IN (${[...activities.keys()].map(sqlPlaceholder).join(',')})`,
+      `SELECT activity_id,data FROM ${nodeSource} AS listing_nodes WHERE activity_id IN (${[...activities.keys()].map(sqlPlaceholder).join(',')})`,
       [...activities.keys()],
     );
     for (const row of nodes) activities.get(row.activity_id)?.nodes.push(jsonValue<WorkflowNode>(row.data));
@@ -223,6 +236,7 @@ export async function listActivities(
     const visible = projectFormData(config, actor, a, a.schema, a.payload, exporting);
 
     items.push({
+      businessType: lifecycleOf(a).businessType,
       canDelete: canDeleteActivity(config, actor, a),
       restrictedFields: visible.hidden,
       id: a.id,

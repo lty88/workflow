@@ -1,3 +1,4 @@
+import { REQUEST_CATALOG, REQUEST_TASK_CATALOG } from '../db/request-store';
 import type { Pool, PoolConnection } from 'mysql2/promise';
 import { z } from 'zod';
 import { canReadActivity } from '@workflow/domain';
@@ -40,7 +41,7 @@ export async function notificationFeed(pool: Pool, actor: string, cursor?: strin
       db,
       `SELECT n.id,n.title,n.activity_id AS activityId,n.read_at AS readAt,n.created_at AS createdAt,
       DATE_FORMAT(n.created_at,'%Y-%m-%d %H:%i:%s.%f') AS cursorAt
-      FROM notifications n JOIN activities a ON a.id=n.activity_id
+      FROM notifications n JOIN ${REQUEST_CATALOG} a ON a.id=n.activity_id
       WHERE n.recipient_id=? AND a.deleted_at IS NULL ${previous ? 'AND (n.created_at>? OR (n.created_at=? AND n.id>?))' : ''}
       ORDER BY n.created_at ${previous ? 'ASC' : 'DESC'},n.id ${previous ? 'ASC' : 'DESC'} LIMIT 101`,
       previous ? [actor, previous.at, previous.at, previous.id] : [actor],

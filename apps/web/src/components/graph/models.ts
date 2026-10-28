@@ -1,6 +1,7 @@
+import { appendLifecycleGraph, appendCaseEnd } from './lifecycle-model'
 import { WORKFLOW_NODE_THEMES } from './workflow-node-theme'
 import type { EdgeData, NodeData } from '@antv/g6'
-import { activeMember, findById, topological, STATUSES } from '@workflow/domain'
+import { activeMember, findById, topological, STATUSES, lifecycleOf, ACTIVITY_SUBPROCESS, activitySubprocessPosition } from '@workflow/domain'
 import type { ActivityStatus, CompanyConfig } from '@workflow/domain'
 import type { WorkflowViewDetail } from '@/components/activity/types'
 import { nodeProgressStatus } from '@/components/activity/workflow-progress'
@@ -15,12 +16,6 @@ const colors: Record<GraphTone, { fill: string; stroke: string }> = {
   muted: { fill: '#f1f3f7', stroke: '#bdc5d3' },
   error: { fill: '#fff1f2', stroke: '#dc4c5b' },
 }
-const stages = [
-  { id: 'assign', name: '指派执行人', statuses: ['ready_assign'] },
-  { id: 'execute', name: '活动执行与汇报', statuses: ['ready_execute', 'executing'] },
-  { id: 'archive', name: '成果提交与归档', statuses: ['archive_draft', 'archive_review'] },
-  { id: 'finish', name: '已归档', statuses: ['archived'] },
-]
 
 /**
  * 判断部门与所有上级是否启用，用于和服务端权限一致的组织图展示。
@@ -227,7 +222,7 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
     visualNode('stage:apply', {
       businessId: 'apply',
       kind: 'stage',
-      label: '提交活动申请',
+      label: '提交申请',
       summary: '冻结表单和实际办理路线',
       tone: 'normal',
     }),
@@ -275,7 +270,7 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
     visualNode('stage:approved', {
       businessId: 'approved',
       kind: 'stage',
-      label: '流程办理完成',
+      label: '审批段完成',
       summary: '全部必办分支完成后汇合',
       tone: 'normal',
     })
@@ -287,40 +282,8 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
     if (!hasChild) edges.push(edge('workflow:' + node.id, 'stage:approved'))
   }
   if (!checked.order.some((node) => node.kind !== 'notice')) edges.push(edge('stage:apply', 'stage:approved'))
-  addStages(nodes, edges, 'stage:approved')
+  appendLifecycleGraph(nodes, edges, 'stage:approved', config.workflow.lifecycle)
   return { data: { nodes, edges } }
-}
-
-/**
- * 追加指派、执行及归档阶段并标明对应负责人，不把业务阶段当成审批节点。
- * @param nodes 图节点
- * @param edges 图边
- * @param from 审批汇合节点
- * @param status 当前业务状态
- * @param owners 各阶段的负责人姓名或职责说明
- */
-function addStages(nodes: NodeData[], edges: EdgeData[], from: string, status?: ActivityStatus, owners: Record<string, string> = {}): void {
-  let current = -1
-  for (let index = 0; index < stages.length; index += 1) if (stages[index]!.statuses.includes(status || '')) current = index
-  let previous = from
-  for (let index = 0; index < stages.length; index += 1) {
-    const stage = stages[index]!
-    const tone: GraphTone = current > index || status === 'archived' ? 'success' : current === index ? 'active' : 'normal'
-    const id = 'stage:' + stage.id
-    nodes.push(
-      visualNode(id, {
-        businessId: stage.id,
-        kind: 'stage',
-        label: stage.name,
-        summary: [current === index ? '当前业务阶段' : current > index || status === 'archived' ? '已完成' : '后续业务阶段', owners[stage.id]]
-          .filter(Boolean)
-          .join(' · '),
-        tone,
-      })
-    )
-    edges.push(edge(previous, id))
-    previous = id
-  }
 }
 
 /**
@@ -375,7 +338,7 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
         tone,
       })
     )
-    for (const dep of node.deps) edges.push(edge('runtime:' + dep, 'runtime:' + node.id, node.kind === 'notice' || node.status === 'skipped'))
+    if (node.businessStage !== 'assign') for (const dep of node.deps) edges.push(edge('runtime:' + dep, 'runtime:' + node.id, node.kind === 'notice' || node.status === 'skipped'))
   }
   if (nodes.length && hasRealStatus) {
     const approved = !['draft', 'approving', 'needs_info', 'withdrawn', 'rejected'].includes(detail.activity.status!)
@@ -383,27 +346,49 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
       visualNode('stage:approved', {
         businessId: 'approved',
         kind: 'stage',
-        label: '流程办理完成',
+        label: '审批段完成',
         summary: approved ? '必办节点已结束' : '等待全部必办分支',
         tone: approved ? 'success' : 'normal',
       })
     )
     for (const node of current) {
-      if (node.kind === 'notice' || node.status === 'invalidated' || (!showHistory && (node.applicationRevision || 1) !== revision)) continue
+      if (node.businessStage || node.kind === 'notice' || node.status === 'invalidated' || (!showHistory && (node.applicationRevision || 1) !== revision)) continue
       let hasChild = false
-      for (const child of current) if (child.kind !== 'notice' && child.deps.includes(node.id)) hasChild = true
+      for (const child of current) if (!child.businessStage && child.kind !== 'notice' && child.deps.includes(node.id)) hasChild = true
       if (!hasChild) edges.push(edge('runtime:' + node.id, 'stage:approved', node.status === 'skipped' || (node.applicationRevision || 1) !== revision))
     }
-    if (current.length && current.every((node) => node.kind === 'notice'))
-      for (const node of current) edges.push(edge('runtime:' + node.id, 'stage:approved', true))
+    if (current.length && current.every(
+      /** 业务步骤不参与审批段必办判断，纯知会流程仍连接到审批出口。
+       * @param node 实例节点
+       * @returns 是否无需人工审批或任务
+       */ function optional(node) { return !!node.businessStage || node.kind === 'notice' },
+    ))
+      for (const node of current) if (!node.businessStage) edges.push(edge('runtime:' + node.id, 'stage:approved', true))
     const owner = findById(detail.participants, detail.activity.workflowOwnerId || '')?.name || '流程协调人'
     const executor = findById(detail.participants, detail.activity.executor || '')?.name || '执行负责人'
     const archiveReviewer = findById(detail.participants, detail.activity.archive?.reviewer || detail.activity.workflowOwnerId || '')?.name || '归档审核人'
-    addStages(nodes, edges, 'stage:approved', detail.activity.status, {
-      assign: owner,
-      execute: executor,
-      archive: detail.activity.status === 'archive_review' || detail.activity.status === 'archived' ? `审核：${archiveReviewer}` : `提交：${executor}`,
-    })
+    const business = current.filter(
+      /** 当前申请的真实业务子流程节点。
+       * @param node 实例节点
+       * @returns 是否业务步骤
+       */ function step(node) { return !!node.businessStage && (node.applicationRevision || 1) === revision },
+    )
+    if (business.length) {
+      const first = business.find(
+        /** 定位业务子流程入口。
+         * @param node 实例节点
+         * @returns 是否指派步骤
+         */ function assign(node) { return node.businessStage === 'assign' },
+      )!
+      const last = business.find(
+        /** 定位归档复核出口。
+         * @param node 实例节点
+         * @returns 是否审核步骤
+         */ function review(node) { return node.businessStage === 'archive_review' },
+      )!
+      edges.push(edge('stage:approved', 'runtime:' + first.id))
+      appendCaseEnd(nodes, edges, 'runtime:' + last.id, detail.activity.status === 'archived')
+    } else appendLifecycleGraph(nodes, edges, 'stage:approved', detail.activity.lifecycle, detail.activity.status, { assign: owner, execution: executor, archive_submit: executor, archive_review: archiveReviewer })
     addException(nodes, edges, detail)
   }
   return { data: { nodes, edges } }
@@ -431,7 +416,16 @@ function addException(nodes: NodeData[], edges: EdgeData[], detail: WorkflowView
   const cancelling = status === 'cancel_review' || status === 'cancelled'
   if (cancelling) {
     from = 'stage:approved'
-    for (const stage of stages) if (stage.statuses.includes(detail.activity.cancellation?.previous || '')) from = 'stage:' + stage.id
+    const stage = ACTIVITY_SUBPROCESS[activitySubprocessPosition(detail.activity.cancellation?.previous)]
+    if (stage) {
+      const actual = detail.activity.nodes.find(
+        /** 取消分支连接到真实业务步骤，旧活动兼容注册方案展示节点。
+         * @param node 流程节点
+         * @returns 是否取消前所在步骤
+         */ function match(node) { return node.businessStage === stage.key && (node.applicationRevision || 1) === (detail.activity.revision || 1) },
+      )
+      from = actual ? 'runtime:' + actual.id : 'stage:business:' + stage.key
+    }
   }
   if (!from)
     for (const node of nodes)

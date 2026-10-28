@@ -24,3 +24,6 @@ export * from './execution-records';
 
 export * from './post-workflow';
 export * from './approval-rules';
+
+export * from './lifecycle';
+export * from './business-subprocess';

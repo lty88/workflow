@@ -5,23 +5,25 @@ import { mutation, request } from './http'
 /**
  * 获取授权活动分页。
  * @param params 搜索和分页条件
- * @returns 分页活动
+ * @param common 是否查询跨业务申请目录
+ * @returns 分页申请及活动
  */
-export function activitiesApi(params: ListParams = {}): Promise<ActivityPage> {
+export function activitiesApi(params: ListParams = {}, common = false): Promise<ActivityPage> {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) if (value !== undefined) query.set(key, String(value))
-  return request('/activities?' + query)
+  return request((common ? '/requests?' : '/activities?') + query)
 }
 
 /**
- * 下载当前筛选范围内的授权活动CSV。
+ * 下载当前筛选范围内的授权申请CSV。
+ * @param common 是否导出跨业务申请目录
  * @param params 已应用的筛选条件
  * @returns CSV文件内容
  */
-export function exportActivitiesApi(params: ListParams): Promise<Blob> {
+export function exportActivitiesApi(params: ListParams, common = false): Promise<Blob> {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) if (value !== undefined && !['page', 'pageSize'].includes(key)) query.set(key, String(value))
-  return request('/activities/export?' + query, { responseType: 'blob' })
+  return request((common ? '/requests/export?' : '/activities/export?') + query, { responseType: 'blob' })
 }
 
 /**
@@ -30,7 +32,7 @@ export function exportActivitiesApi(params: ListParams): Promise<Blob> {
  * @returns 详情、附件与动作
  */
 export function activityApi(id: string): Promise<ActivityDetail> {
-  return request('/activities/' + encodeURIComponent(id))
+  return request('/requests/' + encodeURIComponent(id))
 }
 
 /**
@@ -42,7 +44,7 @@ export function activityApi(id: string): Promise<ActivityDetail> {
  * @returns 草稿标识
  */
 export function saveDraftApi(payload: Record<string, string>, id?: string, expectedVersion?: number, selection?: TemplateSelection): Promise<MutationResult> {
-  return mutation('/activities' + (id ? '/' + id : ''), { payload, ...(id ? { expectedVersion } : {}), ...selection }, id ? 'PATCH' : 'POST', true)
+  return mutation('/requests' + (id ? '/' + id : ''), { payload, ...(id ? { expectedVersion } : {}), ...selection }, id ? 'PATCH' : 'POST', true)
 }
 
 /**
@@ -53,7 +55,7 @@ export function saveDraftApi(payload: Record<string, string>, id?: string, expec
  * @returns 新版本
  */
 export function submitApi(id: string, expectedVersion: number, expectedTemplateVersion?: number): Promise<MutationResult> {
-  return mutation(`/activities/${id}/submit`, { expectedVersion, expectedTemplateVersion })
+  return mutation(`/requests/${id}/submit`, { expectedVersion, expectedTemplateVersion })
 }
 
 /**
@@ -63,7 +65,7 @@ export function submitApi(id: string, expectedVersion: number, expectedTemplateV
  * @returns 更新结果
  */
 export function actionApi(id: string, command: ActionCommand): Promise<MutationResult> {
-  return mutation(`/activities/${id}/actions`, command)
+  return mutation(`/requests/${id}/actions`, command)
 }
 
 /**
@@ -73,7 +75,7 @@ export function actionApi(id: string, command: ActionCommand): Promise<MutationR
  * @returns 新版本
  */
 export function adjustmentApi(id: string, command: Omit<Adjustment, 'idempotencyKey'>): Promise<MutationResult> {
-  return mutation(`/activities/${id}/adjustments`, command)
+  return mutation(`/requests/${id}/adjustments`, command)
 }
 
 /**
@@ -85,5 +87,5 @@ export function adjustmentApi(id: string, command: Omit<Adjustment, 'idempotency
  * @returns 删除成功的活动标识
  */
 export function deleteActivityApi(id: string, expectedVersion: number, reason: string, attachmentContextId?: string): Promise<ActivityDeleteResult> {
-  return mutation(`/activities/${encodeURIComponent(id)}`, { expectedVersion, reason, attachmentContextId }, 'DELETE')
+  return mutation(`/requests/${encodeURIComponent(id)}`, { expectedVersion, reason, attachmentContextId }, 'DELETE')
 }

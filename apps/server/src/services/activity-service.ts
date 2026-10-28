@@ -1,3 +1,4 @@
+import { findRequestTask } from '../db/request-store';
 import { validateOperationAttachments, linkOperationAttachments } from './operation-attachments';
 import type { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import type { Activity, ActivityDetail, CompanyConfig, WorkflowTask } from '@workflow/domain';
@@ -7,6 +8,8 @@ import {
   projectActivityDetail,
   mergeWritablePayload,
   activeMember,
+  lifecycleOf,
+  synchronizeBusinessSubprocess,
   activityActions,
   advanceWorkflow,
   applyActivityAction,
@@ -111,6 +114,7 @@ export async function mutateActivity(
     const previousTaskIds = new Set<string>();
     for (const task of activity?.tasks || []) previousTaskIds.add(task.id);
     const changed = await work({ connection, config, activity });
+    synchronizeBusinessSubprocess(config, changed, actor);
     if (activity) changed.version += 1;
     changed.updatedAt = new Date().toISOString();
     await saveActivity(connection, changed, !activity);
@@ -142,7 +146,7 @@ export async function mutateActivity(
           connection,
           changed,
           userId,
-          `活动进度更新：${changed.name}`,
+          `${lifecycleOf(changed).businessType === 'general' ? '申请' : '活动'}进度更新：${changed.name}`,
           `activity:${changed.id}:${changed.version}:${userId}`,
         );
     const response = { id: changed.id, version: changed.version };
@@ -189,7 +193,8 @@ export async function createDraft(
     const id = crypto.randomUUID();
     const activity: Activity = {
       id,
-      code: `HD-${new Date().getFullYear()}-${id.slice(0, 8).toUpperCase()}`,
+      lifecycle: structuredClone(lifecycleOf(release.definition)),
+      code: `${lifecycleOf(release.definition).businessType === 'general' ? 'OA' : 'HD'}-${new Date().getFullYear()}-${id.slice(0, 8).toUpperCase()}`,
       applicant: actor,
       applicantName: findById(config.users, actor)!.name,
       department: findById(config.users, actor)!.department,
@@ -223,8 +228,8 @@ export async function createDraft(
     activity.payload = mergeWritablePayload(config, actor, activity, release.form, body.payload);
     const fileErrors = validateAttachmentReferences(release.form, activity.payload, [], activity.id);
     if (fileErrors.length) throw new HttpError(422, 'FILE_FIELD', '附件引用需要修正', fileErrors);
-    activity.name = activity.payload.activity_name?.trim() || '未命名活动';
-    auditActivity(config, activity, actor, '创建活动草稿', '资料可继续补充');
+    activity.name = activity.payload[lifecycleOf(activity).businessType === 'general' ? 'request_title' : 'activity_name']?.trim() || '未命名申请';
+    auditActivity(config, activity, actor, '创建申请草稿', '资料可继续补充');
     return activity;
   }
   return mutateActivity(pool, actor, key, `create:${JSON.stringify(body)}`, null, create);
@@ -265,9 +270,10 @@ export async function updateDraft(
       templateId: body.templateId ?? activity.templateId,
       expectedTemplateVersion: body.expectedTemplateVersion ?? activity.templateVersion,
     });
+    ensure(lifecycleOf(activity).businessType === lifecycleOf(release.definition).businessType, 422, 'BUSINESS_TYPE_LOCKED', '申请不能切换为其他业务类型');
     const form = preserveFormAccess(activity.schema, release.form);
     const payload = mergeWritablePayload(config, actor, activity, form, body.payload);
-    const fileErrors = validateAttachmentReferences(form, payload, await activityFiles(connection, id), id);
+    const fileErrors = validateAttachmentReferences(form, payload, await activityFiles(connection, id, lifecycleOf(activity).businessType), id);
     if (fileErrors.length) throw new HttpError(422, 'FILE_FIELD', '附件引用需要修正', fileErrors);
     if (activity.templateId !== release.templateId || activity.templateVersion !== release.version)
       auditActivity(
@@ -277,13 +283,14 @@ export async function updateDraft(
         '切换活动流程模板',
         `${activity.templateName || '历史流程'} → ${release.definition.name} V${release.version}`,
       );
+    activity.lifecycle = structuredClone(lifecycleOf(release.definition));
     activity.activityTypeId = release.activityTypeId;
     activity.templateId = release.templateId;
     activity.templateVersion = release.version;
     activity.templateName = release.definition.name;
     activity.schema = form;
     activity.payload = payload;
-    activity.name = payload.activity_name?.trim() || '未命名活动';
+    activity.name = payload[lifecycleOf(activity).businessType === 'general' ? 'request_title' : 'activity_name']?.trim() || '未命名申请';
     auditActivity(config, activity, actor, '保存申请内容', '尚未提交新一轮审批');
     return activity;
   }
@@ -334,27 +341,29 @@ export async function submitActivity(
       templateId: activity.templateId,
       expectedTemplateVersion: expectedTemplateVersion ?? activity.templateVersion,
     });
+    ensure(lifecycleOf(activity).businessType === lifecycleOf(release.definition).businessType, 422, 'BUSINESS_TYPE_LOCKED', '申请不能切换为其他业务类型');
     const form = preserveFormAccess(activity.schema, release.form);
     const engineConfig = templateContext(config, release.definition, form);
     const checked = validateForm(form, activity.payload);
-    const structuralErrors = validateConfig(engineConfig, { requireProtectedApproval: false });
+    const structuralErrors = validateConfig(engineConfig, { requireProtectedApproval: false, requireActivityFields: lifecycleOf(release.definition).businessType === 'activity' });
     const workflow = instantiateWorkflow(engineConfig, checked.payload, actor, { requireApproval: false });
     const errors = [
       ...structuralErrors,
       ...checked.errors,
       ...workflow.errors,
-      ...validateAttachmentReferences(form, checked.payload, await activityFiles(connection, id), id),
+      ...validateAttachmentReferences(form, checked.payload, await activityFiles(connection, id, lifecycleOf(activity).businessType), id),
     ];
     if (errors.length) throw new HttpError(422, 'VALIDATION', '申请或审核配置需要修正', errors);
     invalidatePending(activity);
     activity.nodes.push(...workflow.nodes);
     activity.payload = checked.payload;
     activity.schema = structuredClone(form);
+    activity.lifecycle = structuredClone(lifecycleOf(release.definition));
     activity.activityTypeId = release.activityTypeId;
     activity.templateId = release.templateId;
     activity.templateVersion = release.version;
     activity.templateName = release.definition.name;
-    activity.name = checked.payload.activity_name!;
+    activity.name = checked.payload[lifecycleOf(activity).businessType === 'general' ? 'request_title' : 'activity_name']!;
     activity.department = findById(config.users, actor)!.department;
     activity.revision += 1;
     for (const node of workflow.nodes) node.applicationRevision = activity.revision;
@@ -363,6 +372,7 @@ export async function submitActivity(
     activity.status = 'approving';
     activity.snapshots.push({
       revision: activity.revision,
+      lifecycle: structuredClone(lifecycleOf(activity)),
       schema: structuredClone(form),
       payload: structuredClone(checked.payload),
       workflow: structuredClone(release.definition.nodes),
@@ -408,11 +418,7 @@ export async function handleDecision(
   taskId: string,
   command: z.infer<typeof decisionSchema>,
 ): Promise<MutationResult> {
-  const rows = await query<{ activity_id: string }>(
-    pool,
-    'SELECT activity_id FROM workflow_tasks WHERE id=? AND assignee_id=?',
-    [taskId, actor],
-  );
+  const rows = await findRequestTask(pool, taskId, actor);
   ensure(rows[0], 404, 'NOT_FOUND', '任务不存在或无办理权限');
   /**
    * 在实例锁内重新验证并处理当前任务。
@@ -472,7 +478,7 @@ export async function handleAction(
           ? 'archive'
           : 'operation';
     await validateOperationAttachments(context, actor, command.attachmentContextId, command.action, stage);
-    const files = await activityFiles(context.connection, id);
+    const files = await activityFiles(context.connection, id, lifecycleOf(context.activity!).businessType);
     let archiveFile = false;
     for (const file of files)
       if (
@@ -546,11 +552,7 @@ export async function handleTransfer(
   taskId: string,
   command: z.infer<typeof transferSchema>,
 ): Promise<MutationResult> {
-  const rows = await query<{ activity_id: string }>(
-    pool,
-    'SELECT activity_id FROM workflow_tasks WHERE id=?',
-    [taskId],
-  );
+  const rows = await findRequestTask(pool, taskId);
   ensure(rows[0], 404, 'NOT_FOUND', '任务不存在');
   /**
    * 持有主单锁校验新受理资格并保存转交记录。
@@ -628,7 +630,7 @@ export async function getDetail(
           task.status === 'pending' &&
           node?.status === 'active' &&
           node.generation === task.generation &&
-          !canHandleTask(config, task.assignee, activity, task)
+          !node?.businessStage && !canHandleTask(config, task.assignee, activity, task)
         )
           taskWarnings.push({
             taskId: task.id,
@@ -640,7 +642,7 @@ export async function getDetail(
       actor,
       {
         activity,
-        files: await activityFiles(connection, id),
+        files: await activityFiles(connection, id, lifecycleOf(activity).businessType),
         actions: activityActions(config, actor, activity),
         participants,
         taskWarnings,

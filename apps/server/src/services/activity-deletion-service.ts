@@ -1,6 +1,7 @@
 import { validateOperationAttachments, linkOperationAttachments } from './operation-attachments';
 import type { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import {
+  lifecycleOf,
   activeMember,
   auditActivity,
   canDeleteActivity,
@@ -79,11 +80,13 @@ export async function deleteActivity(
     activity.version += 1;
     activity.updatedAt = now.toISOString();
     await saveActivity(db, activity);
-    await db.execute(
-      'UPDATE activities SET deleted_at=?,deleted_by=?,deletion_reason=? WHERE id=? AND deleted_at IS NULL',
-      [now, actor, input.reason, id],
-    );
-    await db.execute('UPDATE activity_surveys SET active=FALSE,version=version+1 WHERE activity_id=?', [id]);
+    if (lifecycleOf(activity).businessType === 'activity') {
+      await db.execute(
+        'UPDATE activities SET deleted_at=?,deleted_by=?,deletion_reason=? WHERE id=? AND deleted_at IS NULL',
+        [now, actor, input.reason, id],
+      );
+      await db.execute('UPDATE activity_surveys SET active=FALSE,version=version+1 WHERE activity_id=?', [id]);
+    }
     await db.execute('UPDATE outbox_events SET delivered=TRUE WHERE activity_id=? AND delivered=FALSE', [id]);
     await db.execute(
       'UPDATE notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(3)) WHERE activity_id=?',

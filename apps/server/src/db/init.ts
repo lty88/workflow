@@ -1,3 +1,4 @@
+import { migrateRequests } from './request-migration';
 import { migrateAttachmentFields } from './attachment-field-migration';
 import { readFile } from 'node:fs/promises';
 import {
@@ -38,6 +39,7 @@ async function initialize(): Promise<void> {
       await migrateMasterData(pool);
       await migrateAttachmentFields(pool);
       await migrateExecutionAttachments(pool);
+    await migrateRequests(pool);
       console.info('数据库结构已检查，现有配置和密码均保留。');
       return;
     }
@@ -78,6 +80,7 @@ async function initialize(): Promise<void> {
     await migrateMasterData(pool);
     await migrateAttachmentFields(pool);
     await migrateExecutionAttachments(pool);
+    await migrateRequests(pool);
     console.info('初始化完成。管理员账号：admin；管理员和示例员工默认密码123456，可由.env配置初始值。');
   } finally {
     await pool.end();

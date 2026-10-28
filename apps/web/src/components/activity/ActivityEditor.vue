@@ -3,7 +3,7 @@
   import { useRouter, useRoute } from 'vue-router'
   import { activityDestination } from '@/navigation'
   import { NAlert, NButton, NCard, NSteps, NStep, NSpin, NEmpty, NTag } from 'naive-ui'
-  import { defaultValues } from '@workflow/domain'
+  import { defaultValues, defaultRequestForm, lifecycleOf } from '@workflow/domain'
   import type { ActivityDetail, WorkflowPreview } from '@/typings/api'
   import { activityApi, saveDraftApi, submitApi } from '@/api/activities'
   import { templatePreviewApi } from '@/api/templates'
@@ -20,11 +20,13 @@
   import WorkflowTimeline from './WorkflowTimeline.vue'
   import ActivityTemplateSelector from '@/components/templates/ActivityTemplateSelector.vue'
   const route = useRoute()
-  const props = defineProps<{ activityId?: string }>()
+  const props = defineProps<{ activityId?: string; businessType?: 'activity' | 'general' }>()
   const emit = defineEmits<{ saved: []; submitted: [] }>()
   const auth = useAuthStore()
   const feedback = useFeedback()
   const router = useRouter()
+  const businessType = computed(() => props.businessType || (detail.value ? lifecycleOf(detail.value.activity).businessType : 'activity'))
+  const general = computed(() => businessType.value === 'general')
   const payload = ref<Record<string, string>>(auth.profile ? defaultValues(auth.profile.form) : {})
   const detail = ref<ActivityDetail | null>(null)
   const savedId = ref(props.activityId || '')
@@ -39,7 +41,8 @@
   const { templates, activityTypes, selection, templateNotice, selectedTemplate, schema, refreshTemplates, restoreSelection, recoverTemplate } =
     useActivityTemplate({
       payload,
-      fallbackForm: computed(() => auth.profile!.form),
+      businessType,
+      fallbackForm: computed(() => general.value ? defaultRequestForm() : auth.profile!.form),
       existingDetail: computed(() => detail.value),
       invalidatePreview,
     })
@@ -47,7 +50,7 @@
     const current = selection.value
     const candidate = selectedTemplate.value
     return (
-      !!current && !!candidate && candidate.definition.activityTypeIds.includes(current.activityTypeId) && candidate.version === current.expectedTemplateVersion
+      !!current && !!candidate && (lifecycleOf(candidate.definition).businessType === 'general' ? current.activityTypeId === 'general' : candidate.definition.activityTypeIds.includes(current.activityTypeId)) && candidate.version === current.expectedTemplateVersion
     )
   })
   const { step, errors, issues, sectionKeys, changeStep, locateError, validateAll } = useActivitySteps({
@@ -103,7 +106,7 @@
         payload.value = {
           ...defaultValues(schema.value),
           ...clone(source.activity.payload),
-          activity_name: source.activity.name + '（副本）',
+          [general.value ? 'request_title' : 'activity_name']: source.activity.name + '（副本）',
           start_at: '',
           end_at: '',
         }
@@ -213,7 +216,7 @@
       submission.value = null
       feedback.success('申请已提交，审批任务已生成')
       emit('submitted')
-      await router.push(activityDestination(id))
+      await router.push(activityDestination(id, businessType.value))
     } catch (error) {
       if (error instanceof ApiError && error.status >= 400 && error.status < 500) submission.value = null
       await recoverTemplate(error)
@@ -255,7 +258,7 @@
     <div class="page-heading">
       <div>
         <span class="eyebrow">NEW APPLICATION</span>
-        <h1>{{ activityId ? '编辑活动申请' : '发起活动申请' }}</h1>
+        <h1>{{ activityId ? '编辑申请' : general ? '发起通用审批' : '发起活动申请' }}</h1>
         <p>发起人：{{ detail?.activity.applicantName || auth.profile?.user.name }} · 表单由公司配置动态生成，提交后保留版本快照。</p>
       </div>
       <div class="gap">
@@ -271,11 +274,11 @@
           <NAlert v-if="templateNotice" type="warning" class="mb">{{ templateNotice }}</NAlert>
           <NSteps :current="step" size="small" @update:current="changeStep">
             <NStep title="基础信息" />
-            <NStep title="内容与预算" />
+            <NStep :title="general ? '申请内容' : '内容与预算'" />
             <NStep title="检查并提交" />
           </NSteps>
         </NCard>
-        <NCard v-if="step < 3" :title="step === 1 ? '活动基础信息' : '活动内容、联系人与费用'" class="step-panel">
+        <NCard v-if="step < 3" :title="general ? (step === 1 ? '申请基础信息' : '申请内容') : step === 1 ? '活动基础信息' : '活动内容、联系人与费用'" class="step-panel">
           <ActivityValidationErrors :errors="errors" :disabled="busy || uploading || !!submission" @locate="locateError" />
           <ActivityTemplateSelector
             id="activity-template-selection"
@@ -308,7 +311,7 @@
             <div v-if="preview" style="margin-top: 20px">
               <WorkflowTimeline
                 :detail="{
-                  activity: { nodes: preview.nodes, tasks: [] },
+                  activity: { nodes: preview.nodes, tasks: [], status: 'approving', lifecycle: selectedTemplate?.definition.lifecycle },
                   participants: preview.participants,
                 }"
               />

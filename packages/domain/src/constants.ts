@@ -2,16 +2,16 @@ import type { ActivityStatus, PageComponent, Permission, Scope } from './types';
 export const DEFAULT_PASSWORD = '123456';
 export const PASSWORD_MIN_LENGTH = 6;
 export const PERMISSIONS: Record<Permission, string> = {
-  'activity:read': '查看活动',
-  'activity:delete': '删除本人非办理中活动',
-  'activity:delete:any': '删除授权范围内任意活动',
-  'activity:create': '新建活动',
+  'activity:read': '查看申请与活动',
+  'activity:delete': '删除本人非办理中申请',
+  'activity:delete:any': '删除授权范围内任意申请',
+  'activity:create': '发起申请与活动',
   'activity:submit': '提交申请',
-  'activity:sensitive:read': '查看授权活动内全部敏感内容',
+  'activity:sensitive:read': '查看授权申请内全部敏感内容',
   'activity:sensitive:export': '敏感导出与跨节点下载',
-  'file:download': '下载活动附件',
-  'activity:export': '导出活动',
-  'approval:decide': '审核活动',
+  'file:download': '下载申请附件',
+  'activity:export': '导出申请',
+  'approval:decide': '审核申请',
   'task:complete': '办理流程任务',
   'workflow:adjust': '调整流程',
   'activity:assign': '指派执行人',
@@ -50,6 +50,7 @@ export const STATUSES: Record<ActivityStatus, string> = {
   archive_draft: '待提交档案',
   archive_review: '待归档审核',
   archived: '已归档',
+  completed: '已办结',
   cancel_review: '取消审批中',
   cancelled: '已取消',
 };

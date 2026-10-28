@@ -1,7 +1,7 @@
 <script setup lang="tsx">
   import { computed, ref } from 'vue'
   import { NCard, NTag } from 'naive-ui'
-  import { STATUSES } from '@workflow/domain'
+  import { STATUSES, lifecycleOf } from '@workflow/domain'
   import type { ActivityDetailSectionProps } from './types'
   import { formatTime } from '@/composables/format'
   import { participantName } from './presentation'
@@ -17,14 +17,14 @@
   <NCard class="activity-overview" :bordered="false">
     <div class="overview-heading">
       <div>
-        <span class="overview-code">活动详情 · {{ detail.activity.code }}</span>
+        <span class="overview-code">{{ lifecycleOf(detail.activity).businessType === 'general' ? '申请详情' : '活动详情' }} · {{ detail.activity.code }}</span>
         <h1>{{ detail.activity.name || '未命名活动' }}</h1>
       </div>
       <NTag size="large" round :bordered="false" :type="statusTone">{{ STATUSES[detail.activity.status] }}</NTag>
     </div>
     <dl class="overview-meta">
       <div class="applicant">
-        <dt>活动发起人</dt>
+        <dt>发起人</dt>
         <dd>
           <span class="person-avatar" aria-hidden="true">{{ applicant.slice(0, 1) }}</span>
           {{ applicant }}

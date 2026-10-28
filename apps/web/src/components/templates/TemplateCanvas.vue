@@ -1,5 +1,6 @@
 <script setup lang="tsx">
   import { WORKFLOW_NODE_THEMES } from '@/components/graph/workflow-node-theme'
+  import { lifecycleOf } from '@workflow/domain'
   import { computed, shallowRef, ref, watch } from 'vue'
   import type { NodeDefinition, TemplateLayout } from '@workflow/domain'
   import type { TemplateCanvasProps, GraphConnection, InsertPosition } from './types'
@@ -26,6 +27,7 @@
     JSON.stringify({
       name: props.definition.name,
       nodes: props.definition.nodes,
+      lifecycle: props.definition.lifecycle,
       config: props.config.version,
     })
   )
@@ -41,7 +43,7 @@
   function rebuild(): void {
     model.value = templateEditorGraph({
       ...props.config,
-      workflow: { name: props.definition.name, nodes: props.definition.nodes },
+      workflow: { name: props.definition.name, nodes: props.definition.nodes, lifecycle: props.definition.lifecycle },
     })
     edge.value = null
   }
@@ -50,6 +52,7 @@
    * @param value 图节点选择
    */
   function select(value: GraphSelection): void {
+    if (value.kind === 'stage' && !['stage:apply','stage:approved'].includes(value.graphId)) return
     if (value.kind === 'workflow' || value.kind === 'stage') {
       edge.value = null
       emit('select', value.kind === 'stage' ? value.graphId : value.id)
@@ -183,7 +186,7 @@
       </span>
       <span v-if="connectMode">连线模式：依次点击前置节点、后续节点</span>
       <span v-else>100%清晰编辑 · 拖动空白平移 · 节点目录可快速定位</span>
-      <span>流程完成后 → 指派执行 → 执行汇报 → 成果归档</span>
+      <span>{{ lifecycleOf(definition).afterApproval === 'complete' ? '审批完成 → 整单办结' : '审批完成 → 活动执行与归档子流程 → 整单办结' }}</span>
     </footer>
   </section>
 </template>

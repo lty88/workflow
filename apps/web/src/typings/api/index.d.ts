@@ -10,6 +10,7 @@ import type {
 } from '@workflow/domain';
 
 export interface ActivityListItem {
+  businessType?: 'activity' | 'general';
   canDelete: boolean;
   restrictedFields?: string[];
   id: string;
@@ -32,6 +33,7 @@ export interface ActivityPage {
   pageSize: number;
 }
 export interface ListParams {
+  businessType?: 'activity' | 'general';
   q?: string;
   status?: string;
   scope?: 'all' | 'mine' | 'tasks' | 'archives';

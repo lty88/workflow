@@ -215,7 +215,7 @@
   }
 </script>
 <template>
-  <NCard title="活动申请表">
+  <NCard :title="modelValue.form.name">
     <template #header-extra>
       <div class="gap">
         <NButton size="small" @click="showPreview">试填预览</NButton>
@@ -260,7 +260,7 @@
       </div>
     </div>
   </NCard>
-  <NDrawer v-model:show="open" :width="mobile ? '100%' : 520">
+  <NDrawer :z-index="overlayZIndex || 2000" v-model:show="open" :width="mobile ? '100%' : 520">
     <NDrawerContent :title="existing ? '编辑字段' : '新增字段'" closable>
       <NForm v-if="editing" label-placement="top">
         <NFormItem label="字段名称" required><NInput v-model:value="editing.label" :maxlength="80" /></NFormItem>
@@ -281,7 +281,7 @@
       <template #footer><NButton type="primary" :loading="saving" :disabled="saving" @click="save">保存</NButton></template>
     </NDrawerContent>
   </NDrawer>
-  <NDrawer v-model:show="previewOpen" :width="mobile ? '100%' : 820">
+  <NDrawer :z-index="overlayZIndex || 2000" v-model:show="previewOpen" :width="mobile ? '100%' : 820">
     <NDrawerContent title="动态表单试填" closable>
       <NAlert type="info" class="mb">试填只保留在当前页面，可检查条件显隐与费用合计。</NAlert>
       <DynamicForm v-model="preview" :schema="modelValue.form" />

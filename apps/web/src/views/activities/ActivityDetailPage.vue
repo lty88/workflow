@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+  import { lifecycleOf } from '@workflow/domain'
   import { computed, ref } from 'vue'
   import { RouterLink } from 'vue-router'
   import { NAlert, NButton, NCard, NEmpty, NSpin, NTabs, NTabPane } from 'naive-ui'
@@ -45,9 +46,10 @@
     closeEdit,
     transfer,
   } = useActivityDetail(computed(() => props.activityId))
+  const activityBusiness = computed(() => !!detail.value && lifecycleOf(detail.value.activity).businessType === 'activity')
   const executionVisible = computed(() => {
     const activity = detail.value?.activity
-    return !!activity && (EXECUTION_STATUSES.includes(activity.status) || !!activity.report || !!activity.archive || !!activity.assignment)
+    return !!activity && lifecycleOf(activity).afterApproval === 'activity_standard' && (EXECUTION_STATUSES.includes(activity.status) || !!activity.report || !!activity.archive || !!activity.assignment)
   })
   /** 从常驻操作栏打开执行或归档表单时切换对应分区，提交后直接看到新增记录。
    * @param code 当前身份获准的活动业务动作
@@ -63,18 +65,18 @@
       <NAlert type="error" :title="errorText">
         <div class="gap">
           <NButton size="small" type="primary" @click="load">重新读取</NButton>
-          <RouterLink :to="listDestination"><NButton size="small">返回活动工单</NButton></RouterLink>
+          <RouterLink :to="listDestination"><NButton size="small">返回申请列表</NButton></RouterLink>
         </div>
       </NAlert>
     </div>
     <template v-else-if="detail">
       <template v-if="edit">
         <NButton class="mb" @click="closeEdit">返回详情</NButton>
-        <ActivityEditor :activity-id="detail.activity.id" @submitted="closeEdit" />
+        <ActivityEditor :activity-id="detail.activity.id" :business-type="activityBusiness ? 'activity' : 'general'" @submitted="closeEdit" />
       </template>
       <div v-else class="activity-detail-page">
         <div class="detail-navigation">
-          <RouterLink :to="listDestination">← 返回活动工单</RouterLink>
+          <RouterLink :to="listDestination">← 返回申请列表</RouterLink>
           <NButton :loading="loading" @click="load">刷新详情</NButton>
         </div>
         <ActivityOverview :detail="detail" />
@@ -111,7 +113,7 @@
                   <NodeMaterialsPanel v-if="detail.activity.nodes.length" :detail="detail" :read-only="isOld" @uploaded="load" />
                   <NEmpty v-else description="提交活动申请后生成节点资料区域" />
                 </NTabPane>
-                <NTabPane name="execution" tab="执行与归档" display-directive="show:lazy">
+                <NTabPane v-if="detail.activity.lifecycle?.afterApproval !== 'complete'" name="execution" tab="执行与归档" display-directive="show:lazy">
                   <div class="section-intro">
                     <h2>执行与归档</h2>
                     <p>集中查看执行安排、实际汇报与成果档案。</p>
@@ -127,8 +129,8 @@
                   />
                   <NEmpty v-else description="流程办理完成后进入执行与归档阶段" />
                 </NTabPane>
-                <NTabPane v-if="auth.can('evaluation:read') || auth.can('evaluation:manage')" name="evaluation" tab="活动评价" display-directive="show:lazy">
-                  <ActivityEvaluationPanel :activity="detail.activity" />
+                <NTabPane v-if="activityBusiness && detail.activity.lifecycle?.afterApproval !== 'complete' && (auth.can('evaluation:read') || auth.can('evaluation:manage'))" name="evaluation" tab="活动评价" display-directive="show:lazy">
+                  <ActivityEvaluationPanel v-if="activityBusiness" :activity="detail.activity" />
                 </NTabPane>
                 <NTabPane name="history" :tab="`办理记录 · ${detail.activity.audit.length}`" display-directive="show:lazy">
                   <ActivityHistoryPanel :detail="detail" section="records" @uploaded="load" />
@@ -159,7 +161,7 @@
     </template>
     <div v-else-if="!loading" class="error-box">
       <NEmpty description="未找到活动">
-        <RouterLink :to="listDestination"><NButton size="small">返回活动工单</NButton></RouterLink>
+        <RouterLink :to="listDestination"><NButton size="small">返回申请列表</NButton></RouterLink>
       </NEmpty>
     </div>
   </NSpin>

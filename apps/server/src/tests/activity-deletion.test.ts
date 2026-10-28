@@ -92,6 +92,7 @@ function policyCase(): void {
     'archive_draft',
     'archive_review',
     'archived',
+    'completed',
     'cancel_review',
   ] as const) {
     const activity = fixture(status);

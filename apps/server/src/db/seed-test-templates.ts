@@ -16,7 +16,7 @@ import { readEnv } from '../env';
 import { createPool, loadConfig, query } from './repository';
 import { loadActivityTypes, loadTemplates, loadTemplateRelease } from './template-repository';
 import { createTemplate, publishTemplate, saveTemplate } from '../services/template-service';
-import { buildTestTemplateCatalog } from './test-template-catalog';
+import { buildLatestTestTemplateCatalog, buildTestTemplateCatalog } from './test-template-catalog';
 import type { TestTemplatePlan } from './test-template-catalog';
 import { digest } from '../services/auth';
 
@@ -122,6 +122,7 @@ function routeFor(
  * @param results 数据库创建或保留结果
  * @param applicant 统一测试发起人ID
  * @param sample 示例表单输入
+ * @param latestMode 是否生成最新配置专项测试手册
  * @returns 中文Markdown测试手册
  */
 function manualFor(
@@ -130,6 +131,7 @@ function manualFor(
   results: SeedResult[],
   applicant: string,
   sample: Record<string, string>,
+  latestMode: boolean,
 ): string {
   const lines = [
     '# 审批流程测试模板与操作手册',
@@ -138,12 +140,12 @@ function manualFor(
     '',
     '## 先从这里开始',
     '',
-    '1. 刷新流程模板列表，可看到“测试01”至“测试10”，均为启用、已发布版本。',
+    `1. 刷新流程模板列表，可看到本批次的 ${plans.length} 套${latestMode ? '“最新测试”' : ''}模板，均为启用、已发布版本。`,
     '2. 用 **sichuan1** 登录发起活动，选择“教研交流”，再选测试模板。admin用于配置管理；本批次不修改任何账号角色、密码或权限。',
     '3. 填写下方样例；日期使用实际当前时间之后，结束时间晚于开始时间。自定义必填字段也要填写。',
     '4. 点击下一步会校验当前步骤；检查并提交时先计算实际路线，再提交申请。',
     '5. 按每套模板的账号表切换登录，从“我的待办”办理；可使用不同浏览器隔离账号，或逐个退出登录。',
-    '6. 简单模板优先。会签模板会产生较多待办，建议最后测试。',
+    '6. 请按编号从简单模板逐步测试到复杂模板，复杂流程会产生更多并行待办和重办轮次。',
     '',
     '## 通用表单数据',
     '',
@@ -227,7 +229,7 @@ function manualFor(
     '| 退回重提 | 审批节点退回，申请人补充后重提 | 新轮次生效，旧待办取消且保留历史 |',
     '| 拒绝 | 任一审批人拒绝 | 当前审批结束，未办任务取消 |',
     '| 撤回 | 申请人在可撤回状态撤回后重新提交 | 原轮失效，新轮重新生成 |',
-    '| 条件被跳过 | 使用测试05的四组数据 | 只办理生效分支，跳过分支不造成死锁 |',
+    '| 条件被跳过 | 使用包含条件节点的历史测试模板 | 只办理生效分支，跳过分支不造成死锁 |',
     '| 加签/转交 | 协调人或具备资格的办理人操作，填写原因 | 实例依赖和待办正确更新，模板版本不变 |',
     '| 附件 | 使用已含附件字段的表单版本，上传、移除及重进页面 | 必填、类型、数量、大小和字段权限均生效 |',
     '',
@@ -244,13 +246,16 @@ function manualFor(
     '',
     '## 敏感内容与通知',
     '',
-    '- 测试09：财务上传的是财务节点附件，内部说明受节点权限限制；公共结论及节点进度可按系统规则展示。单独附件可继续收紧查看与下载。',
+    '- 包含敏感财务节点的模板：财务上传节点附件后，按节点查看与下载范围分别核对；单文件权限可继续收紧或改为活动内共享。',
     '- 知会自动产生站内通知，收件人在系统通知入口查看。语音提醒依赖当前浏览器已启用播报；未读状态和通知阅读不影响流程继续。',
     '- 如果当前表单尚无附件上传字段，本批模板不会擅自添加全局字段。先配置附件字段，再发布需要使用它的模板新版本。',
     '',
     '## 重复执行和维护',
     '',
-    '`pnpm db:seed-test-templates -- --dry-run` 可先校验；`pnpm db:seed-test-templates` 可补齐缺少的模板。已存在的同编码已发布模板会保留，不覆盖人工修改；存在未发布同编码草稿时明确停止，避免覆盖。',
+    latestMode
+      ? '`pnpm db:seed-latest-test-templates -- --dry-run` 可先校验；`pnpm db:seed-latest-test-templates` 可补齐缺少的四套最新模板。'
+      : '`pnpm db:seed-test-templates -- --dry-run` 可先校验；`pnpm db:seed-test-templates` 可补齐缺少的历史测试模板。',
+    '已存在的同编码已发布模板会保留，不覆盖人工修改；存在未发布同编码草稿时明确停止，避免覆盖。',
     '新增模板均调用既有创建、保存、发布服务，保留修订、发布快照和审计记录；不改默认模板，不改角色与组织，不创建活动。',
   );
   return lines.join('\n') + '\n';
@@ -262,10 +267,13 @@ async function seedTestTemplates(): Promise<void> {
   if (env.NODE_ENV === 'production') throw new Error('测试模板导入仅用于开发或测试环境');
   const pool = createPool(env);
   const dryRun = process.argv.includes('--dry-run');
+  const latestMode = process.argv.includes('--latest');
   try {
     const config = (await loadConfig(pool)).published;
     const types = await loadActivityTypes(pool);
-    const plans = buildTestTemplateCatalog(config, types);
+    const plans = latestMode
+      ? buildLatestTestTemplateCatalog(config, types)
+      : buildTestTemplateCatalog(config, types);
     const existing = await loadTemplates(pool);
     const actor = config.users.find(
       /** 选择具备配置管理权限的有效管理员作为导入审计人。
@@ -314,7 +322,12 @@ async function seedTestTemplates(): Promise<void> {
       }),
     );
     if (dryRun) return;
-    const output = fileURLToPath(new URL('../../../../docs/测试审批模板-20261023/', import.meta.url));
+    const output = fileURLToPath(
+      new URL(
+        latestMode ? '../../../../docs/最新模板测试-20261027/' : '../../../../docs/测试审批模板-20261023/',
+        import.meta.url,
+      ),
+    );
     await mkdir(output, { recursive: true });
     const results: SeedResult[] = [];
     for (const plan of plans) {
@@ -388,7 +401,7 @@ async function seedTestTemplates(): Promise<void> {
         2,
       ) + '\n',
     );
-    await writeFile(output + '/测试步骤.md', manualFor(config, plans, results, applicant.id, sample));
+    await writeFile(output + '/测试步骤.md', manualFor(config, plans, results, applicant.id, sample, latestMode));
     console.info(
       JSON.stringify({
         created: results.filter(isCreated).length,

@@ -67,14 +67,14 @@ export const WORKSPACE_VIEWS = {
 } satisfies Record<PageComponent, Component>;
 
 /**
- * 将授权页面定义转换为业务组件入参，保留工单、待办与档案的数据范围。
+ * 将授权页面定义转换为业务组件入参，工单汇总两类申请，待办和档案保留专属范围。
  * @param page 已通过服务端页面授权检查的定义
  * @returns 页面标题与适用的列表范围
  */
 export function workspaceViewProps(page: PageDefinition): WorkspaceViewProps {
   if (page.component === 'task_list') return { title: page.name, scope: 'tasks' };
   if (page.component === 'archive_list') return { title: page.name, scope: 'archives' };
-  if (page.component === 'activity_list') return { title: page.name, scope: 'all' };
+  if (page.component === 'activity_list') return { title: page.name, scope: 'all', common: true };
   return {};
 }
 

@@ -3,6 +3,8 @@
   import { NAlert, NForm, NFormItem, NInput, NSelect, NSwitch } from 'naive-ui'
   import type { TemplateDefinition } from '@workflow/domain'
   import type { TemplateSettingsProps } from './types'
+  import TemplateLifecycleSettings from './TemplateLifecycleSettings.vue'
+  import { lifecycleOf } from '@workflow/domain'
   import { clone } from '@/composables/format'
   const props = defineProps<TemplateSettingsProps>()
   const emit = defineEmits<{ 'update:modelValue': [value: TemplateDefinition] }>()
@@ -43,11 +45,12 @@
 </script>
 <template>
   <NForm label-placement="top" :disabled="disabled">
+    <TemplateLifecycleSettings :model-value="modelValue" :config="config" :types="types" :disabled="disabled" :type-locked="typeLocked" @update:model-value="emit('update:modelValue', $event)" />
     <NFormItem label="模板名称" required><NInput :value="modelValue.name" :maxlength="80" @update:value="update('name', $event)" /></NFormItem>
-    <NFormItem label="适用活动类型" required>
+    <NFormItem v-if="lifecycleOf(modelValue).businessType === 'activity'" label="适用活动类型" required>
       <NSelect :value="modelValue.activityTypeIds" multiple :options="typeOptions" @update:value="update('activityTypeIds', $event)" />
     </NFormItem>
-    <NFormItem label="默认推荐给哪些活动类型">
+    <NFormItem v-if="lifecycleOf(modelValue).businessType === 'activity'" label="默认推荐给哪些活动类型">
       <NSelect :value="modelValue.defaultForTypeIds" multiple clearable :options="defaultOptions" @update:value="update('defaultForTypeIds', $event)" />
     </NFormItem>
     <NFormItem label="可使用的部门">

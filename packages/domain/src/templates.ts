@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { CompanyConfig, FormDefinition, NodeDefinition } from './types';
-import { configSchema } from './schemas';
+import { configSchema, lifecycleSchema } from './schemas';
+import { lifecycleOf, defaultRequestForm } from './lifecycle';
 import { activeMember, findById, hasPermission, withinDepartment } from './permissions';
 import { validateConfig } from './config';
 import { instantiateWorkflow } from './workflow';
@@ -18,6 +19,8 @@ export interface TemplateLayout {
   positions: Record<string, { x: number; y: number }>;
 }
 export interface TemplateDefinition {
+  lifecycle?: import('./types').LifecycleDefinition;
+  form?: FormDefinition;
   ratingEnabled?: boolean;
   name: string;
   activityTypeIds: string[];
@@ -58,14 +61,21 @@ export interface TemplateSelection {
   expectedTemplateVersion: number;
 }
 
-export const TEMPLATE_BOUNDARY_IDS: readonly string[] = ['stage:apply', 'stage:approved'];
+export const TEMPLATE_BOUNDARY_IDS: readonly string[] = ['stage:apply', 'stage:approved', 'stage:case-end', 'stage:business:assign', 'stage:business:execution', 'stage:business:archive_submit', 'stage:business:archive_review'];
 
 const identifier = z.string().min(1).max(80);
 export const templateDefinitionSchema = z
   .object({
     name: z.string().trim().min(1, '请填写模板名称').max(80),
     ratingEnabled: z.boolean().optional(),
-    activityTypeIds: z.array(identifier).min(1).max(30),
+    lifecycle: lifecycleSchema.optional(),
+    form: configSchema.shape.form.transform(
+      /** 将已严格校验的表单映射为共享领域类型。
+       * @param form 已校验表单
+       * @returns 冻结表单定义
+       */ function definition(form): FormDefinition { return form; },
+    ).optional(),
+    activityTypeIds: z.array(identifier).max(30),
     defaultForTypeIds: z.array(identifier).max(30),
     departmentIds: z.array(identifier).max(200),
     roleIds: z.array(identifier).max(100),
@@ -105,6 +115,7 @@ export const templateCreateSchema = z
     code: z.string().regex(/^[a-z][a-z0-9_-]{2,59}$/),
     sourceId: identifier.optional(),
     firstNodeKind: z.enum(['approval', 'task', 'notice']).optional(),
+    businessType: z.enum(['activity', 'general']).optional(),
     idempotencyKey: z.string().min(16).max(100),
   })
   .strict();
@@ -168,7 +179,7 @@ export function canSelectTemplate(
     !hasPermission(config, actor, 'activity:read')
   )
     return false;
-  if (activityTypeId && !definition.activityTypeIds.includes(activityTypeId)) return false;
+  if (activityTypeId && (lifecycleOf(definition).businessType === 'general' ? activityTypeId !== 'general' : !definition.activityTypeIds.includes(activityTypeId))) return false;
   if (
     definition.departmentIds.length &&
     !definition.departmentIds.some(
@@ -197,7 +208,16 @@ export function canSelectTemplate(
 }
 
 /**
- * 将冻结表单、原发布节点和评分总开关组合为引擎上下文，不应用编辑草稿的兼容转换。
+ * 复制模板的可序列化数据，兼容前端嵌套响应式代理，并隔离发布快照与编辑上下文。
+ * @param value 仅包含 JSON 字段的模板节点、表单或生命周期配置
+ * @returns 不携带响应式代理的独立数据副本
+ */
+function cloneTemplateData<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+/**
+ * 将冻结表单、原发布节点和评分总开关组合为引擎上下文，兼容前端响应式输入且保留发布规则。
  * @param config 当前公司配置
  * @param definition 模板定义
  * @param form 发布时冻结表单
@@ -210,11 +230,18 @@ export function templateContext(
 ): CompanyConfig {
   return {
     ...config,
-    form,
+    form:
+      lifecycleOf(definition).businessType === 'general'
+        ? {
+            ...cloneTemplateData(form.businessType === 'general' ? form : definition.form || defaultRequestForm()),
+            businessType: 'general',
+          }
+        : form,
     workflow: {
       name: definition.name,
-      nodes: structuredClone(definition.nodes),
+      nodes: cloneTemplateData(definition.nodes),
       ratingEnabled: definition.ratingEnabled,
+      lifecycle: cloneTemplateData(lifecycleOf(definition)),
     },
   };
 }
@@ -233,6 +260,7 @@ export function validateTemplate(
 ): string[] {
   const errors = validateConfig(templateContext(config, definition, config.form), {
     requireProtectedApproval: false,
+    requireActivityFields: lifecycleOf(definition).businessType === 'activity',
   });
   if (!definition.nodes.length) errors.push('请至少添加一个审批、任务或知会节点后再发布');
   for (const [label, ids] of [
@@ -242,6 +270,10 @@ export function validateTemplate(
     ['角色', definition.roleIds],
   ] as const)
     if (new Set(ids).size !== ids.length) errors.push(`${label}引用重复`);
+  const lifecycle = lifecycleOf(definition);
+  if (lifecycle.businessType === 'activity' && !definition.activityTypeIds.length) errors.push('活动模板请选择适用活动类型');
+  if (lifecycle.businessType === 'general' && (definition.activityTypeIds.length || definition.defaultForTypeIds.length)) errors.push('通用申请模板不关联活动类型');
+  if (lifecycle.businessType === 'general' && lifecycle.afterApproval !== 'complete') errors.push('通用申请仅支持审批通过后直接办结');
   for (const id of definition.activityTypeIds)
     if (!findById(types, id)?.active) errors.push('活动类型不存在或已停用');
   for (const id of definition.defaultForTypeIds)
@@ -252,7 +284,7 @@ export function validateTemplate(
   for (const node of definition.nodes)
     if (node.condition) {
       let field;
-      for (const item of config.form.fields) if (item.key === node.condition.field) field = item;
+      for (const item of templateContext(config, definition, config.form).form.fields) if (item.key === node.condition.field) field = item;
       if (field?.type === 'select' && !field.options.includes(node.condition.value))
         errors.push(`${node.label}条件值不在${field.label}选项中`);
     }
@@ -312,16 +344,17 @@ export interface TemplateExecutionSummary {
  * @param nodes 模板业务节点
  * @returns 审批、任务和知会数量，以及面向申请人与管理员的流转说明
  */
-export function templateExecutionSummary(nodes: NodeDefinition[]): TemplateExecutionSummary {
+export function templateExecutionSummary(nodes: NodeDefinition[], lifecycle?: import('./types').LifecycleDefinition): TemplateExecutionSummary {
   const approvals = nodes.filter((node) => node.kind === 'approval').length;
   const tasks = nodes.filter((node) => node.kind === 'task').length;
   const notices = nodes.filter((node) => node.kind === 'notice').length;
+  const tail = lifecycleOf({ lifecycle }).afterApproval === 'complete' ? '全部生效必办节点完成后直接办结；知会不阻断。' : '全部生效必办节点完成后进入活动执行与归档子流程；知会不阻断。';
   const message = !nodes.length
     ? '请从开始节点添加一个业务节点，再检查并发布流程。'
     : approvals
-      ? '审批和任务按前置关系办理，全部生效必办节点完成后进入指派执行；知会不阻断。'
+      ? '审批和任务按前置关系办理。' + tail
       : tasks
-        ? '本模板没有审批节点；全部生效任务完成后进入指派执行，不产生同意或拒绝审批。'
-        : '本模板仅包含知会；提交后发送通知并进入待指派，不需要人工审批或完成任务。';
+        ? '本模板没有审批节点。' + tail
+        : '本模板仅包含知会；提交后发送通知。' + tail;
   return { approvals, tasks, notices, message };
 }

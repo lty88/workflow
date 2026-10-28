@@ -1,6 +1,8 @@
 import type { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import type { z } from 'zod';
 import {
+  lifecycleOf,
+  defaultRequestForm,
   activityActions,
   editableTemplateDefinition,
   firstTemplateNode,
@@ -45,6 +47,7 @@ import { digest } from './auth';
  * @param config 当前发布配置
  * @param actor 当前申请人
  * @param activityTypeId 可选活动类型
+ * @param businessType 可选业务类型，通用申请不依赖活动类型目录
  * @returns 带冻结表单的可用模板
  */
 export async function availableTemplates(
@@ -52,18 +55,20 @@ export async function availableTemplates(
   config: CompanyConfig,
   actor: string,
   activityTypeId?: string,
+  businessType?: 'activity' | 'general',
 ): Promise<TemplateSummary[]> {
   const types = await loadActivityTypes(db);
   const result: TemplateSummary[] = [];
   for (const template of await loadTemplates(db)) {
     if (
+      (businessType !== undefined && lifecycleOf(template.published || template.draft).businessType !== businessType) ||
       !template.active ||
       !template.currentVersion ||
       !template.published ||
       !canSelectTemplate(config, actor, template.published, activityTypeId)
     )
       continue;
-    if (activityTypeId && !findById(types, activityTypeId)?.active) continue;
+    if (activityTypeId && lifecycleOf(template.published).businessType !== 'general' && !findById(types, activityTypeId)?.active) continue;
     const release = await loadTemplateRelease(db, template.id, template.currentVersion);
     if (release)
       result.push({
@@ -109,7 +114,7 @@ export async function selectTemplate(
     '请选择活动类型、模板并预览当前版本',
   );
   const types = await loadActivityTypes(db);
-  ensure(findById(types, activityTypeId)?.active, 422, 'TYPE_UNAVAILABLE', '活动类型已停用或不存在');
+
   const template = await loadTemplate(db, templateId, 'share');
   ensure(
     template?.active && template.published && template.currentVersion,
@@ -117,6 +122,7 @@ export async function selectTemplate(
     'TEMPLATE_UNAVAILABLE',
     '模板已停用或尚未发布，请重新选择',
   );
+  ensure(lifecycleOf(template.published).businessType === 'general' ? activityTypeId === 'general' : !!findById(types, activityTypeId)?.active, 422, 'TYPE_UNAVAILABLE', '申请类型不可用，请重新选择模板');
   ensure(
     canSelectTemplate(config, actor, template.published, activityTypeId),
     403,
@@ -164,6 +170,7 @@ export async function previewTemplate(
         'NOT_FOUND',
         '活动不存在或无编辑权限',
       );
+      ensure(lifecycleOf(activity).businessType === lifecycleOf(release.definition).businessType, 422, 'BUSINESS_TYPE_LOCKED', '申请不能切换业务类型');
       form = preserveFormAccess(activity.schema, form);
       payload = mergeWritablePayload(config, actor, activity, form, input.payload);
     }
@@ -317,21 +324,24 @@ export async function createTemplate(
     ensure(existing.length < 100, 422, 'TEMPLATE_LIMIT', '最多维护100套流程模板');
     for (const item of existing)
       ensure(item.code !== body.code, 422, 'TEMPLATE_CODE_EXISTS', '模板编码已存在');
+    const source = body.sourceId ? await loadTemplate(db, body.sourceId) : null;
+    ensure(!body.sourceId || source, 404, 'NOT_FOUND', '复制源模板不存在');
+    const businessType = source ? lifecycleOf(source.published || source.draft).businessType : body.businessType || 'activity';
     const types = await loadActivityTypes(db);
-    ensure(types[0], 422, 'TYPE_REQUIRED', '请先配置至少一个活动类型');
+    ensure(businessType === 'general' || types[0], 422, 'TYPE_REQUIRED', '请先配置至少一个活动类型');
     const definition: TemplateDefinition = {
-      name: '新活动流程',
+      name: businessType === 'general' ? '新通用审批流程' : '新活动流程',
+      lifecycle: { businessType, afterApproval: businessType === 'general' ? 'complete' : 'activity_standard', version: 1 },
+      ...(businessType === 'general' ? { form: defaultRequestForm() } : {}),
       ratingEnabled: false,
-      activityTypeIds: [types[0]!.id],
+      activityTypeIds: businessType === 'general' ? [] : [types[0]!.id],
       defaultForTypeIds: [],
       departmentIds: [],
       roleIds: [],
       nodes: [firstTemplateNode(body.firstNodeKind || 'approval')],
       layout: { direction: 'TB', positions: {} },
     };
-    if (body.sourceId) {
-      const source = await loadTemplate(db, body.sourceId);
-      ensure(source, 404, 'NOT_FOUND', '复制源模板不存在');
+    if (source) {
       Object.assign(definition, editableTemplateDefinition(source.published || source.draft));
       definition.name = definition.name.slice(0, 74) + '（副本）';
       definition.defaultForTypeIds = [];
@@ -367,7 +377,8 @@ export async function saveTemplate(
    * @returns 新草稿
    */
   async function save(db: PoolConnection): Promise<WorkflowTemplate> {
-    await editableTemplate(db, id, body.expectedDraftRevision);
+    const current = await editableTemplate(db, id, body.expectedDraftRevision);
+    ensure(!current.published || lifecycleOf(current.published).businessType === lifecycleOf(body.definition).businessType, 422, 'BUSINESS_TYPE_LOCKED', '已发布模板业务类型不可改变，请新建模板');
     await db.execute(
       'UPDATE workflow_templates SET draft=?,draft_revision=draft_revision+1,updated_at=UTC_TIMESTAMP(3) WHERE id=?',
       [JSON.stringify(editableTemplateDefinition(body.definition)), id],
@@ -406,6 +417,7 @@ export async function publishTemplate(
    */
   async function publish(db: PoolConnection, config: CompanyConfig): Promise<WorkflowTemplate> {
     const template = await editableTemplate(db, id, body.expectedDraftRevision);
+    ensure(!template.published || lifecycleOf(template.published).businessType === lifecycleOf(template.draft).businessType, 422, 'BUSINESS_TYPE_LOCKED', '已发布模板的业务类型不可改变，请新建或复制模板');
     const errors = validateTemplate(config, template.draft, await loadActivityTypes(db));
     const others: TemplateDefinition[] = [];
     for (const other of await loadTemplates(db))
@@ -415,7 +427,7 @@ export async function publishTemplate(
     const version = template.currentVersion + 1;
     await db.execute(
       'INSERT INTO workflow_template_releases(template_id,version,definition,form_snapshot,published_by) VALUES (?,?,?,?,?)',
-      [id, version, JSON.stringify(template.draft), JSON.stringify(config.form), actor],
+      [id, version, JSON.stringify(template.draft), JSON.stringify(templateContext(config, template.draft, config.form).form), actor],
     );
     await db.execute(
       'UPDATE workflow_templates SET published=?,current_version=?,draft_revision=draft_revision+1,updated_at=UTC_TIMESTAMP(3) WHERE id=?',
@@ -512,7 +524,7 @@ export async function deleteTemplate(
   async function remove(db: PoolConnection): Promise<{ ok: boolean }> {
     const template = await editableTemplate(db, id, body.expectedDraftRevision);
     ensure(template.currentVersion === 0, 422, 'TEMPLATE_PUBLISHED', '已发布模板请使用停用，以保留历史');
-    const activities = await query(db, 'SELECT id FROM activities WHERE template_id=? LIMIT 1', [id]);
+    const activities = await query(db, 'SELECT id FROM activities WHERE template_id=? UNION ALL SELECT id FROM requests WHERE template_id=? LIMIT 1', [id,id]);
     const releases = await query(
       db,
       'SELECT version FROM workflow_template_releases WHERE template_id=? LIMIT 1',

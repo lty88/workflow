@@ -11,10 +11,15 @@ import type { ActivityType, NodeDefinition } from '@workflow/domain';
 import { mutation, request } from './http';
 
 /** 读取当前申请人可选择的发布模板与冻结表单。
+ * @param activityTypeId 可选的活动类型
+ * @param businessType 可选的业务类型
  * @returns 授权模板列表
  */
-export function templatesApi(): Promise<TemplateSummary[]> {
-  return request('/workflow-templates');
+export function templatesApi(activityTypeId?: string, businessType?: 'activity' | 'general'): Promise<TemplateSummary[]> {
+ const query = new URLSearchParams()
+ if (activityTypeId) query.set('activityTypeId', activityTypeId)
+ if (businessType) query.set('businessType', businessType)
+ return request('/workflow-templates?' + query)
 }
 /** 读取当前申请人有模板可选的活动类型。
  * @returns 类型列表
@@ -32,14 +37,16 @@ export function templateCatalogueApi(): Promise<TemplateCatalogue> {
  * @param code 新模板编码
  * @param sourceId 可选复制源
  * @param firstNodeKind 无复制源时使用的首个业务节点类型
+ * @param businessType 无复制源时创建的业务类型
  * @returns 新模板
  */
 export function createTemplateApi(
   code: string,
   sourceId?: string,
   firstNodeKind: NodeDefinition['kind'] = 'approval',
+  businessType: 'activity' | 'general' = 'activity',
 ): Promise<WorkflowTemplate> {
-  return mutation('/admin/workflow-templates', { code, ...(sourceId ? { sourceId } : { firstNodeKind }) });
+  return mutation('/admin/workflow-templates', { code, ...(sourceId ? { sourceId } : { firstNodeKind, businessType }) });
 }
 /** 保存模板草稿并检查草稿版本。
  * @param id 模板标识

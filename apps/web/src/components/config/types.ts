@@ -1,5 +1,6 @@
 import type { CompanyConfig, Condition, FormField, AssigneeRule } from '@workflow/domain'
 export interface ConfigPanelProps {
+  overlayZIndex?: number
   modelValue: CompanyConfig
   persist?: (value: CompanyConfig) => Promise<void>
   saving?: boolean

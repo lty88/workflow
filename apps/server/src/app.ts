@@ -1,3 +1,4 @@
+import { REQUEST_CATALOG } from './db/request-store';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
@@ -337,6 +338,12 @@ export async function buildApp(pool: Pool, env: Environment) {
     return listActivities(pool, actorId(request), listQuerySchema.parse(request.query));
   }
   app.get('/api/activities', activities);
+  /** 查询跨业务申请目录，沿用账号角色与数据范围。
+   * @param request 当前请求
+   * @returns 授权申请分页
+   */
+  async function requests(request: FastifyRequest) { return listActivities(pool, actorId(request), listQuerySchema.parse(request.query), false, true); }
+  app.get('/api/requests', requests);
 
   /**
    * 导出当前筛选的授权列表，限制单次行数并写入操作者审计。
@@ -349,6 +356,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     const actor = actorId(request);
     ensure(hasPermission(config, actor, 'activity:export'), 403, 'FORBIDDEN', '无导出权限');
     const input = listQuerySchema.parse(request.query);
+    const common = request.url.startsWith('/api/requests/');
     /**
      * 读取同一事务快照中的筛选结果，避免翻页期间新增工单导致重复行。
      * @param connection 事务连接
@@ -357,11 +365,11 @@ export async function buildApp(pool: Pool, env: Environment) {
     async function readExport(connection: PoolConnection): Promise<ActivityListItem[]> {
       const current = (await loadConfig(connection)).published;
       ensure(hasPermission(current, actor, 'activity:export'), 403, 'FORBIDDEN', '无导出权限');
-      const first = await listActivities(connection, actor, { ...input, page: 1, pageSize: 100 }, true);
+      const first = await listActivities(connection, actor, { ...input, page: 1, pageSize: 100 }, true, common);
       ensure(first.total <= 2000, 422, 'EXPORT_LIMIT', '单次最多导出2000条，请缩小筛选范围');
       const items = [...first.items];
       for (let page = 2; (page - 1) * 100 < first.total; page += 1) {
-        const batch = await listActivities(connection, actor, { ...input, page, pageSize: 100 }, true);
+        const batch = await listActivities(connection, actor, { ...input, page, pageSize: 100 }, true, common);
         items.push(...batch.items);
       }
       return items;
@@ -369,7 +377,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     const items = await transaction(pool, readExport);
     const rows = [
       csvCell(`导出人：${request.profile!.user.name}；时间：${new Date().toISOString()}`),
-      '编号,活动名称,发起人,状态,开始时间,地点,预算',
+      '编号,申请名称,发起人,状态,开始时间,地点,预算',
     ];
     for (const item of items)
       rows.push(
@@ -380,7 +388,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     await pool.execute('INSERT INTO audit_events(id,actor_id,action,data) VALUES (?,?,?,?)', [
       crypto.randomUUID(),
       actor,
-      '导出活动筛选列表',
+      common ? '导出申请筛选列表' : '导出活动筛选列表',
       JSON.stringify({ filter: input, rows: items.length }),
     ]);
     reply
@@ -389,6 +397,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     return '\uFEFF' + rows.join('\r\n');
   }
   app.get('/api/activities/export', exportList);
+  app.get('/api/requests/export', exportList);
 
   /**
    * 创建本人草稿。
@@ -399,6 +408,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     return createDraft(pool, actorId(request), draftSchema.parse(request.body), requestKey(request));
   }
   app.post('/api/activities', create);
+  app.post('/api/requests', create);
 
   /**
    * 更新可编辑的本人草稿。
@@ -415,6 +425,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     );
   }
   app.patch('/api/activities/:id', update);
+  app.patch('/api/requests/:id', update);
 
   /**
    * 读取已授权的活动详情与可执行操作。
@@ -425,6 +436,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     return getDetail(pool, actorId(request), resourceId(request));
   }
   app.get('/api/activities/:id', detail);
+  app.get('/api/requests/:id', detail);
 
   /**
    * 逻辑删除活动，服务端重新校验身份、状态、版本、原因及幂等键。
@@ -440,6 +452,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     );
   }
   app.delete('/api/activities/:id', removeActivity);
+  app.delete('/api/requests/:id', removeActivity);
 
   /**
    * 以已预览模板版本提交活动并创建节点任务。
@@ -458,6 +471,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     );
   }
   app.post('/api/activities/:id/submit', submit);
+  app.post('/api/requests/:id/submit', submit);
 
   /**
    * 办理指派、执行、归档和取消动作。
@@ -468,6 +482,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     return handleAction(pool, actorId(request), resourceId(request), actionSchema.parse(request.body));
   }
   app.post('/api/activities/:id/actions', action);
+  app.post('/api/requests/:id/actions', action);
 
   /**
    * 办理真实个人待办，受理人由会话确定。
@@ -503,6 +518,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     );
   }
   app.post('/api/activities/:id/adjustments', adjust);
+  app.post('/api/requests/:id/adjustments', adjust);
 
   /**
    * 预览所选模板的生效路线，兼容旧客户端默认模板，不创建真实任务。
@@ -676,6 +692,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     );
   }
   app.post('/api/activities/:id/files', upload);
+  app.post('/api/requests/:id/files', upload);
 
   /**
    * 下载已授权的本地或OSS私有附件，存储路径与凭据不暴露给客户端。
@@ -765,7 +782,7 @@ export async function buildApp(pool: Pool, env: Environment) {
     const config = (await loadConfig(pool)).published;
     const rows = await query<Notification>(
       pool,
-      'SELECT n.id,n.title,n.activity_id AS activityId,n.read_at AS readAt,n.created_at AS createdAt FROM notifications n JOIN activities a ON a.id=n.activity_id WHERE n.recipient_id=? AND a.deleted_at IS NULL ORDER BY n.created_at DESC LIMIT 100',
+      `SELECT n.id,n.title,n.activity_id AS activityId,n.read_at AS readAt,n.created_at AS createdAt FROM notifications n JOIN ${REQUEST_CATALOG} a ON a.id=n.activity_id WHERE n.recipient_id=? AND a.deleted_at IS NULL ORDER BY n.created_at DESC LIMIT 100`,
       [actor],
     );
     const visible: Notification[] = [];

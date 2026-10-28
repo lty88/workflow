@@ -1,3 +1,5 @@
+import { requestTables, requestRuntime, saveGeneralRequest } from './request-store';
+import { lifecycleOf } from '@workflow/domain';
 import mysql from 'mysql2/promise';
 import { readMasterData } from './master-data';
 import type { Pool, PoolConnection, RowDataPacket } from 'mysql2/promise';
@@ -186,21 +188,23 @@ export async function materializeConfig(db: Database, config: CompanyConfig): Pr
  * @returns 活动或空
  */
 export async function loadActivity(db: Database, id: string, lock = false): Promise<Activity | null> {
-  const rows = await query<{ data: unknown }>(
+  let rows = await query<{ data: unknown }>(
     db,
     `SELECT data FROM activities WHERE id=? AND deleted_at IS NULL${lock ? ' FOR UPDATE' : ''}`,
     [id],
   );
+  if (!rows[0]) rows = await query<{ data: unknown }>(db, `SELECT data FROM requests WHERE id=? AND deleted_at IS NULL${lock ? ' FOR UPDATE' : ''}`, [id]);
   if (!rows[0]) return null;
-  const activity = jsonValue<Activity>(rows[0].data);
+  const activity = requestRuntime(jsonValue<Activity>(rows[0].data));
+  const tables = requestTables(activity);
   const nodes = await query<{ data: unknown }>(
     db,
-    'SELECT data FROM workflow_nodes WHERE activity_id=? ORDER BY id',
+    `SELECT data FROM ${tables.nodes} WHERE activity_id=? ORDER BY id`,
     [id],
   );
   const tasks = await query<{ data: unknown }>(
     db,
-    'SELECT data FROM workflow_tasks WHERE activity_id=? ORDER BY id',
+    `SELECT data FROM ${tables.tasks} WHERE activity_id=? ORDER BY id`,
     [id],
   );
   const audits = await query<{ data: unknown }>(
@@ -212,7 +216,7 @@ export async function loadActivity(db: Database, id: string, lock = false): Prom
   for (const node of nodes) activity.nodes.push(jsonValue<WorkflowNode>(node.data));
   activity.tasks = [];
   for (const task of tasks) activity.tasks.push(jsonValue<WorkflowTask>(task.data));
-  const reports = await query<{ data: unknown }>(
+  const reports = lifecycleOf(activity).businessType === 'general' ? [] : await query<{ data: unknown }>(
     db,
     'SELECT data FROM execution_records WHERE activity_id=? ORDER BY submitted_at,id',
     [id],
@@ -239,9 +243,11 @@ export async function loadActivity(db: Database, id: string, lock = false): Prom
  */
 export async function saveActivity(db: Database, activity: Activity, create = false): Promise<void> {
   synchronizeWorkflowOwner(activity);
+  const tables = requestTables(activity);
   const stored = { ...activity, nodes: [], tasks: [], audit: [], executionRecords: [] };
   const now = new Date(activity.updatedAt);
-  if (create)
+  if (lifecycleOf(activity).businessType === 'general') await saveGeneralRequest(db, activity, create);
+  else if (create)
     await db.execute(
       'INSERT INTO activities(id,code,applicant_id,department_id,status,version,data,created_at,updated_at,activity_type_id,template_id,template_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
       [
@@ -276,7 +282,7 @@ export async function saveActivity(db: Database, activity: Activity, create = fa
     );
   for (const node of activity.nodes)
     await db.execute(
-      'INSERT INTO workflow_nodes(id,activity_id,node_key,status,generation,data) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE status=?,generation=?,data=?',
+      `INSERT INTO ${tables.nodes}(id,activity_id,node_key,status,generation,data) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE status=?,generation=?,data=?`,
       [
         node.id,
         activity.id,
@@ -289,16 +295,16 @@ export async function saveActivity(db: Database, activity: Activity, create = fa
         JSON.stringify(node),
       ],
     );
-  await db.execute('DELETE FROM workflow_edges WHERE activity_id=?', [activity.id]);
+  await db.execute(`DELETE FROM ${tables.edges} WHERE activity_id=?`, [activity.id]);
   for (const node of activity.nodes)
     for (const dep of node.deps)
       await db.execute(
-        'INSERT INTO workflow_edges(activity_id,from_node,to_node,structure_revision) VALUES (?,?,?,?)',
+        `INSERT INTO ${tables.edges}(activity_id,from_node,to_node,structure_revision) VALUES (?,?,?,?)`,
         [activity.id, dep, node.id, activity.structureRevision],
       );
   for (const task of activity.tasks)
     await db.execute(
-      'INSERT INTO workflow_tasks(id,activity_id,node_id,assignee_id,generation,status,version,data) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE assignee_id=?,status=?,version=?,data=?',
+      `INSERT INTO ${tables.tasks}(id,activity_id,node_id,assignee_id,generation,status,version,data) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE assignee_id=?,status=?,version=?,data=?`,
       [
         task.id,
         activity.id,
@@ -329,10 +335,11 @@ export async function saveActivity(db: Database, activity: Activity, create = fa
 /**
  * 列出服务端完整附件授权元数据，调用方必须投影后返回给客户端。
  * @param db 数据库连接
- * @param id 活动标识
+ * @param id 申请或活动标识
+ * @param businessType 已加载主单的业务类型，默认兼容原活动
  * @returns 文件列表
  */
-export async function activityFiles(db: Database, id: string): Promise<FileRecord[]> {
+export async function activityFiles(db: Database, id: string, businessType: 'activity' | 'general' = 'activity'): Promise<FileRecord[]> {
   const rows = await query<{
     id: string;
     activity_id: string;
@@ -350,7 +357,7 @@ export async function activityFiles(db: Database, id: string): Promise<FileRecor
     created_at: string;
   }>(
     db,
-    'SELECT id,activity_id,uploader_id,name,size,mime,stage,node_id,field_key,context_id,action_key,access_rule,download_rule,created_at FROM files WHERE activity_id=? ORDER BY created_at',
+    `SELECT id,activity_id,uploader_id,name,size,mime,stage,node_id,field_key,context_id,action_key,access_rule,download_rule,created_at FROM ${businessType === 'general' ? 'request_files' : 'files'} WHERE activity_id=? ORDER BY created_at`,
     [id],
   );
   const files: FileRecord[] = [];
