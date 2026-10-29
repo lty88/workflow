@@ -1,5 +1,6 @@
 <script setup lang="tsx">
-  import { ref, watch } from 'vue'
+  import { computed, ref, watch } from 'vue'
+  import { dataAccessScopeLabel } from '@workflow/domain'
   import { NAlert, NButton, NForm, NModal, NSpin } from 'naive-ui'
   import type { FileAccessInput } from '@workflow/domain'
   import type { Directory } from '@/typings/api'
@@ -18,6 +19,8 @@
   const loading = ref(false)
   const busy = ref(false)
   const error = ref('')
+  const inheritedView = computed(() => props.file?.inheritedScope?.view)
+  const inheritedDownload = computed(() => editing.value.access ? dataAccessScopeLabel(editing.value.access, !!props.file?.nodeId) : props.file?.inheritedScope?.download)
   /**
    * 打开时复制附件当前授权并读取组织，区分继承节点和文件单独分享，避免修改父级资料。
    * @param open 是否打开
@@ -60,7 +63,7 @@
 <template>
   <NModal :show="show" preset="card" title="单文件权限" style="width: min(560px, 95vw)" :mask-closable="!busy" @update:show="emit('update:show', $event)">
     <NAlert type="info" :bordered="false" class="mb">
-      这里修改当前文件。“继承所属节点或活动”沿用原范围；选择“活动内共享”会将本文件分享给有权访问该活动的人员，其他文件仍保持原权限。节点上传人在仍有该节点内部阅读资格时可分享自己的附件。下载还需同时满足角色下载能力和本文件下载范围，选择共享不会自动授予角色下载权限。
+      这里仅修改当前文件。默认选项直接显示当前节点或申请的实际范围；也可单独选择“流程内共享”“仅本节点办理人”或“指定人员或角色”。共享后有权查看该申请的后续审批人可查阅；下载还需角色下载权限。
     </NAlert>
     <p>{{ file?.name }}</p>
     <NSpin :show="loading">
@@ -71,8 +74,8 @@
           :config="directory"
           :node="!!file?.nodeId"
           inherit
-          inherit-label="继承所属节点或活动"
-          inherit-hint="未单独设置查看权限；节点附件按节点授权查看，其他附件按活动范围查看。"
+          :inherit-label="inheritedView ? `${inheritedView}（${file?.nodeId ? '节点' : '申请'}默认）` : '默认权限待刷新'"
+          :inherit-hint="`当前默认：${inheritedView || '请刷新详情'}。流程内共享包含有权查看申请的后续审批人；仅本节点或指定受众则按其限制执行。`"
           label="本文件查看范围"
         />
         <AccessRuleEditor
@@ -81,7 +84,8 @@
           :config="directory"
           :node="!!file?.nodeId"
           inherit
-          inherit-hint="沿用本文件查看范围；查看也未单独设置时，沿用节点下载规则。"
+          :inherit-label="inheritedDownload ? `${inheritedDownload}（默认下载范围）` : '默认权限待刷新'"
+          inherit-hint="这里显示实际沿用的下载范围；下载仍需角色具备下载权限。"
           label="本文件下载范围"
         />
       </NForm>

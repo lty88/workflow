@@ -41,6 +41,7 @@
       :activity-version="current.activity.version"
       :stage="stage"
       :node-id="nodeId"
+      :node-scope="nodeId ? current.access?.nodeAttachmentScopes?.[nodeId] : undefined"
       :context-id="contextId"
       :action-key="actionKey"
       :can-upload="!disabled || uploading"

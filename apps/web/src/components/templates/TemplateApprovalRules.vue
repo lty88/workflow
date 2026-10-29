@@ -1,7 +1,7 @@
 <script setup lang="tsx">
   import { computed } from 'vue'
   import { NAlert, NFormItem, NSelect, NSwitch } from 'naive-ui'
-  import { defaultApprovalPolicy, upstreamNodeIds } from '@workflow/domain'
+  import { defaultApprovalPolicy, upstreamNodeIds, ratingPredecessorIds } from '@workflow/domain'
   import type { NodeApprovalPolicy } from '@workflow/domain'
   import type { ApprovalRulesProps } from './types'
   const props = defineProps<ApprovalRulesProps>()
@@ -27,19 +27,20 @@
         }
       )
   })
+  const ratingIds = computed(() => new Set(ratingPredecessorIds(props.nodes, props.node.id)))
   const ratingNames = computed(() =>
     props.nodes
       .filter(
-        /** 找出本节点将评价的直接前置审批。
+        /** 找出本节点将评价的直接前置审批或任务，知会按实际依赖跳过。
          * @param node 候选节点
-         * @returns 是否直接前置审批
+         * @returns 是否直接前置审批或任务
          */ function upstream(node) {
-          return props.node.deps.includes(node.id) && node.kind === 'approval'
+          return ratingIds.value.has(node.id)
         }
       )
       .map(
         /** 提取评分对象名称。
-         * @param node 前置审批
+         * @param node 前置审批或任务
          * @returns 名称
          */ function name(node) {
           return node.label
@@ -146,7 +147,7 @@
           @update:value="update('rating', $event)"
         />
       </NFormItem>
-      <p class="help-text">{{ ratingNames ? `本节点评分对象：${ratingNames}。采用0～100整数；多人分别评价。` : '没有直接前置审批节点，无需评分。' }}</p>
+      <p class="help-text">{{ ratingNames ? `本节点评分对象：${ratingNames}。评价直接前置的审批或任务成果；不评价同级并行节点。0～100整数，多人分别评价。` : '没有直接前置审批或任务节点，无需评分。' }}</p>
     </template>
     <NAlert v-else type="info" :bordered="false">请先在“模板设置”开启节点办理质量评分，再配置本节点的评分要求。</NAlert>
   </section>

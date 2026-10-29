@@ -23,7 +23,7 @@ import { migrateDataSecurity } from '../db/security-migration';
 import type { Pool } from 'mysql2/promise';
 
 /**
- * 构造包含财务节点、敏感字段、历史意见与分级附件的真实领域数据，不连接数据库。
+ * 构造显式私有财务节点、敏感字段、历史意见与分级附件，验证限制不会被新申请的默认共享覆盖。
  * @returns 公司配置、完整详情及财务节点标识
  */
 function fixture() {
@@ -59,6 +59,7 @@ function fixture() {
   config.workflow.nodes.push({
     id: 'n-finance',
     label: '财务审核',
+    access: { mode: 'restricted', roleIds: [], userIds: [], nodeAssignees: true },
     kind: 'approval',
     deps: ['n-department'],
     assignee: { type: 'role', value: 'finance' },

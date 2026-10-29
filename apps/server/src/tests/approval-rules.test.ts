@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import {
   advanceWorkflow,
   approvalPolicyErrors,
+  ratingPredecessorIds,
   canHandleTask,
   decideTask,
   decisionCapabilities,
@@ -565,7 +566,7 @@ function policyValidationCase(): void {
   defs[0]!.approvalPolicy!.rating = 'required';
   defs[1]!.approvalPolicy!.returnScope = 'selected';
   defs[1]!.approvalPolicy!.returnNodeIds = ['C'];
-  expect(approvalPolicyErrors(defs, true).join()).toContain('没有直接前置审批');
+  expect(approvalPolicyErrors(defs, true).join()).toContain('没有直接前置审批或任务');
   expect(approvalPolicyErrors(defs, true).join()).toContain('上游审批或任务');
   defs[1]!.approvalPolicy!.returnNodeIds = [];
   expect(approvalPolicyErrors(defs, false).join()).toContain('请选择可退回');
@@ -603,7 +604,7 @@ function delegatedReworkCase(): void {
 }
 test('节点退回重办继承明确转交人的资格，不恢复旧负责人', delegatedReworkCase);
 
-/** 任务成果也能退回重办，知会与首节点不进入评分对象。 */
+/** 任务成果可退回重办；未开启评分时仍不要求评价任务。 */
 function taskTargetCase(): void {
   const defs = [definition('Task', 'u-wang'), definition('Review', 'u-zhou', ['Task'])];
   defs[0]!.kind = 'task';
@@ -625,7 +626,7 @@ function taskTargetCase(): void {
   perform(config, activity, 'Review');
   expect(activity.status).toBe('ready_assign');
 }
-test('任务成果可退回重办，任务不作为审批评分对象', taskTargetCase);
+test('任务成果可退回重办，评分关闭时不要求评价任务', taskTargetCase);
 
 /** 对新加签审批应用保守权限，不能利用未配置策略获得终止能力。 */
 function insertedPolicyCase(): void {
@@ -651,3 +652,79 @@ function insertedPolicyCase(): void {
   expect(inserted.approvalPolicy).toEqual(defaultApprovalPolicy());
 }
 test('新加签审批默认关闭终止与评分，不套用旧实例宽策略', insertedPolicyCase);
+
+
+/** 任务向审批交付成果时支持必填评分，评分目标校验、轮次及正常流转一起执行。 */
+function directTaskRatingCase(): void {
+  const defs = [definition('Task', 'u-wang'), definition('Review', 'u-zhou', ['Task'])];
+  defs[0]!.kind = 'task';
+  delete defs[0]!.approvalPolicy;
+  defs[1]!.approvalPolicy!.rating = 'required';
+  expect(approvalPolicyErrors(defs, true)).toEqual([]);
+  const { config, activity } = fixture(defs);
+  perform(config, activity, 'Task');
+  const caps = decisionCapabilities(config, 'u-zhou', activity, pending(activity, 'Review'));
+  expect(caps.ratingRequirement).toBe('required');
+  expect(caps.ratingTargets[0]!.nodeId).toBe(node(activity, 'Task').id);
+  expect(
+    /** 漏填任务成果评分时必须在提交前阻止通过。 */
+    function missing() { perform(config, activity, 'Review'); },
+  ).toThrow('请完成全部直接前置节点');
+  const review = pending(activity, 'Review');
+  perform(config, activity, 'Review', { ratings: [{ nodeId: node(activity, 'Task').id, generation: 1, score: 88 }] });
+  expect(review.ratings?.[0]?.score).toBe(88);
+  expect(activity.status).toBe('ready_assign');
+}
+test('任务成果可以由直接后续审批评分，必填与保存流转一致', directTaskRatingCase);
+
+/** 模拟教研后并行设计与营销：营销只评教研，最终汇合分别评价设计任务和营销审批。 */
+function mixedBranchRatingCase(): void {
+  const defs = [definition('Research', 'u-chen'), definition('Design', 'u-wang', ['Research']), definition('Marketing', 'u-zhao', ['Research']), definition('Final', 'u-liu', ['Design', 'Marketing'])];
+  defs[1]!.kind = 'task';
+  delete defs[1]!.approvalPolicy;
+  defs[2]!.approvalPolicy!.rating = 'required';
+  defs[3]!.approvalPolicy!.rating = 'required';
+  const { config, activity } = fixture(defs);
+  perform(config, activity, 'Research');
+  perform(config, activity, 'Design');
+  const marketing = decisionCapabilities(config, 'u-zhao', activity, pending(activity, 'Marketing'));
+  expect(marketing.ratingTargets).toHaveLength(1);
+  expect(marketing.ratingTargets[0]!.nodeId).toBe(node(activity, 'Research').id);
+  expect(
+    /** 已完成的同级任务也不构成直接交付关系，不能提交评分。 */
+    function sibling() { perform(config, activity, 'Marketing', { ratings: [{ nodeId: node(activity, 'Design').id, generation: 1, score: 100 }] }); },
+  ).toThrow('未授权的评分对象');
+  perform(config, activity, 'Marketing', { ratings: [{ nodeId: node(activity, 'Research').id, generation: 1, score: 90 }] });
+  const final = decisionCapabilities(config, 'u-liu', activity, pending(activity, 'Final'));
+  expect(final.ratingTargets).toHaveLength(2);
+  const scores = [{ nodeId: node(activity, 'Design').id, generation: 1, score: 80 }];
+  expect(
+    /** 汇合处不能漏评另一个直接前置。 */
+    function partial() { perform(config, activity, 'Final', { ratings: scores }); },
+  ).toThrow('请完成全部直接前置节点');
+  expect(
+    /** 已间接验收过的祖先成果不重复进入当前评分范围。 */
+    function ancestor() { perform(config, activity, 'Final', { ratings: [{ nodeId: node(activity, 'Research').id, generation: 1, score: 70 }] }); },
+  ).toThrow('未授权的评分对象');
+  scores.push({ nodeId: node(activity, 'Marketing').id, generation: 1, score: 95 });
+  perform(config, activity, 'Final', { ratings: scores });
+  expect(activity.status).toBe('ready_assign');
+}
+test('并行同级任务不可互评，混合汇合分别评价直接前置任务与审批', mixedBranchRatingCase);
+
+/** 知会不阻断评分交付链；模板预览与真实实例使用相同的最近成果节点。 */
+function noticeRatingCase(): void {
+  const defs = [definition('Task', 'u-wang'), definition('Notice', 'u-zhao', ['Task']), definition('Review', 'u-zhou', ['Notice'])];
+  defs[0]!.kind = 'task'; delete defs[0]!.approvalPolicy;
+  defs[1]!.kind = 'notice'; delete defs[1]!.approvalPolicy;
+  defs[2]!.approvalPolicy!.rating = 'required';
+  expect(ratingPredecessorIds(defs, 'Review')).toEqual(['Task']);
+  expect(approvalPolicyErrors(defs, true)).toEqual([]);
+  const { config, activity } = fixture(defs);
+  perform(config, activity, 'Task');
+  const caps = decisionCapabilities(config, 'u-zhou', activity, pending(activity, 'Review'));
+  expect(caps.ratingTargets).toHaveLength(1);
+  expect(caps.ratingTargets[0]!.nodeId).toBe(node(activity, 'Task').id);
+  perform(config, activity, 'Review', { ratings: [{ nodeId: node(activity, 'Task').id, generation: 1, score: 90 }] });
+}
+test('知会穿透后的任务评分在模板校验、预览和实际办理中保持一致', noticeRatingCase);

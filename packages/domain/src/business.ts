@@ -215,7 +215,7 @@ export function decideTask(
       '评分需为0至100的整数',
     );
     const expected = capabilities.ratingTargets.find(
-      /** 匹配当前可评分的直接上游审批成果。
+      /** 匹配当前可评分的直接上游审批或任务成果。
        * @param item 服务端评分对象
        * @returns 是否为请求对象
        */ function same(item) {
@@ -228,7 +228,7 @@ export function decideTask(
     ratingIds.add(rating.nodeId);
   }
   if (command.decision === 'approve' && capabilities.ratingRequirement === 'required')
-    requireRule(ratingIds.size === capabilities.ratingTargets.length, '请完成全部上游审批节点的评分');
+    requireRule(ratingIds.size === capabilities.ratingTargets.length, '请完成全部直接前置节点的评分');
   task.comment = '';
   task.publicComment = opinion;
   task.ratings = structuredClone(command.ratings || []);

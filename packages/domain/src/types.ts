@@ -39,7 +39,13 @@ export interface FieldAccess {
   write?: DataAccessRule;
   mask: 'hidden' | 'partial';
 }
+/** 附件默认查看及下载范围的展示摘要，不包含受限人员名单。 */
+export interface AttachmentScopeSummary {
+  view: string;
+  download: string;
+}
 export interface ActivityAccess {
+  nodeAttachmentScopes?: Record<string, AttachmentScopeSummary>;
   readableNodeIds: string[];
   uploadNodeIds: string[];
   hiddenFieldKeys: string[];
@@ -350,6 +356,9 @@ export interface Activity {
   updatedAt: string;
 }
 export interface FileRecord extends FileAccessInput {
+  inheritedScope?: AttachmentScopeSummary;
+  viewScopeLabel?: string;
+  downloadScopeLabel?: string;
   uploaderId?: string;
   canManageAccess?: boolean;
   canDownload?: boolean;

@@ -1,4 +1,5 @@
 import { createUuid } from './ids';
+import { SHARED_ACCESS } from './data-access';
 import { lifecycleOf } from './lifecycle';
 import type {
   Activity,
@@ -98,7 +99,7 @@ export interface WorkflowValidationOptions {
 }
 
 /**
- * 按提交内容冻结模板分支、操作权限和评分开关，条件跳过时继承原前置。
+ * 按提交内容冻结模板分支、附件共享默认值、操作权限和评分开关，条件跳过时继承原前置。
  * @param config 提交时配置
  * @param payload 净化表单内容
  * @param applicant 申请人
@@ -146,7 +147,7 @@ export function instantiateWorkflow(
       : { ids: [], errors: [] };
     for (const error of people.errors) errors.push(`${def.label}：${error}`);
     nodes.push({
-      access: def.access ? structuredClone(def.access) : undefined,
+      access: structuredClone(def.access || SHARED_ACCESS),
       downloadAccess: def.downloadAccess ? structuredClone(def.downloadAccess) : undefined,
       approvalPolicy: def.approvalPolicy
         ? {

@@ -2,6 +2,7 @@ import { attachmentContextCommitted } from './execution-records';
 import { attachmentFieldBindingsForFile } from './attachments';
 import type {
   Activity,
+  AttachmentScopeSummary,
   CompanyConfig,
   DataAccessRule,
   FileRecord,
@@ -28,6 +29,29 @@ export const NODE_PRIVATE_ACCESS: DataAccessRule = {
   userIds: [],
   nodeAssignees: true,
 };
+
+/** 将查看或下载受众转为业务名称，不泄露指定角色及人员名单。
+ * @param rule 已解析的权限规则
+ * @param node 是否为节点资料
+ * @returns 流程共享、仅本节点或指定人员角色的名称
+ */
+export function dataAccessScopeLabel(rule: DataAccessRule, node = false): string {
+  if (rule.mode === 'shared') return '流程内共享';
+  if (node && rule.nodeAssignees && !rule.roleIds.length && !rule.userIds.length && !rule.applicant && !rule.executor && !rule.departmentManager) return '仅本节点办理人';
+  return '指定人员或角色';
+}
+
+/** 解析申请实例的真实附件默认范围，旧实例缺失规则时保留原私有默认值。
+ * @param node 所属节点；非节点附件不传
+ * @returns 默认查看及下载范围名称，用于页面解释实际效果
+ */
+export function nodeAttachmentScope(node?: WorkflowNode): AttachmentScopeSummary {
+  const view = node?.access || (node ? NODE_PRIVATE_ACCESS : SHARED_ACCESS);
+  return {
+    view: dataAccessScopeLabel(view, !!node),
+    download: dataAccessScopeLabel(node?.downloadAccess || view, !!node),
+  };
+}
 
 /**
  * 判断单个授权角色的数据范围，避免宽范围普通角色扩大另一角色的敏感权限。

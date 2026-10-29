@@ -1,6 +1,7 @@
 <script setup lang="tsx">
   import { computed } from 'vue'
   import { NFormItem, NInput, NInputNumber, NButton } from 'naive-ui'
+  import { ratingPredecessorIds } from '@workflow/domain'
   import type { ApprovalDecisionFieldsProps } from './types'
   import AttachmentList from './AttachmentList.vue'
   const props = defineProps<ApprovalDecisionFieldsProps>()
@@ -14,12 +15,13 @@
         return item.id === props.task.nodeId
       }
     )
+    const previousIds = new Set(ratingPredecessorIds(props.detail.activity.nodes, node?.id || ''))
     return props.detail.activity.nodes.filter(
-      /** 展示已经完成的直接前置业务结果。
+      /** 展示已完成的直接前置成果，知会中转时与服务端评分对象保持一致。
        * @param item 上游候选
        * @returns 是否需要查看
        */ function previous(item) {
-        return node?.deps.includes(item.id) && item.status === 'completed' && item.kind !== 'notice'
+        return previousIds.has(item.id) && item.status === 'completed' && item.kind !== 'notice'
       }
     )
   })
@@ -71,7 +73,7 @@
   </section>
   <section v-if="capabilities?.ratingTargets.length" class="review-scores">
     <h3>上游办理质量评分</h3>
-    <p class="help-text">0～100整数，评价本轮节点成果；分数不自动改变审批结论。</p>
+    <p class="help-text">评价直接交付给本节点的审批或任务成果；不包含同级并行节点。0～100整数，分数不自动改变审批结论。</p>
     <NFormItem v-for="target in capabilities.ratingTargets" :key="target.nodeId" :label="target.label" :path="`scores.${target.nodeId}`" :required="required">
       <div class="score-controls">
         <NInputNumber

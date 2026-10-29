@@ -1,4 +1,4 @@
-import type { ActivityDetail, FileRecord, FormDefinition, FormValidationIssue, WorkflowTask, WorkflowNode } from '@workflow/domain'
+import type { ActivityDetail, AttachmentScopeSummary, FileRecord, FormDefinition, FormValidationIssue, WorkflowTask, WorkflowNode } from '@workflow/domain'
 import type { ComputedRef, Ref } from 'vue'
 export interface DeleteActivityProps {
   activity: Pick<ActivityDetail['activity'], 'id' | 'code' | 'name' | 'version'>
@@ -68,6 +68,7 @@ export interface AttachmentUploadPromptProps {
   limitLabel: string
 }
 export interface AttachmentProps {
+  nodeScope?: AttachmentScopeSummary
   contextId?: string
   actionKey?: string
   includeContexts?: boolean

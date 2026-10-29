@@ -59,7 +59,7 @@
       <h2>节点资料</h2>
       <NCheckbox v-model:checked="history">显示历次申请节点</NCheckbox>
     </div>
-    <p class="materials-hint">附件按本次申请提交时的节点权限判断，模板后续修改不会回写已有申请。单个文件可独立授权；历次申请资料请勾选右上方选项。</p>
+    <p class="materials-hint">新提交申请的普通节点附件默认流程内共享，后续审批人可查阅；已有申请和明确受限的资料按原授权开放。单个文件可独立授权；历次申请资料请勾选右上方选项。</p>
     <article v-for="node in nodes" :key="node.id" class="material-node">
       <header>
         <strong>{{ node.label }}</strong>
@@ -79,6 +79,7 @@
         stage="node"
         include-contexts
         :node-id="node.id"
+        :node-scope="detail.access?.nodeAttachmentScopes?.[node.id]"
         :can-upload="uploadable(node.id)"
         @uploaded="emit('uploaded')"
       />

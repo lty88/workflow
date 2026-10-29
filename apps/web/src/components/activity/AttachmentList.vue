@@ -142,7 +142,7 @@
           :limit-label="`单个文件不超过 20 MB · 本表单或记录 ${uploadFileCount} / 10 个`"
         />
       </NUpload>
-      <FileUploadAccess v-model="uploadAccess" :node="!!nodeId" :disabled="busy" />
+      <FileUploadAccess v-model="uploadAccess" :node="!!nodeId" :node-scope="nodeScope" :disabled="busy" />
     </template>
     <div v-if="stageFiles.length" class="attachment-list-heading">
       <strong>已上传附件</strong>
@@ -154,6 +154,7 @@
         <a v-if="file.canPreview" :href="'/api/files/' + file.id + '/preview'" target="_blank" rel="noopener" class="file-name">{{ file.name }}</a>
         <span v-else class="file-name">{{ file.name }}</span>
         <div class="file-meta">{{ formatSize(file.size) }} · {{ formatTime(file.createdAt) }}</div>
+        <div v-if="file.viewScopeLabel" class="file-meta">查看：{{ file.viewScopeLabel }}</div>
       </div>
       <div class="attachment-file-actions">
         <a v-if="file.canDownload" :href="'/api/files/' + file.id" target="_blank" rel="noopener">下载</a>

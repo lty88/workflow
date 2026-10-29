@@ -67,6 +67,27 @@ export function returnImpact(nodes: Array<{ id: string; deps: string[] }>, targe
   return [...affected];
 }
 
+/** 收集直接交付成果的前置节点，跳过不产出待办成果的知会，避免跨过任务或审批追溯评分。
+ * @param nodes 模板或实例的依赖节点
+ * @param id 当前审批节点标识
+ * @returns 直接前置审批或任务节点标识，不包含并行同级与更早祖先
+ */
+export function ratingPredecessorIds(nodes: Array<Pick<NodeDefinition, 'id' | 'kind' | 'deps'>>, id: string): string[] {
+  const seen = new Set<string>([id]);
+  const pending = [...(findById(nodes, id)?.deps || [])];
+  const result: string[] = [];
+  while (pending.length) {
+    const next = pending.pop()!;
+    if (seen.has(next)) continue;
+    seen.add(next);
+    const node = findById(nodes, next);
+    if (!node) continue;
+    if (node.kind === 'notice') pending.push(...node.deps);
+    else result.push(node.id);
+  }
+  return result;
+}
+
 /** 校验模板节点的退回范围和评分对象，在启用版本前定位错误配置。
  * @param nodes 模板定义节点
  * @param ratingEnabled 模板评分总开关
@@ -93,16 +114,9 @@ export function approvalPolicyErrors(nodes: NodeDefinition[], ratingEnabled: boo
     if (
       ratingEnabled &&
       policy.rating !== 'off' &&
-      !node.deps.some(
-        /** 判断是否配置了直接前置审批。
-         * @param id 前置标识
-         * @returns 是否可以评价
-         */ function approval(id) {
-          return findById(nodes, id)?.kind === 'approval';
-        },
-      )
+      !ratingPredecessorIds(nodes, node.id).length
     )
-      errors.push(`${node.label}：上游评分没有直接前置审批节点`);
+      errors.push(`${node.label}：上游评分没有直接前置审批或任务节点`);
   }
   return errors;
 }
@@ -112,7 +126,7 @@ export function approvalPolicyErrors(nodes: NodeDefinition[], ratingEnabled: boo
  * @param actor 当前操作者
  * @param activity 活动实例
  * @param task 当前个人待办
- * @returns 服务端可执行的退回目标、终止能力与评分要求
+ * @returns 服务端可执行的退回目标、终止能力及直接前置审批或任务的评分要求
  */
 export function decisionCapabilities(
   config: CompanyConfig,
@@ -146,6 +160,7 @@ export function decisionCapabilities(
     },
   );
   const ancestors = new Set(upstreamNodeIds(current, node.id));
+  const ratingPredecessors = new Set(ratingPredecessorIds(current, node.id));
   for (const target of current) {
     if (target.status !== 'completed' || target.kind === 'notice' || !ancestors.has(target.id)) continue;
     const item: DecisionTarget = {
@@ -159,10 +174,10 @@ export function decisionCapabilities(
         ? node.deps.includes(target.id)
         : policy.returnNodeIds.includes(target.key);
     if (policy.returnEnabled && allowed) result.returnTargets.push(item);
-    if (policy.rating !== 'off' && target.kind === 'approval' && node.deps.includes(target.id))
+    if (policy.rating !== 'off' && !target.businessStage && ratingPredecessors.has(target.id))
       result.ratingTargets.push({ ...item, affectedNodeIds: [] });
   }
-  // 条件分支未生效时不要求给不存在的审批成果评分。
+  // 条件分支未生效时不要求给不存在的节点成果评分。
   if (!result.ratingTargets.length) result.ratingRequirement = 'off';
   return result;
 }

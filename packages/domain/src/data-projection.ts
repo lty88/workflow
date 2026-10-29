@@ -11,6 +11,8 @@ import {
   fieldConstraints,
   hasScopedDataPermission,
   isSensitiveField,
+  nodeAttachmentScope,
+  dataAccessScopeLabel,
 } from './data-access';
 
 /**
@@ -154,7 +156,7 @@ export function mergeWritablePayload(
  * @param actor 当前成员
  * @param detail 完整服务端详情
  * @param exporting 是否用于导出
- * @returns 已过滤原文与附带操作能力的详情
+ * @returns 已过滤原文、附带操作能力及实际附件默认范围摘要的详情
  */
 export function projectActivityDetail(
   config: CompanyConfig,
@@ -214,8 +216,13 @@ export function projectActivityDetail(
         !canDownloadFile(config, actor, source, file))
     )
       continue;
+    const node = file.nodeId ? findById(source.nodes, file.nodeId) : undefined;
+    const inheritedScope = nodeAttachmentScope(node);
     const projected: FileRecord = {
       ...file,
+      inheritedScope,
+      viewScopeLabel: file.access ? dataAccessScopeLabel(file.access, !!node) : inheritedScope.view,
+      downloadScopeLabel: file.downloadAccess || file.access ? dataAccessScopeLabel((file.downloadAccess || file.access)!, !!node) : inheritedScope.download,
       canDownload: canDownloadFile(config, actor, source, file),
       downloadHint: canDownloadFile(config, actor, source, file) ? undefined : !hasScopedDataPermission(config, actor, source, 'file:download') ? '当前角色未获得本申请的附件下载权限' : '你不在本文件的下载授权范围内',
       canPreview: ['application/pdf', 'image/jpeg', 'image/png'].includes(file.mime),
@@ -297,6 +304,12 @@ export function projectActivityDetail(
     )
       containsSensitive = true;
   safe.access = {
+    nodeAttachmentScopes: Object.fromEntries(source.nodes.map(
+      /** 只返回默认范围的名称，保留原节点授权规则的服务端隔离。
+       * @param node 申请实例节点
+       * @returns 节点标识及真实默认权限摘要
+       */ function scope(node) { return [node.id, nodeAttachmentScope(node)]; },
+    )),
     readableNodeIds: [...readable],
     uploadNodeIds: [...new Set(upload)],
     hiddenFieldKeys: current.hidden,
