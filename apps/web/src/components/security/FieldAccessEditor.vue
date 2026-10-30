@@ -47,6 +47,7 @@ function update(key: 'read' | 'write' | 'mask', value: DataAccessRule | string |
         :fallback="applicantDefault"
         :config="config"
         :disabled="disabled"
+        operation="edit"
         label="字段编辑范围"
         @update:model-value="update('write', $event)"
       />

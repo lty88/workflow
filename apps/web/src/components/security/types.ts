@@ -4,6 +4,15 @@ export interface AccessDirectory {
   roles: Array<{ id: string; name: string }>
 }
 export type AccessRuleMode = 'inherit' | 'node_only' | DataAccessRule['mode']
+export type AccessOperation = 'view' | 'download' | 'edit'
+export interface AccessScopeCopy {
+  title: string
+  audience: string
+  scenario: string
+}
+export interface PermissionHintProps {
+  label: string
+}
 export interface AccessRuleEditorProps {
   modelValue?: DataAccessRule
   fallback?: DataAccessRule
@@ -14,6 +23,8 @@ export interface AccessRuleEditorProps {
   inherit?: boolean
   inheritLabel?: string
   inheritHint?: string
+  inheritedScope?: string
+  operation?: AccessOperation
   label: string
 }
 export interface NodeAccessEditorProps {

@@ -1,9 +1,9 @@
 <script setup lang="tsx">
-  import { NAlert } from 'naive-ui'
-  import { SHARED_ACCESS } from '@workflow/domain'
+  import { SHARED_ACCESS, dataAccessScopeLabel } from '@workflow/domain'
   import type { DataAccessRule, NodeDefinition } from '@workflow/domain'
   import type { NodeAccessEditorProps } from './types'
   import AccessRuleEditor from './AccessRuleEditor.vue'
+  import PermissionHint from './PermissionHint.vue'
   const props = defineProps<NodeAccessEditorProps>()
   const emit = defineEmits<{ 'update:modelValue': [value: NodeDefinition] }>()
   /**
@@ -16,7 +16,10 @@
   }
 </script>
 <template>
-  <NAlert type="info" :bordered="false" class="mb">新提交申请的普通节点附件默认流程内共享，后续审批人可查阅。敏感资料可选择“仅本节点办理人”或“指定人员或角色”。规则随申请提交冻结，已有申请保持原权限，可通过“单文件权限”调整。</NAlert>
+  <div class="node-access-heading">
+    节点默认权限
+    <PermissionHint label="节点默认权限说明"><p>新申请默认流程内共享，可为敏感资料改为本节点或指定受众。</p><p>模板修改只影响后续提交，已有附件通过“单文件权限”调整。</p></PermissionHint>
+  </div>
   <AccessRuleEditor
     :model-value="modelValue.access"
     :fallback="SHARED_ACCESS"
@@ -34,16 +37,21 @@
     :disabled="disabled"
     node
     inherit
+    operation="download"
+    :inherited-scope="dataAccessScopeLabel(modelValue.access || SHARED_ACCESS, true)"
+    inherit-label="沿用本节点查看范围"
+    inherit-hint="下载默认沿用上方的节点查看范围，仍需角色具备下载权限。"
     label="节点附件下载范围"
     @update:model-value="update('downloadAccess', $event)"
   />
-  <p class="permission-note">附件默认按节点设置。单文件选择共享、仅本节点或指定人员后独立生效。下载还需角色具备“下载申请附件”权限。</p>
 </template>
 <style scoped>
-  .permission-note {
-    font-size: 12px;
-    line-height: 1.7;
+  .node-access-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
     color: #718098;
-    margin: 0 0 16px;
+    font-size: 13px;
   }
 </style>

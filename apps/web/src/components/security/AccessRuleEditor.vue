@@ -3,6 +3,8 @@
   import { NCheckbox, NFormItem, NSelect } from 'naive-ui'
   import { SHARED_ACCESS, NODE_PRIVATE_ACCESS } from '@workflow/domain'
   import { accessRuleMode } from './access-rule-mode'
+  import { accessScopeCopy } from './access-scope-copy'
+  import PermissionHint from './PermissionHint.vue'
   import type { DataAccessRule } from '@workflow/domain'
   import type { AccessRuleEditorProps } from './types'
   import { clone } from '@/composables/format'
@@ -15,9 +17,11 @@
     if (specificRule.value && toRaw(props.modelValue) === specificRule.value) return 'restricted'
     return accessRuleMode(rule.value, props.node)
   })
+  const selectedCopy = computed(() => accessScopeCopy(mode.value, props.node, props.operation, props.inheritedScope))
+  const operationLabel = computed(() => props.operation === 'download' ? '下载范围' : props.operation === 'edit' ? '编辑范围' : '谁能查看')
   const choices = computed(() => [
-    ...(props.inherit ? [{ label: props.inheritLabel || '继承查看范围', value: 'inherit' }] : []),
-    { label: '流程内共享', value: 'shared' },
+    { label: `${accessScopeCopy('shared', props.node, props.operation).title}（推荐）`, value: 'shared' },
+    ...(props.inherit ? [{ label: props.inheritLabel || '沿用查看范围', value: 'inherit' }] : []),
     ...(props.node ? [{ label: '仅本节点办理人', value: 'node_only' }] : []),
     { label: '指定人员或角色', value: 'restricted' },
   ])
@@ -72,9 +76,22 @@
 </script>
 <template>
   <section class="access-rule-editor">
-    <NFormItem :label="label"><NSelect :value="mode" :options="choices" :disabled="disabled" @update:value="changeMode" /></NFormItem>
+    <NFormItem>
+      <template #label>
+        <span class="access-field-label">
+          {{ label }}
+          <PermissionHint :label="`${label}说明`">
+            <p><strong>{{ operationLabel }}：</strong>{{ selectedCopy.audience }}</p>
+            <p><strong>适用：</strong>{{ selectedCopy.scenario }}</p>
+            <p v-if="node">本节点指资料所属节点，不是整个部门或下一节点。</p>
+            <p v-if="mode === 'inherit' && inheritHint">{{ inheritHint }}</p>
+            <p>{{ operation === 'edit' ? '编辑仍需申请编辑资格和字段阅读权限。' : '下载还需角色下载权限；独立敏感资料授权仍生效。' }}</p>
+          </PermissionHint>
+        </span>
+      </template>
+      <NSelect :value="mode" :options="choices" :disabled="disabled" @update:value="changeMode" />
+    </NFormItem>
     <div v-if="mode === 'restricted'" class="access-audience">
-      <p>在有权查看本申请的人员中，允许以下受众访问：</p>
       <div class="access-identities">
         <NCheckbox
           v-if="node"
@@ -113,32 +130,24 @@
         />
       </NFormItem>
     </div>
-    <p v-else class="access-hint">
-      {{ mode === 'inherit' ? inheritHint || '沿用查看范围；下载还需角色具备下载权限。' : mode === 'node_only' ? '仅本节点办理人及具有独立敏感资料权限的人员可查看，后续审批人不会自动获得权限。' : '对有权查看本申请的人员开放，包括后续审批人；尚未提交的附件仍仅上传人可见。' }}
-    </p>
   </section>
 </template>
 <style scoped>
+  .access-field-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
   .access-audience {
     padding: 12px 12px 0;
-    margin: -4px 0 18px;
+    margin: -4px 0 16px;
     border: 1px solid #e2e9f4;
     border-radius: 8px;
     background: #f9fbff;
-  }
-  .access-audience > p,
-  .access-hint {
-    margin: 0 0 12px;
-    color: #718098;
-    font-size: 12px;
-    line-height: 1.7;
   }
   .access-identities {
     display: grid;
     gap: 10px;
     margin-bottom: 18px;
-  }
-  .access-hint {
-    margin: -8px 0 18px;
   }
 </style>

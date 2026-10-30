@@ -11,6 +11,7 @@
   import { useFeedback } from '@/composables/use-feedback'
   import { fileAccessRequiredErrors } from '@/components/security/access-validation'
   import AccessRuleEditor from '@/components/security/AccessRuleEditor.vue'
+  import PermissionHint from '@/components/security/PermissionHint.vue'
   const props = defineProps<FileAccessDialogProps>()
   const emit = defineEmits<{ 'update:show': [value: boolean]; done: [] }>()
   const feedback = useFeedback()
@@ -62,10 +63,10 @@
 </script>
 <template>
   <NModal :show="show" preset="card" title="单文件权限" style="width: min(560px, 95vw)" :mask-closable="!busy" @update:show="emit('update:show', $event)">
-    <NAlert type="info" :bordered="false" class="mb">
-      这里仅修改当前文件。默认选项直接显示当前节点或申请的实际范围；也可单独选择“流程内共享”“仅本节点办理人”或“指定人员或角色”。共享后有权查看该申请的后续审批人可查阅；下载还需角色下载权限。
-    </NAlert>
-    <p>{{ file?.name }}</p>
+    <p class="file-access-caption">
+      <span>{{ file?.name }}</span>
+      <PermissionHint label="单文件权限说明"><p>只修改当前文件；单独选择的范围优先于节点默认。</p><p>未另设范围时沿用本申请已保存的节点权限。</p></PermissionHint>
+    </p>
     <NSpin :show="loading">
       <NAlert v-if="error" type="error">{{ error }}</NAlert>
       <NForm v-if="directory" label-placement="top" :disabled="busy">
@@ -74,7 +75,8 @@
           :config="directory"
           :node="!!file?.nodeId"
           inherit
-          :inherit-label="inheritedView ? `${inheritedView}（${file?.nodeId ? '节点' : '申请'}默认）` : '默认权限待刷新'"
+          :inherit-label="inheritedView ? `${file?.nodeId ? '节点' : '申请'}默认：${inheritedView}` : '默认权限待刷新'"
+          :inherited-scope="inheritedView"
           :inherit-hint="`当前默认：${inheritedView || '请刷新详情'}。流程内共享包含有权查看申请的后续审批人；仅本节点或指定受众则按其限制执行。`"
           label="本文件查看范围"
         />
@@ -84,7 +86,9 @@
           :config="directory"
           :node="!!file?.nodeId"
           inherit
-          :inherit-label="inheritedDownload ? `${inheritedDownload}（默认下载范围）` : '默认权限待刷新'"
+          operation="download"
+          :inherited-scope="inheritedDownload"
+          :inherit-label="inheritedDownload ? `默认：${inheritedDownload}` : '默认权限待刷新'"
           inherit-hint="这里显示实际沿用的下载范围；下载仍需角色具备下载权限。"
           label="本文件下载范围"
         />
@@ -98,3 +102,16 @@
     </template>
   </NModal>
 </template>
+
+<style scoped>
+  .file-access-caption {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 16px;
+  }
+  .file-access-caption span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+</style>

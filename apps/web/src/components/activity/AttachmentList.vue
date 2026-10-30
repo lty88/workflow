@@ -2,7 +2,7 @@
   import { computed, ref } from 'vue'
   import { NEmpty, NUpload, NTag, NButton } from 'naive-ui'
   import type { FileAccessInput, FileRecord } from '@workflow/domain'
-  import { attachmentFileErrors } from '@workflow/domain'
+  import { attachmentFileErrors, SHARED_ACCESS } from '@workflow/domain'
   import AttachmentUploadPrompt from './AttachmentUploadPrompt.vue'
   import { fileAccessRequiredErrors } from '@/components/security/access-validation'
   import FileUploadAccess from '@/components/security/FileUploadAccess.vue'
@@ -18,7 +18,10 @@
   const busy = ref(false)
   const accessOpen = ref(false)
   const accessFile = ref<FileRecord | null>(null)
-  const uploadAccess = ref<FileAccessInput>({})
+  const uploadAccess = ref<FileAccessInput>({
+    access: { ...SHARED_ACCESS },
+    downloadAccess: { ...SHARED_ACCESS },
+  })
   const stageFiles = computed(() =>
     props.files.filter(
       (file) =>
