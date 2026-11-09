@@ -303,7 +303,7 @@ async function auditTemplate(
 }
 
 /**
- * 按可选首节点类型或已有模板创建独立可编辑草稿，限制模板目录规模。
+ * 新建模板默认开启节点质量评分，复制模板沿用源配置，由数据库记录创建及更新时间。
  * @param pool 数据库连接池
  * @param actor 管理员
  * @param body 新编码与可选复制源
@@ -333,7 +333,7 @@ export async function createTemplate(
       name: businessType === 'general' ? '新通用审批流程' : '新活动流程',
       lifecycle: { businessType, afterApproval: businessType === 'general' ? 'complete' : 'activity_standard', version: 1 },
       ...(businessType === 'general' ? { form: defaultRequestForm() } : {}),
-      ratingEnabled: false,
+      ratingEnabled: true,
       activityTypeIds: businessType === 'general' ? [] : [types[0]!.id],
       defaultForTypeIds: [],
       departmentIds: [],
@@ -348,7 +348,7 @@ export async function createTemplate(
     }
     const id = crypto.randomUUID();
     await db.execute(
-      'INSERT INTO workflow_templates(id,code,active,current_version,draft_revision,draft,published,created_by) VALUES (?,?,TRUE,0,1,?,NULL,?)',
+      'INSERT INTO workflow_templates(id,code,active,current_version,draft_revision,draft,published,created_by,created_at,updated_at) VALUES (?,?,TRUE,0,1,?,NULL,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',
       [id, body.code, JSON.stringify(definition), actor],
     );
     await auditTemplate(db, actor, id, '创建流程模板', { code: body.code, sourceId: body.sourceId });

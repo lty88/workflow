@@ -115,10 +115,20 @@
   }
   .info-grid.application-info-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 20px;
+    border: 1px solid #eaf0f6;
+    border-radius: 10px;
+    background: #fbfcfe;
+    overflow: hidden;
   }
   .application-info-grid > div {
     min-width: 0;
+    padding: 14px 16px;
+    border-bottom: 1px solid #edf1f7;
   }
+  .application-info-grid dt { color: #8996aa; font-size: 12px; margin-bottom: 6px; }
+  .application-info-grid dd { color: #425470; font-size: 13px; line-height: 1.8; }
   :deep(.info-grid dd) {
     font-size: 14px;
     line-height: 1.8;

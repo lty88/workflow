@@ -1,6 +1,11 @@
 import { expect, test } from 'vitest';
 import {
   activityActions,
+  actOnCollaboration,
+  collaborationActionSchema,
+  collaborationDispatchSchema,
+  dispatchCollaboration,
+  topological,
   advanceWorkflow,
   applyActivityAction,
   defaultRequestForm,
@@ -279,6 +284,68 @@ function activityCase(): void {
   ).toHaveLength(0);
 }
 test('活动履约真实任务闭环、汇报可追加、归档退回重办且同步幂等', activityCase);
+
+/** 验证协作交付验收后审批进入履约，并兼容旧实例指派步骤对协作节点的引用。 */
+function collaborationLifecycleCase(): void {
+  const { config, activity } = fixture(false);
+  const parent = activity.nodes[0]!;
+  const task = activity.tasks[0]!;
+  dispatchCollaboration(config, task.assignee, activity, task.id, collaborationDispatchSchema.parse({
+    idempotencyKey: crypto.randomUUID(),
+    expectedTaskVersion: task.version,
+    mode: 'parallel',
+    tasks: [{ label: '整理实施方案', assignee: 'u-su', instructions: '补充实施资料', attachmentRequired: false }],
+  }));
+  const child = activity.nodes[1]!;
+  for (const action of ['submit', 'accept'] as const) {
+    actOnCollaboration(config, action === 'submit' ? 'u-su' : task.assignee, activity, child.id,
+      collaborationActionSchema.parse({
+        idempotencyKey: crypto.randomUUID(),
+        generation: child.generation,
+        expectedCollaborationVersion: child.collaboration!.version || 1,
+        action,
+        summary: '实施方案已核实',
+      }), false);
+  }
+  approve(config, activity);
+  expect(activity.status).toBe('ready_assign');
+  expect(child.collaboration!.state).toBe('accepted');
+  const assignment = activity.nodes.find(
+    /** 查找审批完成后生成的指派入口。
+     * @param node 实例节点
+     * @returns 是否指派步骤
+     */ function assign(node) { return node.businessStage === 'assign'; },
+  )!;
+  expect(assignment.deps).toEqual([parent.id]);
+  act(config, activity, task.assignee, { action: 'assign', executor: 'u-su', comment: '按已验收方案执行' });
+  expect(activity.status).toBe('ready_execute');
+  // 模拟修复前已落库的合法依赖，展示层应先校验完整节点，再区分主线与协作分支。
+  assignment.deps.push(child.id);
+  for (const showHistory of [false, true]) {
+    const model = runtimeGraph({ activity, participants: [] }, showHistory);
+    expect(model.issue).toBeUndefined();
+    const ids = new Set((model.data.nodes || []).map(
+      /** 提取画布节点标识以校验主线和协作分支均存在。
+       * @param node 画布节点
+       * @returns 节点标识
+       */ function id(node) { return node.id; },
+    ));
+    expect(ids.has('runtime:' + parent.id)).toBe(true);
+    expect(ids.has('runtime:' + child.id)).toBe(true);
+    expect(ids.has('collaboration-review:' + child.id)).toBe(true);
+    expect(ids.has('runtime:' + assignment.id)).toBe(true);
+    const graphNodes = [];
+    for (const id of ids) {
+      const deps = [];
+      for (const edge of model.data.edges || []) if (edge.target === id) deps.push(String(edge.source));
+      graphNodes.push({ id, deps });
+    }
+    expect(topological(graphNodes).error).toBe('');
+  }
+  assignment.deps.push('actually-missing');
+  expect(runtimeGraph({ activity, participants: [] }).issue).toBe('前置节点不存在');
+}
+test('协作验收与审批通过后进入履约，旧实例的合法协作依赖可展示，真正缺失仍报错', collaborationLifecycleCase);
 
 /** 设计器与运行图根据同一策略展示真正结束点。 */
 function graphCase(): void {

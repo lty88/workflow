@@ -29,3 +29,23 @@ export function transferApi(id: string, command: TransferCommand): Promise<Mutat
 export function previewApi(payload: Record<string, string>): Promise<WorkflowPreview> {
   return request('/workflow/preview', { method: 'POST', body: JSON.stringify({ payload }) })
 }
+
+
+/** 派发当前审批人的节点内协作任务，服务端冻结交付规则并刷新申请版本。
+ * @param taskId 父审批个人待办
+ * @param command 串并行及任务要求
+ * @returns 更新的申请标识与版本
+ */
+export function dispatchCollaborationApi(taskId: string, command: Omit<import('@workflow/domain').CollaborationDispatchCommand, 'idempotencyKey'>): Promise<MutationResult> {
+  return mutation(`/tasks/${encodeURIComponent(taskId)}/collaborations`, command)
+}
+
+/** 提交成果、验收或退回，接口统一复核本人资格及并发版本。
+ * @param id 所属申请
+ * @param nodeId 协作节点
+ * @param command 动作、轮次、附件分组及版本
+ * @returns 更新的申请标识与版本
+ */
+export function collaborationActionApi(id: string, nodeId: string, command: Omit<import('@workflow/domain').CollaborationActionCommand, 'idempotencyKey'>): Promise<MutationResult> {
+  return mutation(`/requests/${encodeURIComponent(id)}/collaborations/${encodeURIComponent(nodeId)}/actions`, command)
+}

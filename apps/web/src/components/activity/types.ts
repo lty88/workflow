@@ -68,6 +68,7 @@ export interface AttachmentUploadPromptProps {
   limitLabel: string
 }
 export interface AttachmentProps {
+  compactEmpty?: boolean
   nodeScope?: AttachmentScopeSummary
   contextId?: string
   actionKey?: string

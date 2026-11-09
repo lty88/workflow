@@ -1,3 +1,4 @@
+import { synchronizeCollaborations } from './collaboration';
 import { createUuid } from './ids';
 import { SHARED_ACCESS } from './data-access';
 import { lifecycleOf } from './lifecycle';
@@ -217,7 +218,7 @@ export function advanceWorkflow(activity: Activity): WorkflowTask[] {
   const created: WorkflowTask[] = [];
   if (activity.status !== 'approving') return created;
   for (const node of activity.nodes) {
-    if (node.businessStage || node.status !== 'waiting') continue;
+    if (node.collaboration || node.businessStage || node.status !== 'waiting') continue;
     let ready = true;
     for (const id of node.deps) if (findById(activity.nodes, id)?.status !== 'completed') ready = false;
     if (!ready) continue;
@@ -251,7 +252,7 @@ export function advanceWorkflow(activity: Activity): WorkflowTask[] {
   }
   let complete = true;
   for (const node of activity.nodes)
-    if (!node.businessStage && node.kind !== 'notice' && !['completed', 'skipped', 'invalidated'].includes(node.status))
+    if (!node.collaboration && !node.businessStage && node.kind !== 'notice' && !['completed', 'skipped', 'invalidated'].includes(node.status))
       complete = false;
   if (complete) {
     activity.status = lifecycleOf(activity).afterApproval === 'complete' ? 'completed' : 'ready_assign';
@@ -317,6 +318,7 @@ export function reopenWorkflow(
   delete activity.lastApprovalTaskId;
   delete activity.workflowOwnerId;
   delete activity.workflowOwnerNodeId;
+  synchronizeCollaborations(activity);
   advanceWorkflow(activity);
 }
 
@@ -332,4 +334,5 @@ export function invalidatePending(activity: Activity): void {
     }
   for (const node of activity.nodes)
     if (node.status === 'waiting' || node.status === 'active') node.status = 'invalidated';
+  synchronizeCollaborations(activity);
 }

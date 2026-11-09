@@ -25,3 +25,7 @@ export interface ActivityExecutionProps extends ActivityDetailSectionProps {
   executionUpload: boolean
   archiveUpload: boolean
 }
+
+export interface ActivityOutcomeProps extends ActivityDetailSectionProps {
+  archiveUpload: boolean
+}

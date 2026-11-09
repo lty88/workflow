@@ -2,11 +2,13 @@ import { createRequire } from 'node:module';
 import { expect, test } from 'vitest';
 import type { BusinessGraphModel } from '../../../web/src/components/graph/types';
 import { graphEdgeOptions, refreshRoutedEdges } from '../../../web/src/components/graph/edge-routing';
+import { WorkflowPolyline, registerWorkflowPolyline } from '../../../web/src/components/graph/workflow-polyline';
 const webRequire = createRequire(new URL('../../../web/package.json', import.meta.url));
 const g6Require = createRequire(webRequire.resolve('@antv/g6'));
 const { Polyline } = g6Require('./elements/edges/polyline.js');
 const { ElementController } = g6Require('./runtime/element.js');
-const { Rect } = g6Require('@antv/g');
+const { Rect, Path } = g6Require('@antv/g');
+const { BaseEdge } = g6Require('./elements/edges/base-edge.js');
 
 /**
  * 创建不挂载画布的矩形几何节点，供真实 G6 路由算法计算边界。
@@ -135,3 +137,84 @@ async function redrawCase(): Promise<void> {
   expect(draws).toBe(1);
 }
 test('拖动结束重算全部路线，不改变审批依赖、坐标或业务样式', redrawCase);
+
+/** 使用真实 G6 箭头几何验证横向、纵向及反向连线均在目标边框外留空。 */
+function arrowClearanceCase(): void {
+  for (const manual of [false, true]) {
+    const style = { ...BaseEdge.defaultStyleProps, ...graphEdgeOptions(manual).style, stroke: '#9aadc9' };
+    expect(style.endArrowType).toBe('triangle');
+    expect(style.endArrowSize).toBe(10);
+    for (const [x, y] of [[100, 0], [-100, 0], [0, 100], [0, -100]]) {
+      const key = new Path({ style: { d: [['M', 0, 0], ['L', x, y]], stroke: style.stroke, lineWidth: style.lineWidth } });
+      const context = {
+        shapeMap: { key },
+        getArrowStyle: BaseEdge.prototype.getArrowStyle,
+        /** 读取实际连线几何，供 G6 生成箭头样式。
+         * @returns 连线形状
+         */
+        getShape() { return key; },
+        /** 传递已合并的箭头配置供真实 G6 算法使用。
+         * @param attributes 连线样式
+         * @returns 原始样式
+         */
+        getGraphicStyle(attributes: Record<string, unknown>) { return attributes; },
+      };
+      BaseEdge.prototype.drawArrow.call(context, style, 'end');
+      const bounds = key.parsedStyle.markerEnd.getBounds();
+      if (x > 0) expect(bounds.max[0]).toBeLessThan(x - 4);
+      if (x < 0) expect(bounds.min[0]).toBeGreaterThan(x + 4);
+      if (y > 0) expect(bounds.max[1]).toBeLessThan(y - 4);
+      if (y < 0) expect(bounds.min[1]).toBeGreaterThan(y + 4);
+      key.destroy();
+    }
+  }
+}
+test('流程箭头在横纵向和反向连线的目标边框外留出空隙', arrowClearanceCase);
+
+/** 校验布局保留首尾边界折点时，真实 G6 路径仍具有有效的箭头朝向。 */
+function layoutEndpointCase(): void {
+  expect(graphEdgeOptions(false).type).toBe(registerWorkflowPolyline());
+  expect(graphEdgeOptions(true).type).toBe(registerWorkflowPolyline());
+  for (const [x, y] of [[100, 0], [-100, 0], [0, 100], [0, -100]]) {
+    const points = [[0, 0], [x! / 2, y! / 2], [x, y]];
+    const context = {
+      getPoints: Reflect.get(WorkflowPolyline.prototype, 'getPoints'),
+      /** 模拟布局输出包含节点首尾边界的完整折点。
+       * @returns 布局折点
+       */
+      getControlPoints() { return points; },
+      /** 模拟 G6 与节点边界计算后的连线落点。
+       * @returns 起点和终点
+       */
+      getEndpoints() { return [points[0], points[points.length - 1]]; },
+    };
+    const d = Polyline.prototype.getKeyPath.call(context, graphEdgeOptions(false).style);
+    const key = new Path({ style: { d } });
+    const [previous, end] = key.getEndTangent();
+    expect(Math.hypot(end[0] - previous[0], end[1] - previous[1])).toBeGreaterThan(0);
+    expect(end).toEqual([x, y]);
+    expect(Math.sign(end[0] - previous[0])).toBe(Math.sign(x!));
+    expect(Math.sign(end[1] - previous[1])).toBe(Math.sign(y!));
+    const style = { ...BaseEdge.defaultStyleProps, ...graphEdgeOptions(false).style, stroke: '#9aadc9' };
+    BaseEdge.prototype.drawArrow.call({
+      shapeMap: { key },
+      getArrowStyle: BaseEdge.prototype.getArrowStyle,
+      /** 读取生成的真实折线形状。
+       * @returns 折线形状
+       */
+      getShape() { return key; },
+      /** 传递合并的 G6 样式生成真实箭头。
+       * @param attributes 连线样式
+       * @returns 原样式
+       */
+      getGraphicStyle(attributes: Record<string, unknown>) { return attributes; },
+    }, style, 'end');
+    const bounds = key.parsedStyle.markerEnd.getBounds();
+    if (x! > 0) expect(bounds.max[0]).toBeLessThan(x! - 4);
+    if (x! < 0) expect(bounds.min[0]).toBeGreaterThan(x! + 4);
+    if (y! > 0) expect(bounds.max[1]).toBeLessThan(y! - 4);
+    if (y! < 0) expect(bounds.min[1]).toBeGreaterThan(y! + 4);
+    key.destroy();
+  }
+}
+test('自动布局首尾边界折点重复时，箭头方向沿连线末段而非横向重置', layoutEndpointCase);

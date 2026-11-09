@@ -167,11 +167,24 @@
         </NButton>
       </div>
     </div>
-    <NEmpty v-if="!stageFiles.length && !canUpload && !busy" size="small" description="暂无可查看附件" class="mb" />
+    <template v-if="!stageFiles.length && !canUpload && !busy">
+      <p v-if="compactEmpty" class="compact-empty">暂无可查看附件</p>
+      <NEmpty v-else size="small" description="暂无可查看附件" class="mb" />
+    </template>
     <FileAccessDialog v-model:show="accessOpen" :file="accessFile" :activity-version="activityVersion || 1" @done="permissionsChanged" />
   </div>
 </template>
 <style scoped>
+  .compact-empty {
+    margin: 0;
+    padding: 12px 14px;
+    color: #8591a3;
+    background: #f7f9fc;
+    border: 1px dashed #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
   .attachment-panel {
     width: 100%;
     min-width: 0;

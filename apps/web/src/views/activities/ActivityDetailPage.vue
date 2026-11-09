@@ -1,6 +1,9 @@
 <script setup lang="tsx">
+  import type { WorkflowTask } from '@workflow/domain'
+  import CollaborationPanel from '@/components/activity/collaboration/CollaborationPanel.vue'
+  import CollaborationDispatchDrawer from '@/components/activity/collaboration/CollaborationDispatchDrawer.vue'
   import { lifecycleOf } from '@workflow/domain'
-  import { computed, ref } from 'vue'
+  import { computed, nextTick, ref } from 'vue'
   import { RouterLink } from 'vue-router'
   import { NAlert, NButton, NCard, NEmpty, NSpin, NTabs, NTabPane } from 'naive-ui'
   import ActivityEditor from '@/components/activity/ActivityEditor.vue'
@@ -21,6 +24,9 @@
 
   const props = defineProps<ActivityDetailPageProps>()
   const section = ref('application')
+  const collaborationOpen = ref(false)
+  const collaborationTask = ref<WorkflowTask>()
+  const collaborationPanel = ref<InstanceType<typeof CollaborationPanel>>()
   const {
     auth,
     detail,
@@ -46,11 +52,30 @@
     closeEdit,
     transfer,
   } = useActivityDetail(computed(() => props.activityId))
+  const collaborationCount = computed(() => detail.value?.activity.nodes.filter((node) => !!node.collaboration).length || 0)
   const activityBusiness = computed(() => !!detail.value && lifecycleOf(detail.value.activity).businessType === 'activity')
   const executionVisible = computed(() => {
     const activity = detail.value?.activity
-    return !!activity && lifecycleOf(activity).afterApproval === 'activity_standard' && (EXECUTION_STATUSES.includes(activity.status) || !!activity.report || !!activity.archive || !!activity.assignment)
+    return (
+      !!activity &&
+      lifecycleOf(activity).afterApproval === 'activity_standard' &&
+      (EXECUTION_STATUSES.includes(activity.status) || !!activity.report || !!activity.archive || !!activity.assignment)
+    )
   })
+  /** 再次检查服务端派发资格后打开当前个人待办的协作抽屉。
+   * @param selected 当前审批个人待办
+   */
+  function collaborate(selected: WorkflowTask): void {
+    if (loading.value || isOld.value || !detail.value?.collaborationCapabilities?.dispatchTaskIds.includes(selected.id)) return
+    collaborationTask.value = selected
+    collaborationOpen.value = true
+  }
+  /** 切换到协作任务分区并等待面板显示，再打开本人任务或定位待验收清单。 */
+  async function openCollaborationWork(): Promise<void> {
+    section.value = 'collaboration'
+    await nextTick()
+    collaborationPanel.value?.openMyTask()
+  }
   /** 从常驻操作栏打开执行或归档表单时切换对应分区，提交后直接看到新增记录。
    * @param code 当前身份获准的活动业务动作
    */
@@ -76,8 +101,12 @@
       </template>
       <div v-else class="activity-detail-page">
         <div class="detail-navigation">
-          <RouterLink :to="listDestination">← 返回申请列表</RouterLink>
-          <NButton :loading="loading" @click="load">刷新详情</NButton>
+          <RouterLink :to="listDestination" class="back-link">
+            <span aria-hidden="true">←</span>
+            返回申请列表
+          </RouterLink>
+          <span class="navigation-caption">{{ activityBusiness ? '活动工作台' : '申请工作台' }}</span>
+          <NButton quaternary :loading="loading" @click="load">↻ 刷新详情</NButton>
         </div>
         <ActivityOverview :detail="detail" />
         <NAlert v-if="isOld" type="warning" :bordered="false" class="historical-notice">
@@ -93,13 +122,14 @@
                   <NAlert v-if="detail.access?.hiddenFieldKeys.length" type="info" :bordered="false" class="permission-notice">
                     部分资料已按当前身份隐藏或脱敏，公开结论和流程进度仍可查看。
                   </NAlert>
-                  <section class="detail-section">
+                  <section class="detail-section application-attachments">
                     <h2>申请补充附件</h2>
                     <AttachmentList
                       :activity-id="detail.activity.id"
                       :files="detail.files"
                       :activity-version="detail.activity.version"
                       stage="application"
+                      compact-empty
                       :can-upload="applicationUpload"
                       @uploaded="load"
                     />
@@ -113,23 +143,36 @@
                   <NodeMaterialsPanel v-if="detail.activity.nodes.length" :detail="detail" :read-only="isOld" @uploaded="load" />
                   <NEmpty v-else description="提交活动申请后生成节点资料区域" />
                 </NTabPane>
+                <NTabPane v-if="collaborationCount" name="collaboration" display-directive="show">
+                  <template #tab>
+                    <span class="detail-tab-label">
+                      协作任务
+                      <span class="tab-count">{{ collaborationCount }}</span>
+                    </span>
+                  </template>
+                  <CollaborationPanel ref="collaborationPanel" :detail="detail" :read-only="isOld || loading" @done="load" />
+                </NTabPane>
                 <NTabPane v-if="detail.activity.lifecycle?.afterApproval !== 'complete'" name="execution" tab="执行与归档" display-directive="show:lazy">
-                  <div class="section-intro">
-                    <h2>执行与归档</h2>
-                    <p>集中查看执行安排、实际汇报与成果档案。</p>
-                  </div>
                   <ActivityExecutionSection
                     v-if="executionVisible"
                     :detail="detail"
                     :read-only="isOld"
                     :execution-upload="executionUpload"
                     :archive-upload="archiveUpload"
-                    @action="openAction"
                     @uploaded="load"
                   />
                   <NEmpty v-else description="流程办理完成后进入执行与归档阶段" />
                 </NTabPane>
-                <NTabPane v-if="activityBusiness && detail.activity.lifecycle?.afterApproval !== 'complete' && (auth.can('evaluation:read') || auth.can('evaluation:manage'))" name="evaluation" tab="活动评价" display-directive="show:lazy">
+                <NTabPane
+                  v-if="
+                    activityBusiness &&
+                    detail.activity.lifecycle?.afterApproval !== 'complete' &&
+                    (auth.can('evaluation:read') || auth.can('evaluation:manage'))
+                  "
+                  name="evaluation"
+                  tab="活动评价"
+                  display-directive="show:lazy"
+                >
                   <ActivityEvaluationPanel v-if="activityBusiness" :activity="detail.activity" />
                 </NTabPane>
                 <NTabPane name="history" :tab="`办理记录 · ${detail.activity.audit.length}`" display-directive="show:lazy">
@@ -149,11 +192,14 @@
           :historical="isOld"
           @action="openAction"
           @decide="decide"
+          @collaborate="collaborate"
+          @collaboration-work="openCollaborationWork"
           @transfer="transfer"
           @deleted="afterDelete"
           @refresh="load"
           @current="revision = 'current'"
         />
+        <CollaborationDispatchDrawer v-model:show="collaborationOpen" :detail="detail" :task="collaborationTask" @done="load" />
         <TransferDrawer v-model:show="transferOpen" :detail="detail" :task="task" @done="load" />
         <ActionDrawer v-model:show="actionOpen" :detail="detail" :action="action" :task="task" @done="load" />
         <AdjustmentDrawer v-model:show="adjustmentOpen" :detail="detail" @done="load" />
@@ -168,45 +214,119 @@
 </template>
 <style scoped>
   .activity-detail-page {
+    --detail-border: #e6ebf2;
+    --detail-text: #24334b;
+    --detail-muted: #7a879b;
     min-width: 0;
+    color: var(--detail-text);
   }
   .detail-navigation {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    gap: 18px;
     margin-bottom: 16px;
-    font-size: 14px;
+    font-size: 13px;
+  }
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #526580;
+    font-weight: 500;
+  }
+  .back-link:hover {
+    color: #3569db;
+  }
+  .navigation-caption {
+    flex: 1;
+    border-left: 1px solid #dce3ee;
+    padding-left: 18px;
+    color: var(--detail-muted);
   }
   .activity-detail-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 370px;
+    grid-template-columns: minmax(0, 1fr) 344px;
     align-items: start;
     gap: 20px;
-    margin-top: 22px;
+    margin-top: 20px;
   }
   .detail-content,
   .detail-progress {
     min-width: 0;
   }
-  .content-card {
-    border: 1px solid #e3e9f2;
-    border-radius: 12px;
-    min-height: 440px;
+  .detail-progress {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100dvh - 130px);
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #d5deeb transparent;
+    border: 1px solid var(--detail-border);
+    border-radius: 14px;
+    background: #fff;
   }
-  :deep(.n-tab-pane) {
+  .content-card {
+    border: 1px solid var(--detail-border);
+    border-radius: 14px;
+    min-height: 460px;
+    box-shadow: 0 4px 20px #263f6604;
+  }
+  :deep(.content-card > .n-card__content) {
+    padding: 8px 24px 24px;
+  }
+  :deep(.content-card > .n-card__content > .n-tabs > .n-tabs-nav) {
+    padding-top: 8px;
+  }
+  :deep(.content-card .n-tab-pane) {
     padding-top: 24px !important;
   }
+  :deep(.content-card .n-tabs-tab) {
+    font-size: 14px;
+    font-weight: 500;
+  }
   :deep(.detail-progress .n-card) {
-    border-radius: 12px;
-    border-color: #e3e9f2;
+    border: 0;
+    border-radius: 14px;
+  }
+  :deep(.detail-progress .n-card-header) {
+    padding: 20px 20px 16px;
+  }
+  :deep(.detail-progress .n-card__content) {
+    padding: 0 20px 20px;
   }
   :deep(.detail-progress .n-card-header__main) {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
   }
+  :deep(.detail-progress .flow-body > .spread) {
+    align-items: flex-start;
+    gap: 8px;
+  }
+  :deep(.detail-progress .flow-body > .spread > strong) {
+    flex: 1;
+    line-height: 1.7;
+  }
+  :deep(.detail-progress .flow-step:last-child) {
+    padding-bottom: 0;
+  }
+  .detail-tab-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .tab-count {
+    min-width: 20px;
+    padding: 0 5px;
+    background: #edf2fb;
+    color: #5e789f;
+    border-radius: 5px;
+    font-size: 11px;
+    line-height: 20px;
+    text-align: center;
+  }
   :deep(.detail-section h2) {
-    font-size: 16px;
+    font-size: 15px;
+    color: var(--detail-text);
   }
   :deep(.detail-section h2 small),
   :deep(.history-item time),
@@ -218,14 +338,14 @@
     font-size: 14px;
   }
   .section-intro h2 {
-    font-size: 17px;
-    margin: 0 0 8px;
+    font-size: 16px;
+    margin: 0 0 6px;
   }
   .section-intro p {
-    color: #75839a;
+    color: var(--detail-muted);
     font-size: 13px;
-    line-height: 1.8;
-    margin-bottom: 20px;
+    line-height: 1.7;
+    margin: 0 0 20px;
   }
   :deep(.node-materials) {
     border-top: 0;
@@ -247,30 +367,48 @@
   .history-return {
     margin-left: 12px;
   }
-  :deep(.info-grid) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   :deep(.info-grid dt) {
-    font-size: 13px;
+    font-size: 12px;
+  }
+  :deep(.application-attachments .compact-empty) {
+    margin-bottom: 0;
   }
   @media (max-width: 1200px) {
     .activity-detail-grid {
-      grid-template-columns: minmax(0, 1fr) 330px;
+      grid-template-columns: minmax(0, 1fr) 304px;
       gap: 16px;
+    }
+    :deep(.content-card > .n-card__content) {
+      padding: 8px 20px 20px;
     }
   }
   @media (max-width: 1000px) {
     .activity-detail-grid {
       grid-template-columns: minmax(0, 1fr);
     }
+    .detail-progress {
+      position: static;
+      max-height: none;
+    }
   }
   @media (max-width: 600px) {
-    :deep(.info-grid) {
-      grid-template-columns: minmax(0, 1fr);
+    .detail-navigation {
+      gap: 10px;
     }
-    :deep(.content-card > .n-card__content),
-    :deep(.activity-overview > .n-card__content) {
-      padding: 18px 16px;
+    .navigation-caption {
+      display: none;
+    }
+    .detail-navigation > :last-child {
+      margin-left: auto;
+    }
+    :deep(.content-card > .n-card__content) {
+      padding: 4px 16px 20px;
+    }
+    :deep(.content-card .n-tab-pane) {
+      padding-top: 20px !important;
+    }
+    .activity-detail-grid {
+      margin-top: 16px;
     }
   }
 </style>

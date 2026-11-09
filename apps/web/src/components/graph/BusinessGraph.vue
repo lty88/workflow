@@ -264,12 +264,12 @@
     }
   }
   /**
-   * 构造统一的分层布局，节点依赖由业务数据提供。
+   * 构造分层布局，为流程连线转折与箭头预留足够的节点间距。
    * @returns G6布局配置
    */
   function layoutOptions(): GraphOptions['layout'] {
     if (props.appearance === 'organization') return { type: 'dagre', rankdir: direction.value, nodesep: 40, ranksep: 88, edgesep: 20 }
-    return { type: 'dagre', rankdir: direction.value, nodesep: 32, ranksep: 48, edgesep: 18 }
+    return { type: 'dagre', rankdir: direction.value, nodesep: 40, ranksep: 72, edgesep: 24 }
   }
   /**
    * 组织图使用随布局方向弯曲的三次曲线连接，流程图沿用现有路由。
@@ -380,6 +380,7 @@
           const { Graph: G6Graph } = await import('@antv/g6')
           if (disposed) return
           const nodeType = props.appearance === 'organization' ? (await import('./organization-card')).registerOrganizationCard() : 'rect'
+          if (props.appearance !== 'organization') (await import('./workflow-polyline')).registerWorkflowPolyline()
           if (disposed) return
           graph = new G6Graph({
             container: element,

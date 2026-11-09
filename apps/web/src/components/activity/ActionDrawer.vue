@@ -4,7 +4,7 @@
   import { NDrawer, NDrawerContent, NForm, NFormItem, NInput, NSelect, NButton, NCheckbox, NAlert } from 'naive-ui'
   import type { FormRules } from 'naive-ui'
   import type { FileRecord, NodeRating } from '@workflow/domain'
-  import { createUuid, executionReportErrors, isHttps } from '@workflow/domain'
+  import { createUuid, executionReportErrors, isHttps, openCollaborations } from '@workflow/domain'
   import { useFormValidation } from '@/composables/use-form-validation'
   import { requiredRule } from '@/composables/form-validation'
   import BusinessFormAttachments from './BusinessFormAttachments.vue'
@@ -33,6 +33,7 @@
   const expectedTargetGeneration = ref<number>()
   const capabilities = computed(() => (props.task ? props.detail.decisionCapabilities?.[props.task.id] : undefined))
   const canReturn = computed(() => !!capabilities.value && (capabilities.value.canReturnToApplicant || capabilities.value.returnTargets.length > 0))
+  const waitingCollaborations = computed(() => props.task ? openCollaborations(props.detail.activity, props.task.id) : 0)
   const ratingRequired = computed(() => decision.value === 'approve' && capabilities.value?.ratingRequirement === 'required')
   const reportAction = computed(() => ['report', 'execution-complete'].includes(props.action))
   const attachmentStage = computed(() => (props.task ? 'node' : reportAction.value ? 'execution' : props.action === 'archive-submit' ? 'archive' : 'operation'))
@@ -288,6 +289,7 @@
   >
     <NDrawerContent :title="title" :closable="!busy && !uploading">
       <NAlert type="info" :bordered="false" class="mb">{{ detail.activity.name || '未命名活动' }} · {{ detail.activity.code }}</NAlert>
+      <NAlert v-if="waitingCollaborations" type="warning" :bordered="false" class="mb">还有 {{ waitingCollaborations }} 项协作任务待验收，完成后可通过审批。</NAlert>
       <NForm ref="formRef" :model="formModel" :rules="formRules" :disabled="busy || uploading" label-placement="top">
         <NAlert v-if="action === 'assign' && detail.activity.workflowOwnerId" type="info" :bordered="false" class="mb">
           本活动由最后审批人指派执行人，并由该审批人审核归档。为避免自审，执行人需另选他人。
@@ -356,7 +358,7 @@
             <NButton v-if="task" type="primary" :loading="busy" :disabled="uploading" @click="chooseDecision('approve')">
               {{ nodeKind === 'approval' ? '通过审批' : '完成任务' }}
             </NButton>
-            <NButton v-else type="primary" :loading="busy" :disabled="uploading" @click="submit">确认{{ title }}</NButton>
+            <NButton v-else type="primary" :loading="busy" :disabled="uploading || (!!task && waitingCollaborations > 0)" @click="submit">确认{{ title }}</NButton>
           </div>
         </div>
       </template>

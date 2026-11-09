@@ -1,0 +1,83 @@
+.execution-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #e6ebf2;
+  border-radius: 12px;
+  background: #fff;
+}
+.card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.card-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: #2e405c;
+  font-size: 15px;
+  font-weight: 600;
+}
+.card-marker {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: #7191d9;
+}
+.card-caption,
+.field-label {
+  color: #8b97a8;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.field-label {
+  display: block;
+  margin-bottom: 7px;
+}
+.body-copy {
+  margin: 0;
+  color: #53637a;
+  font-size: 14px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.section-attachments {
+  border-top: 1px solid #eef1f6;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  margin: 0 0 20px;
+}
+.summary-grid > div {
+  min-width: 0;
+}
+.summary-grid dt {
+  color: #8b97a8;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.summary-grid dd {
+  color: #485a74;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .execution-card {
+    padding: 16px;
+  }
+  .summary-grid {
+    gap: 14px;
+  }
+}

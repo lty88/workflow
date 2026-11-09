@@ -44,6 +44,7 @@ export const nodeApprovalPolicySchema = z
     returnScope: z.enum(['previous', 'selected']),
     returnNodeIds: z.array(id).max(80),
     returnToApplicant: z.boolean(),
+    collaboration: z.object({ enabled: z.boolean(), scope: z.enum(['department_tree', 'all']) }).strict().optional(),
     allowTerminate: z.boolean(),
     rating: z.enum(['off', 'optional', 'required']),
   })
@@ -325,3 +326,27 @@ export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+
+export const collaborationDispatchSchema = z.object({
+  idempotencyKey: z.string().min(1).max(100),
+  expectedTaskVersion: z.number().int().positive(),
+  mode: z.enum(['parallel', 'serial']),
+  tasks: z.array(z.object({
+    label: z.string().trim().min(1).max(80),
+    assignee: id,
+    instructions: z.string().trim().min(1).max(4000),
+    dueAt: z.string().datetime().optional(),
+    attachmentRequired: z.boolean(),
+  }).strict()).min(1).max(20),
+}).strict();
+export const collaborationActionSchema = z.object({
+  idempotencyKey: z.string().min(1).max(100),
+  generation: z.number().int().positive(),
+  expectedCollaborationVersion: z.number().int().positive().default(1),
+  action: z.enum(['save', 'submit', 'accept', 'return', 'cancel']),
+  summary: z.string().trim().max(4000).default(''),
+  attachmentContextId: z.string().min(1).max(100).optional(),
+}).strict();
+export type CollaborationDispatchCommand = z.infer<typeof collaborationDispatchSchema>;
+export type CollaborationActionCommand = z.infer<typeof collaborationActionSchema>;

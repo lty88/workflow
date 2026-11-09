@@ -5,6 +5,7 @@ import { createLocalAttachmentStorage } from '../storage/attachments';
 import type { AttachmentStorage } from '../storage/types';
 import type { Pool } from 'mysql2/promise';
 import {
+  collaborationCapabilities,
   activityActions,
   attachmentContextCommitted,
   attachmentIds,
@@ -103,7 +104,7 @@ export async function uploadFile(
       `upload:${activityId}:${stage}:${name}:${digest(buffer.toString('base64'))}:${JSON.stringify(access)}`,
       activityId,
       /**
-       * 校验上传归属和数量并原子登记元数据。
+       * 校验上传归属、普通审批或协作动作及数量，原子登记元数据。
        * @param context 事务上下文
        * @returns 更新活动
        */
@@ -209,9 +210,12 @@ export async function uploadFile(
         if (access.contextId) {
           if (stage === 'execution')
             allowed = allowed && ['report', 'execution-complete'].includes(access.actionKey || '');
-          else if (stage === 'node') allowed = allowed && access.actionKey === 'decision';
+          else if (stage === 'node') allowed = allowed && access.actionKey === (node?.collaboration ? 'collaboration-submit' : 'decision');
           else if (stage === 'archive') allowed = allowed && access.actionKey === 'archive-submit';
           else if (stage !== 'operation') allowed = false;
+        }
+        if (node?.collaboration) {
+          allowed = allowed && !!access.contextId && access.actionKey === 'collaboration-submit' && collaborationCapabilities(context.config, actor, activity).submitNodeIds.includes(node.id);
         }
         ensure(allowed, 403, 'FORBIDDEN', '当前身份或阶段不允许上传该类附件');
         if (!field) {

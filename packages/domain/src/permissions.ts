@@ -143,6 +143,8 @@ export function canReadActivity(
 ): boolean {
   if (activity.deleted || !hasPermission(config, userId, 'activity:read')) return false;
   const user = findById(config.users, userId)!;
+  if (hasPermission(config, userId, 'task:complete'))
+    for (const node of activity.nodes) if (node.collaboration && node.assignees.includes(userId)) return true;
   for (const role of rolesFor(config, userId)) {
     if (!role.permissions.includes('activity:read')) continue;
     if (

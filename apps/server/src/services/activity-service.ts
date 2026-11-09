@@ -3,6 +3,7 @@ import { validateOperationAttachments, linkOperationAttachments } from './operat
 import type { Pool, PoolConnection, ResultSetHeader } from 'mysql2/promise';
 import type { Activity, ActivityDetail, CompanyConfig, WorkflowTask } from '@workflow/domain';
 import {
+  synchronizeCollaborations,
   preserveFormAccess,
   canCoordinateExecution,
   projectActivityDetail,
@@ -114,6 +115,7 @@ export async function mutateActivity(
     const previousTaskIds = new Set<string>();
     for (const task of activity?.tasks || []) previousTaskIds.add(task.id);
     const changed = await work({ connection, config, activity });
+    synchronizeCollaborations(changed);
     synchronizeBusinessSubprocess(config, changed, actor);
     if (activity) changed.version += 1;
     changed.updatedAt = new Date().toISOString();
@@ -634,7 +636,7 @@ export async function getDetail(
         )
           taskWarnings.push({
             taskId: task.id,
-            message: '受理人或所属部门已停用，或缺少当前节点权限，请流程负责人转交待办',
+            message: node.collaboration ? '办理人已停用或缺少任务权限，请父审批人撤销后重新指派' : '受理人或所属部门已停用，或缺少当前节点权限，请流程负责人转交待办',
           });
       }
     const result = projectActivityDetail(

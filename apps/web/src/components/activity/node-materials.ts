@@ -12,7 +12,7 @@ export function materialNodes(activity: Pick<Activity, 'nodes' | 'revision'>, fi
      * @param node 实例节点
      * @returns 是否展示资料区域
      */ function visible(node) {
-      if (node.businessStage) return false
+      if (node.collaboration || node.businessStage) return false
       if (!includeHistory && (node.applicationRevision || 1) !== (activity.revision || 1)) return false
       return (
         node.status !== 'skipped' ||

@@ -88,6 +88,14 @@
 </script>
 <template>
   <section class="approval-rules">
+    <h4>节点协作</h4>
+    <div class="rule-switch">
+      <span>允许派发协作任务</span>
+      <NSwitch :value="policy.collaboration?.enabled !== false" :disabled="disabled" @update:value="update('collaboration', { enabled: $event, scope: policy.collaboration?.scope || 'department_tree' })" />
+    </div>
+    <NFormItem v-if="policy.collaboration?.enabled !== false" label="可指派人员范围">
+      <NSelect :value="policy.collaboration?.scope || 'department_tree'" :disabled="disabled" :options="[{ label: '本部门及下级部门', value: 'department_tree' }, { label: '全组织有任务办理权限的人员', value: 'all' }]" @update:value="update('collaboration', { enabled: true, scope: $event })" />
+    </NFormItem>
     <h4>审批操作</h4>
     <div class="rule-switch">
       <span>允许退回修改</span>

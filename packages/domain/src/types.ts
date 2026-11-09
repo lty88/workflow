@@ -147,6 +147,7 @@ export interface AssigneeRule {
   value: string;
 }
 export interface NodeApprovalPolicy {
+  collaboration?: { enabled: boolean; scope: 'department_tree' | 'all' };
   returnEnabled: boolean;
   returnScope: 'previous' | 'selected';
   returnNodeIds: string[];
@@ -222,7 +223,35 @@ export type ActivityStatus =
   | 'cancel_review'
   | 'cancelled';
 export type NodeStatus = 'waiting' | 'active' | 'completed' | 'invalidated' | 'skipped';
+export interface CollaborationSubmission {
+  id: string;
+  generation: number;
+  summary: string;
+  submittedAt: string;
+  submittedBy: string;
+  attachmentContextId?: string;
+  review?: { decision: 'accept' | 'return'; comment: string; actor: string; at: string };
+}
+export interface NodeCollaboration {
+  version?: number;
+  parentTaskId: string;
+  parentNodeId: string;
+  parentGeneration: number;
+  groupId: string;
+  instructions: string;
+  dueAt?: string;
+  attachmentRequired: boolean;
+  state: 'working' | 'submitted' | 'accepted' | 'cancelled';
+  draft?: { summary: string; attachmentContextId?: string };
+  submissions: CollaborationSubmission[];
+}
+export interface CollaborationCapabilities {
+  dispatchTaskIds: string[];
+  submitNodeIds: string[];
+  reviewNodeIds: string[];
+}
 export interface WorkflowNode {
+  collaboration?: NodeCollaboration;
   businessStage?: BusinessStage;
   approvalPolicy?: NodeApprovalPolicy;
   rework?: { fromNodeId: string; targetNodeId: string; returnTaskId: string; at: string };
@@ -373,6 +402,7 @@ export interface FileRecord extends FileAccessInput {
   createdAt: string;
 }
 export interface ActivityDetail {
+  collaborationCapabilities?: CollaborationCapabilities;
   decisionCapabilities?: Record<string, DecisionCapabilities>;
   access?: ActivityAccess;
   activity: Activity;

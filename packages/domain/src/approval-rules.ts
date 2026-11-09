@@ -155,7 +155,7 @@ export function decisionCapabilities(
      */ function active(candidate) {
       return (
         (candidate.applicationRevision || 1) === (activity.revision || 1) &&
-        !['skipped', 'invalidated'].includes(candidate.status)
+        !candidate.collaboration && !['skipped', 'invalidated'].includes(candidate.status)
       );
     },
   );

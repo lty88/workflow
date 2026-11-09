@@ -11,6 +11,8 @@
   import { useAuthStore } from '@/stores/auth'
   import { formatTime } from '@/composables/format'
   import BusinessGraph from '@/components/graph/BusinessGraph.vue'
+  import CollaborationProgress from './collaboration/CollaborationProgress.vue'
+  import { collaborationNodes } from './collaboration/presentation'
   import { runtimeGraph } from '@/components/graph/models'
   const props = defineProps<{ detail: WorkflowViewDetail; readOnly?: boolean }>()
   const emit = defineEmits<{ decide: [task: WorkflowTask]; transfer: [task: WorkflowTask] }>()
@@ -22,6 +24,15 @@
   const graphOpen = ref(false)
   const model = computed(() => runtimeGraph(props.detail, showHistory.value))
   const nodes = computed(() => topological(props.detail.activity.nodes.filter(inCurrentRevision)).order.map(withProgress))
+  /** 汇总本节点各审批人的未验收协作，便于在主进度中定位等待原因。
+   * @param nodeId 主审批节点
+   * @returns 当前仍需验收的协作数量
+   */
+  function collaborationCount(nodeId: string): number {
+    let count = 0
+    for (const node of collaborationNodes(props.detail, nodeId)) if (!['accepted', 'cancelled'].includes(node.collaboration!.state)) count++
+    return count
+  }
   /** 给节点附加本轮真实审批结果，历史驳回不染红当前新轮次。
    * @param node 实例节点
    * @returns 带展示状态的节点副本
@@ -35,7 +46,7 @@
    * @returns 是否展示
    */
   function inCurrentRevision(node: WorkflowNode): boolean {
-    return !node.businessStage && (showHistory.value || (node.applicationRevision || 1) === (props.detail.activity.revision || 1))
+    return !node.collaboration && !node.businessStage && (showHistory.value || (node.applicationRevision || 1) === (props.detail.activity.revision || 1))
   }
   /**
    * 查找参与人显示名。
@@ -241,6 +252,7 @@
           <div class="flow-body">
             <div class="spread">
               <strong>{{ node.label }}</strong>
+              <NTag v-if="collaborationCount(node.id)" size="small" type="warning" :bordered="false">协作待验收 {{ collaborationCount(node.id) }}</NTag>
               <NTag size="small" :type="tagType(node.displayStatus)" :bordered="false">{{ NODE_STATUSES[node.displayStatus] }}</NTag>
             </div>
             <div class="node-meta">
@@ -340,11 +352,12 @@
                 <small v-if="task.actedAt" class="muted">{{ formatTime(task.actedAt) }}</small>
               </div>
             </div>
+            <CollaborationProgress :detail="detail" :parent-node-id="node.id" :include-history="showHistory" />
           </div>
         </div>
       </div>
       <NModal v-model:show="graphOpen" preset="card" title="完整流程图" style="width: min(980px, 96vw)" :z-index="1100">
-        <p class="help-text mb">展示本次申请的实际节点、状态与后续业务阶段，可拖动、缩放或全屏查看。</p>
+        <p class="help-text mb">展示审批、协作任务、成果验收与后续业务阶段，可拖动、缩放或全屏查看。</p>
         <BusinessGraph :model="model" :height="mobile ? 420 : 620" label="实际审批节点、状态和后续业务阶段" />
       </NModal>
     </template>

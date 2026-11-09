@@ -1,4 +1,4 @@
-import { REQUEST_CATALOG, REQUEST_TASK_CATALOG } from '../db/request-store';
+import { REQUEST_CATALOG, REQUEST_TASK_CATALOG, REQUEST_NODE_CATALOG } from '../db/request-store';
 import type { Pool, PoolConnection } from 'mysql2/promise';
 import type { Activity } from '@workflow/domain';
 import { canHandleTask, canReadActivity, findById, hasPermission } from '@workflow/domain';
@@ -18,8 +18,8 @@ export async function scheduleReminders(pool: Pool): Promise<void> {
     const config = (await loadConfig(connection, 'share')).published;
     const rows = await query<{ id: string }>(
       connection,
-      `SELECT DISTINCT a.id FROM ${REQUEST_CATALOG} a JOIN ${REQUEST_TASK_CATALOG} t ON t.activity_id=a.id WHERE a.deleted_at IS NULL AND a.status='approving' AND a.id>? AND t.status='pending' AND CAST(JSON_UNQUOTE(JSON_EXTRACT(t.data,'$.createdAt')) AS CHAR) < ? ORDER BY a.id LIMIT 100`,
-      [after, new Date(Date.now() - 24 * 3600000).toISOString()],
+      `SELECT DISTINCT a.id FROM ${REQUEST_CATALOG} a JOIN ${REQUEST_TASK_CATALOG} t ON t.activity_id=a.id JOIN ${REQUEST_NODE_CATALOG} n ON n.id=t.node_id WHERE a.deleted_at IS NULL AND a.status='approving' AND a.id>? AND t.status='pending' AND (CAST(JSON_UNQUOTE(JSON_EXTRACT(t.data,'$.createdAt')) AS CHAR) < ? OR JSON_UNQUOTE(JSON_EXTRACT(n.data,'$.collaboration.dueAt')) < ?) ORDER BY a.id LIMIT 100`,
+      [after, new Date(Date.now() - 24 * 3600000).toISOString(), new Date().toISOString()],
     );
     after = rows.at(-1)?.id || '';
     for (const row of rows) {
@@ -30,6 +30,11 @@ export async function scheduleReminders(pool: Pool): Promise<void> {
         const node = findById(activity.nodes, task.nodeId);
         if (task.status !== 'pending' || node?.status !== 'active' || task.generation !== node.generation)
           continue;
+        if (node.collaboration?.dueAt && Date.parse(node.collaboration.dueAt) < Date.now() && canHandleTask(config, task.assignee, activity, task)) {
+          const parent = findById(activity.tasks, node.collaboration.parentTaskId);
+          const recipients = new Set([task.assignee, parent?.assignee]);
+          for (const recipient of recipients) if (recipient) await enqueue(connection, activity, recipient, `协作任务已逾期：${node.label}`, `collaboration-due:${task.id}:${node.collaboration.dueAt}:${recipient}`);
+        }
         if (age >= 24 * 3600000 && canHandleTask(config, task.assignee, activity, task))
           await enqueue(
             connection,

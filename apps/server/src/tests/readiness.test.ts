@@ -33,7 +33,7 @@ async function readyDatabaseCase(): Promise<void> {
           { version: 5 },
           { version: 6 },
           { version: 7 },
-          { version: 8 }, { version: 9 },
+          { version: 8 }, { version: 9 }, { version: 10 },
         ],
         [],
       ];
@@ -41,6 +41,7 @@ async function readyDatabaseCase(): Promise<void> {
     if (sql.includes('information_schema.TABLES')) return [[{ TABLE_NAME: 'execution_records' }], []];
     if (sql.includes("('context_id','action_key')"))
       return [[{ COLUMN_NAME: 'context_id' }, { COLUMN_NAME: 'action_key' }], []];
+    if (sql.includes("TABLE_NAME='workflow_templates'")) return [[{ COLUMN_NAME: 'created_at' }], []];
     if (sql.includes('information_schema.COLUMNS'))
       return [
         [

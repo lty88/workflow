@@ -27,3 +27,5 @@ export * from './approval-rules';
 
 export * from './lifecycle';
 export * from './business-subprocess';
+
+export * from './collaboration';

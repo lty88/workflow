@@ -109,12 +109,13 @@ export function synchronizeBusinessSubprocess(
   if (!existing.length) {
     let deps = activity.nodes
       .filter(
-        /** 收集已通过的本轮必办节点作为审批段出口。
+        /** 收集已通过的本轮主流程必办节点作为审批段出口，协作任务由父审批负责验收。
          * @param node 实例节点
          * @returns 是否有效审批段节点
          */ function approval(node) {
           return (
             !node.businessStage &&
+            !node.collaboration &&
             node.kind !== 'notice' &&
             node.status === 'completed' &&
             (node.applicationRevision || 1) === revision

@@ -1,16 +1,18 @@
 import type { EdgeData, Graph, GraphOptions } from '@antv/g6';
 
 /**
- * 配置连线样式：手工设计布局实时寻路，其他业务图继续沿用自动布局折点。
+ * 配置已清理重复端点的流程折线与外置箭头，手工布局按当前位置避开节点。
  * @param manualLayout 是否允许手工布局或正在恢复模板坐标
  * @returns G6 折线配置，设计器忽略旧折点并根据当前位置避开节点
  */
 export function graphEdgeOptions(manualLayout: boolean): NonNullable<GraphOptions['edge']> {
   return {
-    type: 'polyline',
+    type: 'workflow-polyline',
     style: {
       endArrow: true,
-      endArrowSize: 7,
+      endArrowType: 'triangle',
+      endArrowSize: 10,
+      endArrowOffset: 11,
       lineWidth: 1.5,
       radius: 8,
       ...(manualLayout

@@ -1,3 +1,4 @@
+import { migrateTemplateTimestamps } from './template-timestamp-migration';
 import { readFile } from 'node:fs/promises';
 import type { Pool, PoolConnection } from 'mysql2/promise';
 import type { ActivityType, CompanyConfig, NodeDefinition, TemplateDefinition } from '@workflow/domain';
@@ -138,6 +139,7 @@ export function initialTemplates(
 export async function migrateTemplates(pool: Pool): Promise<void> {
   const sql = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
   for (const statement of sql.split(';')) if (statement.trim()) await pool.query(statement);
+  await migrateTemplateTimestamps(pool);
   const columns = await query<{ COLUMN_NAME: string }>(
     pool,
     "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='activities'",
@@ -178,7 +180,7 @@ export async function migrateTemplates(pool: Pool): Promise<void> {
       // 原有组织若已改造，保留可修复草稿；默认公司流程也需通过校验后才可用于新申请。
       const version = errors.length ? 0 : 1;
       await connection.execute(
-        'INSERT INTO workflow_templates(id,code,active,current_version,draft,draft_revision,published,created_by) VALUES (?,?,TRUE,?,?,1,?,?)',
+        'INSERT INTO workflow_templates(id,code,active,current_version,draft,draft_revision,published,created_by,created_at,updated_at) VALUES (?,?,TRUE,?,?,1,?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',
         [
           entry.id,
           entry.code,

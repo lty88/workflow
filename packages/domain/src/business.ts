@@ -1,3 +1,4 @@
+import { openCollaborations, synchronizeCollaborations } from './collaboration';
 import { createUuid } from './ids';
 import { lifecycleOf } from './lifecycle';
 import { synchronizeBusinessSubprocess } from './business-subprocess';
@@ -176,6 +177,8 @@ export function decideTask(
     '任务与知会节点只支持完成',
   );
   const node = findById(activity.nodes, task.nodeId)!;
+  requireRule(!node.collaboration, '请通过协作任务入口提交成果并等待验收');
+  if (command.decision === 'approve') requireRule(openCollaborations(activity, task.id) === 0, '请先完成当前待办的协作任务验收');
   const capabilities = decisionCapabilities(config, actor, activity, task);
   requireRule(!command.comment?.trim(), '节点内部说明已移除，请填写审批意见');
   const opinion = command.publicComment?.trim() || '';
@@ -313,6 +316,7 @@ export function transferTask(
     tasks: [...activity.tasks, prospectiveTask],
   };
   requireRule(canReadActivity(config, command.assignee, prospective), '新受理人数据范围不覆盖本活动');
+  requireRule(!node.collaboration, '协作任务请由派发人撤销后重新指派');
   const previous = task.assignee;
   /**
    * 移除转交前的受理人标识。
@@ -336,6 +340,7 @@ export function transferTask(
     `${findById(config.users, previous)?.name || previous} → ${findById(config.users, command.assignee)?.name || command.assignee}；${command.reason}`,
     node.id,
   );
+  synchronizeCollaborations(activity);
 }
 
 /**
@@ -448,8 +453,8 @@ export function applyActivityAction(
       activity.status = 'ready_execute';
       title = '指派执行人';
       break;
-    case 'start':
-      requireRule(Date.parse(activity.payload.start_at || '') <= Date.now(), '请到计划开始时间再开始');
+    case 'start': // 开始执行
+      requireRule(Date.parse(activity.payload.start_at || '') <= Date.now(), '请到计划开始时间再开始'); // 开始时间不能早于当前时间
       activity.actualStart = new Date().toISOString();
       activity.status = 'executing';
       title = '开始执行';
@@ -583,7 +588,7 @@ export function adjustWorkflow(
   requireRule(!!input.name.trim(), '请填写节点名称');
   requireRule(!!input.reason.trim(), '请填写调整原因');
   const anchor = findById(activity.nodes, input.anchor);
-  requireRule(anchor && !['invalidated', 'skipped'].includes(anchor.status), '请选择当前有效节点');
+  requireRule(anchor && !anchor.collaboration && !['invalidated', 'skipped'].includes(anchor.status), '请选择当前有效节点');
   if (input.position === 'before') requireRule(anchor.status !== 'completed', '已完成节点不能前加签');
   const children: WorkflowNode[] = [];
   for (const node of activity.nodes) if (node.deps.includes(anchor.id)) children.push(node);

@@ -31,6 +31,7 @@ export interface TemplateDefinition {
   layout: TemplateLayout;
 }
 export interface WorkflowTemplate {
+  createdAt?: string | null;
   id: string;
   code: string;
   active: boolean;

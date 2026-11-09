@@ -15,6 +15,7 @@ import {
   activityDeleteSchema,
   fileAccessWriteSchema,
   actionSchema,
+  activeMember,
   adjustmentSchema,
   canReadActivity,
   decisionSchema,
@@ -53,6 +54,8 @@ import { listActivities } from './services/list-service';
 import type { ActivityListItem } from './services/list-service';
 import { uploadFile, authorizeFileRead, updateFileAccess } from './services/file-service';
 import { isAllowedOrigin } from './services/origin';
+import { createCollaboration, updateCollaboration } from './services/collaboration-service';
+import { collaborationDispatchSchema, collaborationActionSchema } from '@workflow/domain';
 import { registerInsightsRoutes } from './routes/insights';
 import { notificationFeed } from './services/notification-service';
 import { registerTemplateRoutes } from './routes/templates';
@@ -493,6 +496,24 @@ export async function buildApp(pool: Pool, env: Environment) {
     return handleDecision(pool, actorId(request), resourceId(request), decisionSchema.parse(request.body));
   }
   app.post('/api/tasks/:id/decisions', decide);
+  /** 为当前个人审批待办派发一组协作任务。
+   * @param request 真实会话及派发请求
+   * @returns 新的申请版本
+   */
+  async function dispatchCollaborationRoute(request: FastifyRequest) {
+    return createCollaboration(pool, actorId(request), resourceId(request), collaborationDispatchSchema.parse(request.body));
+  }
+  app.post('/api/tasks/:id/collaborations', dispatchCollaborationRoute);
+  /** 由协作办理人提交成果，或由父审批待办持有人验收。
+   * @param request 申请、协作节点和操作请求
+   * @returns 新的申请版本
+   */
+  async function collaborationActionRoute(request: FastifyRequest) {
+    const params = z.object({ id: z.string().min(1).max(80), nodeId: z.string().min(1).max(80) }).parse(request.params);
+    return updateCollaboration(pool, actorId(request), params.id, params.nodeId, collaborationActionSchema.parse(request.body));
+  }
+  app.post('/api/requests/:id/collaborations/:nodeId/actions', collaborationActionRoute);
+  app.post('/api/activities/:id/collaborations/:nodeId/actions', collaborationActionRoute);
 
   /**
    * 转交受阻或需更换人员的当前待办。
@@ -553,6 +574,7 @@ export async function buildApp(pool: Pool, env: Environment) {
           name: member.name,
           department: member.department,
           canExecute: hasPermission(config, member.id, 'execution:report'),
+          canCollaborate: activeMember(config, member.id) && hasPermission(config, member.id, 'activity:read') && hasPermission(config, member.id, 'task:complete'),
         });
     const roles = [];
     if (hasPermission(config, actor, 'activity:read') || hasPermission(config, actor, 'config:manage'))

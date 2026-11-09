@@ -22,7 +22,7 @@ async function migrate(): Promise<void> {
     await migrateExecutionAttachments(pool);
     await migrateRequests(pool);
     console.info(
-      '数据库已升级至第九版通用申请结构；组织、人员设置保存即生效，现有密码和活动历史保留。',
+      '数据库已升级至第十版，流程模板已支持创建与更新时间。',
     );
   } finally {
     await pool.end();

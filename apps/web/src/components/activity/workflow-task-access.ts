@@ -17,6 +17,7 @@ export function canDecideWorkflowTask(detail: WorkflowViewDetail, task: Workflow
     activity.status === 'approving' &&
     task.status === 'pending' &&
     task.assignee === profile.user.id &&
+    !node?.collaboration &&
     node?.kind !== 'notice' &&
     (node?.kind !== 'approval' || activity.applicant !== profile.user.id) &&
     !detail.taskWarnings?.some((warning) => warning.taskId === task.id) &&
@@ -40,6 +41,7 @@ export function canTransferWorkflowTask(detail: WorkflowViewDetail, task: Workfl
     detail.activity.status === 'approving' &&
     !!detail.actions?.includes('adjust') &&
     task.status === 'pending' &&
+    !node?.collaboration &&
     node?.status === 'active' &&
     node.generation === task.generation
   )

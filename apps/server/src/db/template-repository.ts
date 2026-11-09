@@ -11,11 +11,12 @@ interface TemplateRow {
   draft_revision: number;
   draft: unknown;
   published: unknown;
+  created_at?: string | null;
   updated_at: string;
 }
 
 /**
- * 将模板记录转换成接口模型，旧草稿解除默认节点锁定，发布历史保持原样。
+ * 将模板记录和服务端创建、更新时间转换成接口模型，兼容旧模板缺少创建记录。
  * @param row 数据库记录
  * @returns 模板模型
  */
@@ -28,6 +29,7 @@ function templateValue(row: TemplateRow): WorkflowTemplate {
     draftRevision: row.draft_revision,
     draft: editableTemplateDefinition(jsonValue(row.draft)),
     published: row.published ? jsonValue(row.published) : null,
+    createdAt: row.created_at || null,
     updatedAt: row.updated_at,
   };
 }

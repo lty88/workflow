@@ -1,6 +1,7 @@
 <script setup lang="tsx">
   import { computed, ref, watch } from 'vue'
   import { NButton, NSelect, NTag } from 'naive-ui'
+  import { lifecycleOf, openCollaborations } from '@workflow/domain'
   import type { WorkflowTask } from '@workflow/domain'
   import type { ActivityActionBarProps } from './types'
   import { ACTION_LABELS } from '@/components/activity/types'
@@ -10,7 +11,7 @@
   import { participantName } from './presentation'
   import { detailActionAppearance } from './action-presentation'
   const props = defineProps<ActivityActionBarProps>()
-  const emit = defineEmits<{ action: [code: string]; decide: [task: WorkflowTask]; transfer: [task: WorkflowTask]; deleted: []; refresh: []; current: [] }>()
+  const emit = defineEmits<{ action: [code: string]; decide: [task: WorkflowTask]; collaborate: [task: WorkflowTask]; collaborationWork: []; transfer: [task: WorkflowTask]; deleted: []; refresh: []; current: [] }>()
   const auth = useAuthStore()
   const selectedTaskId = ref<string | null>(null)
   const transferTaskId = ref<string | null>(null)
@@ -21,8 +22,10 @@
   const selectedTask = computed(() => personalTasks.value.find((task) => task.id === selectedTaskId.value))
   const selectedTransfer = computed(() => transferableTasks.value.find((task) => task.id === transferTaskId.value))
   const taskKind = computed(() => props.detail.activity.nodes.find((node) => node.id === selectedTask.value?.nodeId)?.kind)
+  const collaborationCount = computed(() => (props.detail.collaborationCapabilities?.submitNodeIds.length || 0) + (props.detail.collaborationCapabilities?.reviewNodeIds.length || 0))
+  const requestLabel = computed(() => lifecycleOf(props.detail.activity).businessType === 'general' ? '申请' : '活动')
   const hasActions = computed(
-    () => props.actions.length || props.detail.actions.includes('delete') || personalTasks.value.length || transferableTasks.value.length
+    () => props.actions.length || props.detail.actions.includes('delete') || personalTasks.value.length || transferableTasks.value.length || collaborationCount.value
   )
 
   /**
@@ -55,8 +58,8 @@
 <template>
   <footer class="activity-action-bar" aria-label="活动办理操作">
     <div class="action-context">
-      <strong>{{ historical ? '正在查看历史申请' : personalTasks.length ? `你有 ${personalTasks.length} 项待办` : '活动操作' }}</strong>
-      <span>{{ historical ? '返回当前申请后可继续办理' : hasActions ? '按当前身份与活动状态展示可用操作' : '当前暂无待办，可查看活动资料与办理记录' }}</span>
+      <strong>{{ historical ? '正在查看历史申请' : personalTasks.length ? `你有 ${personalTasks.length} 项待办` : collaborationCount ? `你有 ${collaborationCount} 项协作待办` : requestLabel + '操作' }}</strong>
+      <span>{{ historical ? '返回当前申请后可继续办理' : hasActions ? detail.activity.code : '当前暂无待办，可查看资料与办理记录' }}</span>
     </div>
     <NButton v-if="historical" type="primary" @click="emit('current')">返回当前申请</NButton>
     <template v-else>
@@ -65,6 +68,7 @@
           <NSelect v-model:value="transferTaskId" :options="transferOptions" :disabled="loading" filterable aria-label="选择待转交的节点" />
           <NButton :disabled="loading || !selectedTransfer" @click="transfer">转交待办</NButton>
         </div>
+        <NButton v-if="collaborationCount" type="primary" :disabled="loading" @click="emit('collaborationWork')">办理协作任务 · {{ collaborationCount }}</NButton>
         <div class="action-group business-actions">
           <NButton
             v-for="item in actions"
@@ -90,6 +94,8 @@
           <NTag v-else :bordered="false" type="info" class="task-node-label">
             {{ detail.activity.nodes.find((node) => node.id === selectedTask?.nodeId)?.label }}
           </NTag>
+          <NTag v-if="selectedTask && openCollaborations(detail.activity, selectedTask.id)" type="warning" :bordered="false">协作待验收 {{ openCollaborations(detail.activity, selectedTask.id) }}</NTag>
+          <NButton v-if="selectedTask && detail.collaborationCapabilities?.dispatchTaskIds.includes(selectedTask.id)" :disabled="loading" @click="emit('collaborate', selectedTask!)">派发任务</NButton>
           <NButton :type="taskKind === 'approval' ? 'primary' : 'success'" :disabled="loading || !selectedTask" @click="decide">
             {{ taskKind === 'approval' ? '办理审批' : '完成节点任务' }}
           </NButton>
@@ -104,11 +110,12 @@
     bottom: 12px;
     z-index: 8;
     margin-top: 22px;
-    padding: 16px 20px;
-    background: #fff;
-    border: 1px solid #dce5f4;
-    border-radius: 12px;
-    box-shadow: 0 -4px 24px #23345212;
+    padding: 14px 20px;
+    background: #ffffffed;
+    backdrop-filter: blur(12px);
+    border: 1px solid #e0e7f1;
+    border-radius: 14px;
+    box-shadow: 0 5px 26px #233b6110;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -118,11 +125,13 @@
   .action-context {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
+    padding-right: 16px;
   }
   .action-context strong {
     color: #273d62;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 600;
   }
   .action-context span {
     color: #77859b;

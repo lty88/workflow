@@ -1,6 +1,6 @@
 <script setup lang="tsx">
   import { computed, ref } from 'vue'
-  import { NButton, NEmpty, NTag } from 'naive-ui'
+  import { NButton } from 'naive-ui'
   import type { ActivityDetailSectionProps } from './types'
   import { formatTime, formatMoney } from '@/composables/format'
   import BusinessAttachmentReceipt from './BusinessAttachmentReceipt.vue'
@@ -15,112 +15,169 @@
   }
 </script>
 <template>
-  <section class="execution-records">
-    <div class="records-heading">
+  <section class="execution-card execution-records">
+    <header class="card-heading">
       <h2>
+        <span class="card-marker" />
         执行记录
-        <NTag :bordered="false" type="info">{{ records.length }} 条</NTag>
+        <span class="record-count">{{ records.length }}</span>
       </h2>
-      <span>按提交时间倒序</span>
-    </div>
-    <NEmpty
-      v-if="!records.length"
-      :description="detail.activity.report ? '该活动使用历史单次汇报，请查看完成汇总' : '暂无执行记录，执行人可以按日报或阶段进展持续提交'"
-      size="small"
-    />
+      <span class="card-caption">最新记录在前</span>
+    </header>
+    <p v-if="!records.length" class="records-empty">
+      {{ detail.activity.report ? '该活动使用单次汇报，请查看执行完成汇总。' : '暂无执行记录，执行人可按日报或阶段进展持续提交。' }}
+    </p>
     <article v-for="record in visibleRecords" :key="record.id" class="execution-record">
-      <header>
-        <strong>{{ record.title || '执行进展记录' }}</strong>
+      <div class="record-heading">
+        <span class="record-avatar" aria-hidden="true">{{ record.authorName.slice(0, 1) }}</span>
+        <div class="record-title">
+          <strong>{{ record.title || '执行进展记录' }}</strong>
+          <span>{{ record.authorName }}</span>
+        </div>
         <time>{{ formatTime(record.submittedAt) }}</time>
-      </header>
-      <div class="record-author">提交人：{{ record.authorName }} · 本次实到 {{ record.people }} 人</div>
-      <div class="record-period">{{ formatTime(record.start) }} — {{ formatTime(record.end) }}</div>
-      <p>{{ record.summary }}</p>
-      <div v-if="record.spend" class="record-spend">本次支出：{{ formatMoney(record.spend) }}</div>
-      <div v-if="record.exception" class="record-exception">
-        <strong>异常说明</strong>
-        <p>{{ record.exception }}</p>
       </div>
-      <BusinessAttachmentReceipt :detail="detail" :context-id="record.id" @uploaded="emit('uploaded')" />
+      <div class="record-content">
+        <div class="record-period">{{ formatTime(record.start) }} — {{ formatTime(record.end) }}</div>
+        <p class="body-copy">{{ record.summary }}</p>
+        <div class="record-metrics">
+          <span>
+            本次实到
+            <b>{{ record.people }}</b>
+            人
+          </span>
+          <span v-if="record.spend">
+            本次支出
+            <b>{{ formatMoney(record.spend) }}</b>
+          </span>
+        </div>
+        <div v-if="record.exception" class="record-exception">
+          <strong>异常说明</strong>
+          <p class="body-copy">{{ record.exception }}</p>
+        </div>
+        <BusinessAttachmentReceipt :detail="detail" :context-id="record.id" @uploaded="emit('uploaded')" />
+      </div>
     </article>
-    <NButton v-if="records.length > count" block @click="showMore">查看更多记录（剩余 {{ records.length - count }} 条）</NButton>
+    <NButton v-if="records.length > count" block secondary class="more-records" @click="showMore">查看更多记录（剩余 {{ records.length - count }} 条）</NButton>
   </section>
 </template>
+<style scoped src="./execution-sections.css" />
 <style scoped>
-  .execution-records {
-    margin-top: 28px;
+  .record-count {
+    padding: 0 6px;
+    color: #7c8da8;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 20px;
+    border-radius: 5px;
+    background: #f0f4fa;
   }
-  .records-heading,
-  .execution-record header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
+  .execution-record + .execution-record {
+    border-top: 1px solid #edf1f6;
+    margin-top: 18px;
+    padding-top: 18px;
   }
-  .records-heading {
-    margin-bottom: 18px;
-  }
-  h2 {
+  .record-heading {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 17px;
-    margin: 0;
   }
-  .records-heading > span,
-  time {
-    color: #7e8ba0;
+  .record-avatar {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border-radius: 10px;
+    background: #eef3fc;
+    color: #6b86b6;
     font-size: 12px;
   }
-  .execution-record {
-    padding: 20px;
-    border: 1px solid #e2e9f4;
-    border-left: 3px solid #4c7de5;
-    border-radius: 10px;
-    margin-bottom: 16px;
-    background: #fff;
+  .record-title {
+    flex: 1;
+    min-width: 0;
   }
-  .execution-record header strong {
-    color: #2a426c;
-    font-size: 15px;
+  .record-title strong {
+    display: block;
+    color: #435775;
+    font-size: 14px;
+    font-weight: 500;
     overflow-wrap: anywhere;
   }
-  .record-author {
-    color: #647591;
-    margin-top: 10px;
-    font-size: 13px;
+  .record-title > span {
+    display: block;
+    margin-top: 2px;
+    color: #8a96a9;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  time {
+    color: #98a4b5;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .record-content {
+    margin: 12px 0 0 42px;
+    padding: 14px 16px;
+    border-radius: 9px;
+    background: #f8fafd;
+    border: 1px solid #f0f3f8;
   }
   .record-period {
-    color: #8490a4;
-    font-size: 12px;
-    margin: 7px 0 14px;
+    color: #8a99ae;
+    font-size: 11px;
+    margin-bottom: 10px;
+    font-variant-numeric: tabular-nums;
   }
-  p {
-    color: #445875;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    line-height: 1.9;
-    font-size: 14px;
-    margin: 0;
-  }
-  .record-spend {
-    color: #5b6f8e;
-    font-size: 13px;
+  .record-metrics {
+    display: flex;
+    gap: 8px 24px;
+    flex-wrap: wrap;
     margin-top: 12px;
+    color: #8090a7;
+    font-size: 12px;
+  }
+  .record-metrics b {
+    color: #5a708f;
+    font-weight: 500;
   }
   .record-exception {
-    margin-top: 15px;
-    padding: 12px 14px;
-    background: #fff7e9;
-    border-radius: 8px;
-    color: #9b6e24;
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: #fff8eb;
+    border-radius: 6px;
   }
   .record-exception strong {
-    font-size: 13px;
+    color: #a18143;
+    font-size: 12px;
   }
-  .record-exception p {
-    color: #8b703f;
-    margin-top: 6px;
+  .record-exception .body-copy {
+    font-size: 13px;
+    margin-top: 5px;
+    color: #987d50;
+  }
+  .records-empty {
+    margin: 0;
+    padding: 14px;
+    border-radius: 8px;
+    background: #f7f9fc;
+    color: #8a97aa;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  .more-records {
+    margin-top: 18px;
+  }
+  @media (max-width: 600px) {
+    .record-heading {
+      flex-wrap: wrap;
+    }
+    time {
+      width: 100%;
+      padding-left: 42px;
+    }
+    .record-content {
+      margin-left: 0;
+      padding: 12px;
+    }
   }
 </style>

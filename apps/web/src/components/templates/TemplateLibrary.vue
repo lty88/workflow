@@ -2,6 +2,7 @@
   import { computed, ref } from 'vue'
   import { NButton, NCard, NEmpty, NInput, NPopconfirm, NSelect, NTag } from 'naive-ui'
   import type { TemplateLibraryProps } from './types'
+  import { formatTime } from '@/composables/format'
   import { lifecycleOf } from '@workflow/domain'
   import type { TemplateDefinition, WorkflowTemplate } from '@workflow/domain'
   const props = defineProps<TemplateLibraryProps>()
@@ -104,6 +105,10 @@
         <p class="help-text">审批通过后：{{ lifecycleOf(definition(item)).afterApproval === 'complete' ? '直接办结' : '接续执行与归档' }}</p>
         <p class="help-text">编码 {{ item.code }} · {{ definition(item).nodes.length }}个节点</p>
         <p v-if="definition(item).defaultForTypeIds.length" class="help-text">默认推荐：{{ typeNames(definition(item).defaultForTypeIds) }}</p>
+        <div class="template-times">
+          <span>创建时间 <time :datetime="item.createdAt || undefined">{{ formatTime(item.createdAt || undefined) }}</time></span>
+          <span>更新时间 <time :datetime="item.updatedAt">{{ formatTime(item.updatedAt) }}</time></span>
+        </div>
         <div class="gap">
           <NButton type="primary" :disabled="busy" @click="emit('edit', item)">设计模板</NButton>
           <NButton :disabled="busy" @click="emit('copy', item)">复制</NButton>
@@ -130,6 +135,19 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 20px;
+  }
+  .template-times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 12px 0 16px;
+    color: #7b899e;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .template-times time {
+    margin-left: 6px;
+    color: #52647c;
   }
   .template-cards .gap {
     flex-wrap: wrap;

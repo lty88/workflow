@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import { seedConfig, topological } from '@workflow/domain';
 import type { WorkflowNode } from '@workflow/domain';
 import { organizationGraph, runtimeGraph, templateGraph } from '../../../web/src/components/graph/models';
+import { collaborationNodes, collaborationProgressState } from '../../../web/src/components/activity/collaboration/presentation';
 import type { WorkflowViewDetail } from '../../../web/src/components/activity/types';
 
 /**
@@ -189,3 +190,37 @@ function runtimeCase(): void {
   ).toBe('取消审批中');
 }
 test('G6审批图隔离申请轮次，支持历史查看和取消状态分支', runtimeCase);
+
+
+/** 校验协作任务、验收节点和顺序依赖真实出现在完整图，验收不作为主流程出口。 */
+function collaborationGraphCase(): void {
+  const input = detail();
+  const parent = input.activity.nodes.find((node) => node.id === 'current')!;
+  const base: WorkflowNode = { id: 'co-first', key: 'co-first', label: '视觉方案', kind: 'task', deps: [], assigneeRule: { type: 'user', value: 'u-su' }, assignees: ['u-su'], status: 'active', generation: 1, applicationRevision: 2, collaboration: { parentTaskId: 'parent-task', parentNodeId: parent.id, parentGeneration: 1, groupId: 'group', instructions: '上传方案', attachmentRequired: true, state: 'submitted', submissions: [] } };
+  const second: WorkflowNode = { ...base, id: 'co-second', key: 'co-second', label: '印制材料', deps: [base.id], status: 'waiting', collaboration: { ...base.collaboration!, state: 'working', submissions: [] } };
+  input.activity.nodes.push(base, second);
+  input.activity.tasks.push({ id: 'parent-task', activityId: 'a1', nodeId: parent.id, assignee: 'u-chen', generation: 1, version: 1, status: 'pending', comment: '' });
+  const model = runtimeGraph(input);
+  expect(model.data.nodes?.find((node) => node.id === 'runtime:co-first')?.data?.summary).toContain('待验收');
+  expect(model.data.nodes?.find((node) => node.id === 'collaboration-review:co-first')?.data?.summary).toContain('陈宁');
+  expect(model.data.edges?.some((edge) => edge.source === 'runtime:current' && edge.target === 'runtime:co-first')).toBe(true);
+  expect(model.data.edges?.some((edge) => edge.source === 'collaboration-review:co-first' && edge.target === 'runtime:co-second')).toBe(true);
+  expect(model.data.edges?.some((edge) => edge.source === 'runtime:co-second' && edge.target === 'stage:approved')).toBe(false);
+  const graphNodes = (model.data.nodes || []).map(
+    /** 从实际图边恢复依赖，验证新增验收连接不会形成循环。
+     * @param node 图节点
+     * @returns 拓扑输入
+     */ function dependencies(node) { return { id: node.id, deps: (model.data.edges || []).filter((edge) => edge.target === node.id).map((edge) => String(edge.source)) }; },
+  );
+  expect(topological(graphNodes).error).toBe('');
+  expect(collaborationNodes(input, parent.id)).toHaveLength(2);
+  parent.generation = 2;
+  expect(collaborationNodes(input, parent.id)).toHaveLength(0);
+  expect(collaborationNodes(input, parent.id, true)).toHaveLength(2);
+  expect(runtimeGraph(input).data.nodes?.some((node) => node.id === 'runtime:co-first')).toBe(false);
+  expect(runtimeGraph(input, true).data.nodes?.some((node) => node.id === 'runtime:co-first')).toBe(true);
+  expect(collaborationProgressState(second).label).toBe('等待前序验收');
+  base.collaboration!.state = 'accepted';
+  expect(collaborationProgressState(base).label).toBe('已验收');
+}
+test('完整图展开协作及验收分支，串行与历史轮次口径一致且无环', collaborationGraphCase);

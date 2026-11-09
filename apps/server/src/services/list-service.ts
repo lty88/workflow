@@ -61,6 +61,10 @@ export function activityScopeWhere(
   const conditions: string[] = [];
   const params: unknown[] = [];
   const member = findById(config.users, actor)!;
+  if (permission === 'activity:read' && hasPermission(config, actor, 'activity:read') && hasPermission(config, actor, 'task:complete')) {
+    conditions.push("EXISTS(SELECT 1 FROM workflow_nodes n WHERE n.activity_id=a.id AND JSON_EXTRACT(n.data,'$.collaboration') IS NOT NULL AND JSON_CONTAINS(JSON_EXTRACT(n.data,'$.assignees'),JSON_QUOTE(?)))");
+    params.push(actor);
+  }
   for (const role of rolesFor(config, actor)) {
     if (!role.permissions.includes(permission)) continue;
     if (role.scope === 'all') return { sql: '1=1', params: [] };

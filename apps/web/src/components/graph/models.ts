@@ -4,6 +4,7 @@ import type { EdgeData, NodeData } from '@antv/g6'
 import { activeMember, findById, topological, STATUSES, lifecycleOf, ACTIVITY_SUBPROCESS, activitySubprocessPosition } from '@workflow/domain'
 import type { ActivityStatus, CompanyConfig } from '@workflow/domain'
 import type { WorkflowViewDetail } from '@/components/activity/types'
+import { collaborationNodes, collaborationProgressState } from '@/components/activity/collaboration/presentation'
 import { nodeProgressStatus } from '@/components/activity/workflow-progress'
 import { NODE_STATUSES } from '@/components/activity/types'
 import type { BusinessGraphModel, GraphNodeMeta, GraphTone, OrganizationCardMeta } from './types'
@@ -287,7 +288,7 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
 }
 
 /**
- * 将实际节点轮次、受理人和当前状态转换为G6审批进度图，默认显示本次申请。
+ * 将实际节点轮次、受理人和状态转换为G6进度图，先校验完整依赖再分别绘制主线和协作分支。
  * @param detail 服务端流程详情
  * @param showHistory 是否叠加历史申请节点；纯知会通过虚线连接自动完成阶段
  * @returns 实际流程图
@@ -295,7 +296,7 @@ export function templateGraph(config: CompanyConfig): BusinessGraphModel {
 export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): BusinessGraphModel {
   const all = detail.activity.nodes
   const revision = detail.activity.revision || 1
-  const current = all.filter(
+  const selected = all.filter(
     /**
      * 按申请轮次选择当前或历史节点。
      * @param node 节点
@@ -304,12 +305,18 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
       return showHistory || (node.applicationRevision || 1) === revision
     }
   )
-  const checked = topological(current)
+  const checked = topological(selected)
   if (checked.error) return { data: { nodes: [], edges: [] }, issue: checked.error }
+  const current = checked.order.filter(
+    /** 提取已校验的主线节点，协作任务由专门的分支绘制逻辑展示。
+     * @param node 实例节点
+     * @returns 是否主流程或业务步骤
+     */ function main(node) { return !node.collaboration }
+  )
   const nodes: NodeData[] = []
   const edges: EdgeData[] = []
   const hasRealStatus = !!detail.activity.status
-  for (const node of checked.order) {
+  for (const node of current) {
     const progress = nodeProgressStatus(node, detail.activity.tasks, detail.activity.status)
     let tone: GraphTone =
       progress === 'rejected'
@@ -329,17 +336,20 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
     }
     const names: string[] = []
     for (const id of node.assignees) names.push(findById(detail.participants, id)?.name || id)
+    let pendingCollaboration = 0
+    for (const child of all) if (child.collaboration?.parentNodeId === node.id && !['accepted', 'cancelled'].includes(child.collaboration.state)) pendingCollaboration++
     nodes.push(
       visualNode('runtime:' + node.id, {
         businessId: node.id,
         kind: 'runtime',
         label: node.label,
-        summary: `${NODE_STATUSES[progress]} · ${names.join('、') || '无受理人'} · V${node.applicationRevision || revision}`,
+        summary: `${NODE_STATUSES[progress]} · ${names.join('、') || '无受理人'} · V${node.applicationRevision || revision}${pendingCollaboration ? ' · 协作待验收 ' + pendingCollaboration : ''}`,
         tone,
       })
     )
     if (node.businessStage !== 'assign') for (const dep of node.deps) edges.push(edge('runtime:' + dep, 'runtime:' + node.id, node.kind === 'notice' || node.status === 'skipped'))
   }
+  appendCollaborationGraph(detail, current, nodes, edges, showHistory)
   if (nodes.length && hasRealStatus) {
     const approved = !['draft', 'approving', 'needs_info', 'withdrawn', 'rejected'].includes(detail.activity.status!)
     nodes.push(
@@ -392,6 +402,85 @@ export function runtimeGraph(detail: WorkflowViewDetail, showHistory = false): B
     addException(nodes, edges, detail)
   }
   return { data: { nodes, edges } }
+}
+
+/** 在所属审批旁展开协作任务与成果验收，顺序任务从前项验收节点进入。
+ * @param detail 当前流程详情
+ * @param parents 当前展示的主流程节点
+ * @param nodes 图节点输出
+ * @param edges 图连接输出
+ * @param showHistory 是否展示历史协作轮次
+ */
+function appendCollaborationGraph(
+  detail: WorkflowViewDetail,
+  parents: import("@workflow/domain").WorkflowNode[],
+  nodes: NodeData[],
+  edges: EdgeData[],
+  showHistory: boolean,
+): void {
+  const tones: Record<string, GraphTone> = {
+    info: "active",
+    warning: "warning",
+    success: "success",
+    default: "muted",
+  };
+  for (const parent of parents) {
+    const children = collaborationNodes(detail, parent.id, showHistory);
+    for (const child of children) {
+      const data = child.collaboration!;
+      const state = collaborationProgressState(child);
+      const assignee =
+        findById(detail.participants, child.assignees[0] || "")?.name ||
+        child.assignees[0] ||
+        "办理人";
+      const ownerTask = findById(detail.activity.tasks, data.parentTaskId);
+      const reviewer =
+        findById(detail.participants, ownerTask?.assignee || "")?.name ||
+        ownerTask?.assignee ||
+        "当前审批人";
+      nodes.push(
+        visualNode("runtime:" + child.id, {
+          businessId: child.id,
+          kind: "runtime",
+          label: "协作 · " + child.label,
+          summary: `${state.label} · ${assignee} · 第${child.generation}轮`,
+          tone: tones[state.tone]!,
+        }),
+      );
+      const reviewLabel =
+        data.state === "accepted"
+          ? "验收通过"
+          : data.state === "submitted"
+            ? "待验收"
+            : data.state === "cancelled"
+              ? "已关闭"
+              : "等待成果提交";
+      nodes.push(
+        visualNode("collaboration-review:" + child.id, {
+          businessId: child.id,
+          kind: "stage",
+          label: "成果验收",
+          summary: `${reviewLabel} · ${reviewer}`,
+          tone: data.state === "working" ? "normal" : tones[state.tone]!,
+        }),
+      );
+      if (!child.deps.length)
+        edges.push(edge("runtime:" + parent.id, "runtime:" + child.id, true));
+      for (const dep of child.deps) {
+        if (findById(children, dep))
+          edges.push(
+            edge("collaboration-review:" + dep, "runtime:" + child.id),
+          );
+      }
+      edges.push(
+        edge(
+          "runtime:" + child.id,
+          "collaboration-review:" + child.id,
+          data.state === "cancelled",
+        ),
+      );
+    }
+  }
 }
 
 /**

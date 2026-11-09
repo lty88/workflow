@@ -18,31 +18,115 @@
       </template>
       <WorkflowTimeline :detail="detail" :read-only="readOnly" @decide="emit('decide', $event)" @transfer="emit('transfer', $event)" />
     </NCard>
-    <NCard v-if="section !== 'progress'" title="办理记录">
-      <template #header-extra>
-        <span class="muted">{{ detail.activity.audit.length }} 条</span>
-      </template>
+    <section v-if="section !== 'progress'" class="records-panel">
+      <header class="records-header">
+        <h2>
+          办理记录
+          <span>{{ detail.activity.audit.length }}</span>
+        </h2>
+        <small>按发生时间倒序</small>
+      </header>
       <div class="history">
         <div v-for="item in [...detail.activity.audit].reverse()" :key="item.id" class="history-item">
-          <strong>{{ ACTION_LABELS[item.action] || item.action }} · {{ item.actorName }}</strong>
+          <div class="history-heading">
+            <strong>{{ ACTION_LABELS[item.action] || item.action }}</strong>
+            <time>{{ formatTime(item.createdAt) }}</time>
+          </div>
+          <span class="history-actor">{{ item.actorName }}</span>
           <p v-if="item.publicNote">{{ item.publicNote }}</p>
           <p v-if="item.note">{{ item.note }}</p>
-          <time>{{ formatTime(item.createdAt) }}</time>
           <BusinessAttachmentReceipt v-if="item.attachmentContextId" :detail="detail" :context-id="item.attachmentContextId" @uploaded="emit('uploaded')" />
         </div>
         <NEmpty v-if="!detail.activity.audit.length" description="暂无记录" size="small" />
       </div>
-    </NCard>
+    </section>
   </div>
 </template>
 
 <style scoped>
-  :deep(.history-item),
-  :deep(.history-item p) {
+  .records-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .records-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 16px;
+    color: #2e405b;
+  }
+  .records-header h2 span {
+    border-radius: 5px;
+    padding: 2px 6px;
+    background: #f0f4fb;
+    color: #8798b4;
+    font-size: 12px;
+    font-weight: 400;
+  }
+  .records-header small {
+    font-size: 12px;
+    color: #96a2b3;
+  }
+  .history-item {
+    position: relative;
+    margin: 0 0 0 5px;
+    padding: 0 0 24px 22px;
+    border-left: 1px solid #e5ebf4;
+    border-bottom: 0;
+  }
+  .history-item::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 7px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #b7c8e4;
+    box-shadow: 0 0 0 4px #fff;
+  }
+  .history-item:first-child::before {
+    background: #5d84d5;
+  }
+  .history-item:last-child {
+    border-left-color: transparent;
+    padding-bottom: 0;
+  }
+  .history-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .history-heading strong {
+    color: #425571;
     font-size: 14px;
+    font-weight: 500;
+  }
+  .history-heading time {
+    color: #98a5b8;
+    font-size: 11px;
+  }
+  .history-actor {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #8291a8;
+  }
+  .history-item p {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    background: #f8fafd;
+    border-radius: 7px;
+    font-size: 13px;
+    color: #687b97;
     line-height: 1.8;
   }
-  :deep(.history-item time),
   :deep(.node-meta),
   :deep(.task-line),
   :deep(.muted) {

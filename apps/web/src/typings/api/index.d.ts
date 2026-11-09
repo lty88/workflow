@@ -41,7 +41,7 @@ export interface ListParams {
   pageSize?: number;
 }
 export interface Directory {
-  users: Array<{ id: string; name: string; department: string; canExecute: boolean }>;
+  users: Array<{ id: string; name: string; department: string; canCollaborate?: boolean; canExecute: boolean }>;
   roles: Array<{ id: string; name: string }>;
   departments: Department[];
 }
